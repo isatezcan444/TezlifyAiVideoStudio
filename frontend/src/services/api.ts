@@ -1,4 +1,10 @@
 import { MediaAsset, MediaListResponse, SystemStatus } from '../types/media';
+import {
+  YouTubeStatusResponse,
+  StartPublishRequest,
+  PublishRecord,
+  PublishListResponse,
+} from '../types/publish';
 
 const API_BASE = '/api/v1';
 
@@ -101,6 +107,85 @@ export const apiService = {
 
   getThumbnailUrl(mediaId: string): string {
     return `${API_BASE}/media/${mediaId}/thumbnail`;
+  },
+
+  // YouTube Publisher API
+  async getYouTubeStatus(): Promise<YouTubeStatusResponse> {
+    const res = await fetch(`${API_BASE}/social/youtube/status`);
+    if (!res.ok) throw new ApiError('YouTube durumu alınamadı.', res.status);
+    return res.json();
+  },
+
+  async connectYouTube(): Promise<{ auth_url: string; state: string }> {
+    const res = await fetch(`${API_BASE}/social/youtube/connect`, {
+      method: 'POST',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'YouTube bağlantı oturumu başlatılamadı.', res.status, err.error_code);
+    }
+    return res.json();
+  },
+
+  async disconnectYouTube(): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`${API_BASE}/social/youtube/disconnect`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'YouTube bağlantısı kesilemedi.', res.status, err.error_code);
+    }
+    return res.json();
+  },
+
+  async startPublish(req: StartPublishRequest): Promise<PublishRecord> {
+    const res = await fetch(`${API_BASE}/social/youtube/publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'Yayınlama başlatılamadı.', res.status, err.error_code);
+    }
+    return res.json();
+  },
+
+  async listPublishRecords(limit = 50, offset = 0): Promise<PublishListResponse> {
+    const res = await fetch(`${API_BASE}/social/youtube/publish?limit=${limit}&offset=${offset}`);
+    if (!res.ok) throw new ApiError('Yayın geçmişi yüklenemedi.', res.status);
+    return res.json();
+  },
+
+  async getPublishRecord(publishId: string): Promise<PublishRecord> {
+    const res = await fetch(`${API_BASE}/social/youtube/publish/${publishId}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'Yayın durumu alınamadı.', res.status, err.error_code);
+    }
+    return res.json();
+  },
+
+  async resumePublish(publishId: string): Promise<PublishRecord> {
+    const res = await fetch(`${API_BASE}/social/youtube/publish/${publishId}/resume`, {
+      method: 'POST',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'Yükleme devam ettirilemedi.', res.status, err.error_code);
+    }
+    return res.json();
+  },
+
+  async cancelPublish(publishId: string): Promise<PublishRecord> {
+    const res = await fetch(`${API_BASE}/social/youtube/publish/${publishId}/cancel`, {
+      method: 'POST',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'Yükleme iptal edilemedi.', res.status, err.error_code);
+    }
+    return res.json();
   },
 };
 

@@ -97,6 +97,16 @@ def run_verification():
     assert not os.path.exists(file_on_disk)
     print(f"   [✓] Medya kaydı ve diskteki dosya güvenle silindi.")
 
+    # 9. YouTube Publisher Endpoints Check
+    print("\n9. YouTube Publisher Modülü Test Ediliyor...")
+    yt_status_res = client.get("/api/v1/social/youtube/status")
+    assert yt_status_res.status_code == 200, f"YouTube status failed: {yt_status_res.text}"
+    print(f"   [✓] YouTube Durum Endpoint'i OK (Bağlantı: {yt_status_res.json()['connected']})")
+
+    yt_list_res = client.get("/api/v1/social/youtube/publish")
+    assert yt_list_res.status_code == 200, f"YouTube list failed: {yt_list_res.text}"
+    print(f"   [✓] YouTube Yayın Geçmişi Endpoint'i OK (Kayıt sayısı: {yt_list_res.json()['total']})")
+
     print("\n" + "=" * 65)
     print("  🎉 TÜM UÇTAN UCA TESTLER BAŞARIYLA TAMAMLANDI!")
     print("=" * 65 + "\n")

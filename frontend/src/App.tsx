@@ -5,7 +5,9 @@ import { DashboardPage } from './pages/DashboardPage';
 import { VideoLibraryPage } from './pages/VideoLibraryPage';
 import { ImportVideoPage } from './pages/ImportVideoPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { YouTubePublisherPage } from './pages/YouTubePublisherPage';
 import { VideoDetailsModal } from './components/video/VideoDetailsModal';
+import { YouTubePublishModal } from './components/youtube/YouTubePublishModal';
 import { ConfirmDialog } from './components/ui/ConfirmDialog';
 import { useTheme } from './hooks/useTheme';
 import { apiService } from './services/api';
@@ -14,7 +16,9 @@ import { MediaAsset, SystemStatus } from './types/media';
 export const App: React.FC = () => {
   const { isDark, toggleTheme } = useTheme();
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'media-library' | 'import-video' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<
+    'dashboard' | 'media-library' | 'import-video' | 'youtube-publisher' | 'settings'
+  >('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [videos, setVideos] = useState<MediaAsset[]>([]);
@@ -25,6 +29,7 @@ export const App: React.FC = () => {
   // Modals state
   const [selectedVideo, setSelectedVideo] = useState<MediaAsset | null>(null);
   const [videoToDelete, setVideoToDelete] = useState<MediaAsset | null>(null);
+  const [videoToPublish, setVideoToPublish] = useState<MediaAsset | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchAllData = async () => {
@@ -83,6 +88,11 @@ export const App: React.FC = () => {
           title: 'Video İçe Aktar',
           subtitle: 'Bilgisayarınızdan yerel diske video yükleme ve analiz',
         };
+      case 'youtube-publisher':
+        return {
+          title: 'YouTube Publisher',
+          subtitle: 'Google OAuth 2.0 PKCE ve Resumable Upload ile YouTube yayını',
+        };
       case 'settings':
         return {
           title: 'Sistem Durumu ve Ayarlar',
@@ -136,6 +146,7 @@ export const App: React.FC = () => {
               onSelectVideo={(asset) => setSelectedVideo(asset)}
               onRequestDelete={(asset) => setVideoToDelete(asset)}
               onNavigateImport={() => setActiveTab('import-video')}
+              onPublishVideo={(asset) => setVideoToPublish(asset)}
             />
           )}
 
@@ -147,6 +158,13 @@ export const App: React.FC = () => {
               onViewVideo={(asset) => {
                 setSelectedVideo(asset);
               }}
+            />
+          )}
+
+          {activeTab === 'youtube-publisher' && (
+            <YouTubePublisherPage
+              videos={videos}
+              onNavigateLibrary={() => setActiveTab('media-library')}
             />
           )}
 
@@ -168,6 +186,21 @@ export const App: React.FC = () => {
           setSelectedVideo(null);
           setVideoToDelete(asset);
         }}
+        onPublishRequest={(asset) => {
+          setSelectedVideo(null);
+          setVideoToPublish(asset);
+        }}
+      />
+
+      {/* YouTube Publish Modal */}
+      <YouTubePublishModal
+        asset={videoToPublish}
+        isOpen={Boolean(videoToPublish)}
+        onClose={() => setVideoToPublish(null)}
+        onPublishStarted={() => {
+          setVideoToPublish(null);
+          setActiveTab('youtube-publisher');
+        }}
       />
 
       {/* Safe Delete Confirmation Dialog */}
@@ -185,4 +218,3 @@ export const App: React.FC = () => {
     </div>
   );
 };
-

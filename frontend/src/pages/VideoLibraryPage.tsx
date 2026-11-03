@@ -23,6 +23,7 @@ interface VideoLibraryPageProps {
   onSelectVideo: (asset: MediaAsset) => void;
   onRequestDelete: (asset: MediaAsset) => void;
   onNavigateImport: () => void;
+  onPublishVideo?: (asset: MediaAsset) => void;
 }
 
 export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
@@ -31,6 +32,7 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
   onSelectVideo,
   onRequestDelete,
   onNavigateImport,
+  onPublishVideo,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -167,6 +169,19 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
                   <StatusBadge status={asset.status} />
 
                   <div className="flex items-center space-x-1">
+                    {onPublishVideo && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onPublishVideo(asset)}
+                        title="YouTube'da Yayınla"
+                        className="h-7 w-7 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                      >
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                        </svg>
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
@@ -244,6 +259,19 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end space-x-1">
+                        {onPublishVideo && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onPublishVideo(asset)}
+                            title="YouTube'da Yayınla"
+                            className="h-7 w-7 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                          >
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                            </svg>
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"

@@ -18,6 +18,16 @@ Tezlify AI Video Studio; Python merkezli, yerel bilgisayarda çalışan, gelecek
 
 ---
 
+## 📺 Aşama 2: YouTube Publisher (Yeni Yetenekler)
+
+- **Google OAuth 2.0 PKCE Entegrasyonu:** RFC 7636 uyumlu S256 PKCE anahtar değişimi ve yerel loopback yönlendirmesiyle güvenli Google yetkilendirmesi.
+- **macOS Keychain Token Güvenliği:** OAuth erişim anahtarları veritabanında düz metin olarak değil, işletim sisteminin güvenli kasası olan **macOS Keychain** (`/usr/bin/security`) içinde şifreli saklanır. Frontend'e hiçbir token sızdırılmaz.
+- **Google Resumable Upload Protokolü:** Büyük video dosyaları 4 MB bloklar halinde yüklenir; ağ kesintilerinde veya uygulama yeniden başlatıldığında Google'ın HTTP 308 Resume Incomplete yanıtı üzerinden kaldığı byte'tan otomatik devam eder.
+- **Gelişmiş Durum Makinesi:** Pending, Authenticating, Uploading, Paused, Processing, Published, Failed, Cancelled durumları kontrollü geçişlerle yönetilir.
+- **Yayın Yönetim Arayüzü:** Başlık, açıklama, etiketler, YouTube standart kategorileri (Gaming, Film, Tech vb.), gizlilik seçimi (Public, Unlisted, Private) ve canlı yükleme ilerleme takibi.
+
+---
+
 ## 🛠 Sistem Gereksinimleri ve Kurulum
 
 ### 1. Ön Koşullar
@@ -136,7 +146,7 @@ Tezlify-AI-Video-Studio/
 
 - [x] **Aşama 0:** Altyapı, çevre ve Tezlify UI analizleri
 - [x] **Aşama 1:** Local Studio Core & Manuel Video İçe Aktarma
-- [ ] **Aşama 2:** YouTube Publisher (OAuth & Doğrudan Yükleme)
+- [x] **Aşama 2:** YouTube Publisher (Google OAuth 2.0 PKCE, macOS Keychain & Resumable Upload)
 - [ ] **Aşama 3:** Scheduler ve İçerik Takvimi
 - [ ] **Aşama 4:** LLM Provider Center (GLM, OpenAI, Ollama)
 - [ ] **Aşama 5:** Story Director & Pydantic Scene JSON Doğrulayıcı

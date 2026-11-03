@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
@@ -17,6 +18,16 @@ class Settings(BaseSettings):
     allowed_origins: str = Field(
         default="http://localhost:5173,http://127.0.0.1:5173",
         alias="ALLOWED_ORIGINS"
+    )
+
+    # Google / YouTube OAuth
+    google_client_id: Optional[str] = Field(default=None, alias="GOOGLE_CLIENT_ID")
+    google_client_secret: Optional[str] = Field(default=None, alias="GOOGLE_CLIENT_SECRET")
+    youtube_client_id: Optional[str] = Field(default=None, alias="YOUTUBE_CLIENT_ID")
+    youtube_client_secret: Optional[str] = Field(default=None, alias="YOUTUBE_CLIENT_SECRET")
+    youtube_redirect_uri: str = Field(
+        default="http://127.0.0.1:8000/api/v1/social/youtube/callback",
+        alias="YOUTUBE_REDIRECT_URI"
     )
 
     model_config = SettingsConfigDict(
@@ -52,5 +63,13 @@ class Settings(BaseSettings):
     @property
     def allowed_origins_list(self) -> list[str]:
         return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]
+
+    @property
+    def resolved_youtube_client_id(self) -> Optional[str]:
+        return self.youtube_client_id or self.google_client_id
+
+    @property
+    def resolved_youtube_client_secret(self) -> Optional[str]:
+        return self.youtube_client_secret or self.google_client_secret
 
 settings = Settings()

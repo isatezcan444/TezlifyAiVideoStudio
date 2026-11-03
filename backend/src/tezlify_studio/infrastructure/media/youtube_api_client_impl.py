@@ -1,0 +1,277 @@
+import os
+import re
+import urllib.parse
+from typing import Optional, List, Tuple, Dict, Any
+import httpx
+from tezlify_studio.application.ports.youtube_publisher_port import YouTubePublisherPort
+from tezlify_studio.domain.exceptions.publish_exceptions import (
+    AuthenticationRequiredException,
+    QuotaExceededException,
+    PublishDomainException,
+)
+from tezlify_studio.infrastructure.configuration.settings import settings
+
+class YouTubeApiClientImpl(YouTubePublisherPort):
+    """
+    YouTube Data API v3 client implementing OAuth 2.0 PKCE and Resumable Upload protocol.
+    """
+    AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
+    TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
+    API_BASE = "https://www.googleapis.com/youtube/v3"
+    UPLOAD_BASE = "https://www.googleapis.com/upload/youtube/v3"
+    SCOPES = [
+        "https://www.googleapis.com/auth/youtube.upload",
+        "https://www.googleapis.com/auth/youtube.readonly",
+    ]
+
+    def __init__(
+        self,
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None,
+        redirect_uri: Optional[str] = None,
+        client: Optional[httpx.Client] = None,
+    ) -> None:
+        self.client_id = client_id or settings.resolved_youtube_client_id
+        self.client_secret = client_secret or settings.resolved_youtube_client_secret
+        self.redirect_uri = redirect_uri or settings.youtube_redirect_uri
+        self._client = client or httpx.Client(timeout=30.0)
+
+    def _ensure_credentials(self) -> None:
+        if not self.client_id:
+            raise AuthenticationRequiredException(
+                "Google Client ID is not configured. Please set GOOGLE_CLIENT_ID or YOUTUBE_CLIENT_ID in .env."
+            )
+
+    def generate_auth_url(self, state: str, code_challenge: str) -> str:
+        self._ensure_credentials()
+        params = {
+            "client_id": self.client_id,
+            "redirect_uri": self.redirect_uri,
+            "response_type": "code",
+            "scope": " ".join(self.SCOPES),
+            "access_type": "offline",
+            "prompt": "consent",
+            "state": state,
+            "code_challenge": code_challenge,
+            "code_challenge_method": "S256",
+        }
+        return f"{self.AUTH_ENDPOINT}?{urllib.parse.urlencode(params)}"
+
+    def exchange_code_for_tokens(self, code: str, code_verifier: str) -> Dict[str, Any]:
+        self._ensure_credentials()
+        data = {
+            "client_id": self.client_id,
+            "code": code,
+            "code_verifier": code_verifier,
+            "grant_type": "authorization_code",
+            "redirect_uri": self.redirect_uri,
+        }
+        if self.client_secret:
+            data["client_secret"] = self.client_secret
+
+        try:
+            resp = self._client.post(self.TOKEN_ENDPOINT, data=data)
+        except Exception as e:
+            raise PublishDomainException(f"Network error exchanging OAuth code: {str(e)}")
+
+        if resp.status_code != 200:
+            err_data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+            err_desc = err_data.get("error_description", resp.text)
+            raise AuthenticationRequiredException(f"Failed to exchange authorization code: {err_desc}")
+
+        return resp.json()
+
+    def refresh_access_token(self, refresh_token: str) -> Dict[str, Any]:
+        self._ensure_credentials()
+        data = {
+            "client_id": self.client_id,
+            "refresh_token": refresh_token,
+            "grant_type": "refresh_token",
+        }
+        if self.client_secret:
+            data["client_secret"] = self.client_secret
+
+        try:
+            resp = self._client.post(self.TOKEN_ENDPOINT, data=data)
+        except Exception as e:
+            raise PublishDomainException(f"Network error refreshing access token: {str(e)}")
+
+        if resp.status_code != 200:
+            raise AuthenticationRequiredException("Failed to refresh access token. Please reconnect YouTube account.")
+
+        return resp.json()
+
+    def get_channel_profile(self, access_token: str) -> Dict[str, Any]:
+        url = f"{self.API_BASE}/channels?part=snippet&mine=true"
+        headers = {"Authorization": f"Bearer {access_token}"}
+        try:
+            resp = self._client.get(url, headers=headers)
+        except Exception as e:
+            raise PublishDomainException(f"Network error getting YouTube profile: {str(e)}")
+
+        if resp.status_code == 401:
+            raise AuthenticationRequiredException("Access token expired while fetching YouTube channel.")
+        if resp.status_code == 403:
+            self._check_quota_error(resp)
+            raise PublishDomainException(f"Access forbidden: {resp.text}")
+        if resp.status_code != 200:
+            raise PublishDomainException(f"Failed to fetch channel profile: {resp.text}")
+
+        data = resp.json()
+        items = data.get("items", [])
+        if not items:
+            raise PublishDomainException("No YouTube channel found for this Google account.")
+
+        channel = items[0]
+        snippet = channel.get("snippet", {})
+        thumbs = snippet.get("thumbnails", {})
+        avatar = thumbs.get("default", {}).get("url") or thumbs.get("medium", {}).get("url")
+
+        return {
+            "channel_id": channel.get("id"),
+            "channel_title": snippet.get("title", "My YouTube Channel"),
+            "avatar_url": avatar,
+        }
+
+    def initiate_resumable_upload(
+        self,
+        access_token: str,
+        title: str,
+        description: str,
+        tags: List[str],
+        category_id: str,
+        privacy: str,
+        total_bytes: int,
+    ) -> str:
+        url = f"{self.UPLOAD_BASE}/videos?uploadType=resumable&part=snippet,status"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json; charset=UTF-8",
+            "X-Upload-Content-Length": str(total_bytes),
+            "X-Upload-Content-Type": "video/*",
+        }
+        body = {
+            "snippet": {
+                "title": title,
+                "description": description,
+                "tags": tags,
+                "categoryId": category_id,
+            },
+            "status": {
+                "privacyStatus": privacy,
+                "selfDeclaredMadeForKids": False,
+            },
+        }
+
+        try:
+            resp = self._client.post(url, headers=headers, json=body)
+        except Exception as e:
+            raise PublishDomainException(f"Network error initiating YouTube upload: {str(e)}")
+
+        if resp.status_code == 401:
+            raise AuthenticationRequiredException("Access token expired during upload initiation.")
+        if resp.status_code == 403:
+            self._check_quota_error(resp)
+            raise PublishDomainException(f"Upload initiation forbidden: {resp.text}")
+        if resp.status_code != 200:
+            raise PublishDomainException(f"Failed to initiate upload session: HTTP {resp.status_code}: {resp.text}")
+
+        session_uri = resp.headers.get("Location")
+        if not session_uri:
+            raise PublishDomainException("YouTube did not return a session URI (Location header missing).")
+
+        return session_uri
+
+    def upload_chunk(
+        self,
+        upload_session_uri: str,
+        chunk_data: bytes,
+        start_byte: int,
+        total_bytes: int,
+    ) -> Tuple[int, Optional[Dict[str, Any]]]:
+        end_byte = start_byte + len(chunk_data) - 1
+        headers = {
+            "Content-Length": str(len(chunk_data)),
+            "Content-Range": f"bytes {start_byte}-{end_byte}/{total_bytes}",
+            "Content-Type": "application/octet-stream",
+        }
+
+        try:
+            resp = self._client.put(upload_session_uri, headers=headers, content=chunk_data)
+        except Exception as e:
+            raise PublishDomainException(f"Network error sending upload chunk: {str(e)}")
+
+        if resp.status_code == 308:
+            return (308, None)
+        elif resp.status_code in (200, 201):
+            return (resp.status_code, resp.json())
+        elif resp.status_code == 401:
+            raise AuthenticationRequiredException("Access token expired during chunk upload.")
+        elif resp.status_code == 403:
+            self._check_quota_error(resp)
+            raise PublishDomainException(f"Upload chunk forbidden: {resp.text}")
+        else:
+            raise PublishDomainException(f"Upload chunk error {resp.status_code}: {resp.text}")
+
+    def query_upload_status(self, upload_session_uri: str, total_bytes: int) -> int:
+        headers = {
+            "Content-Length": "0",
+            "Content-Range": f"bytes */{total_bytes}",
+        }
+        try:
+            resp = self._client.put(upload_session_uri, headers=headers)
+        except Exception as e:
+            raise PublishDomainException(f"Network error querying upload status: {str(e)}")
+
+        if resp.status_code in (200, 201):
+            return total_bytes
+
+        if resp.status_code == 308:
+            range_header = resp.headers.get("Range")
+            if not range_header:
+                return 0
+            # Format: bytes=0-4194303
+            m = re.search(r"bytes=0-(\d+)", range_header)
+            if m:
+                return int(m.group(1)) + 1
+            return 0
+
+        raise PublishDomainException(f"Query upload status returned HTTP {resp.status_code}: {resp.text}")
+
+    def upload_custom_thumbnail(
+        self,
+        access_token: str,
+        video_id: str,
+        thumbnail_path: str,
+    ) -> bool:
+        if not os.path.exists(thumbnail_path):
+            return False
+
+        ext = os.path.splitext(thumbnail_path)[1].lower()
+        content_type = "image/png" if ext == ".png" else "image/jpeg"
+
+        url = f"{self.UPLOAD_BASE}/thumbnails/set?videoId={video_id}"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": content_type,
+        }
+
+        try:
+            with open(thumbnail_path, "rb") as f:
+                content = f.read()
+            resp = self._client.post(url, headers=headers, content=content)
+            return resp.status_code in (200, 201)
+        except Exception:
+            return False
+
+    def _check_quota_error(self, resp: httpx.Response) -> None:
+        try:
+            err = resp.json().get("error", {})
+            errors = err.get("errors", [])
+            for e in errors:
+                if e.get("reason") in ("quotaExceeded", "dailyLimitExceeded"):
+                    raise QuotaExceededException(
+                        "YouTube API daily quota exceeded. Resets at midnight Pacific Time (PT).",
+                    )
+        except (ValueError, KeyError):
+            pass

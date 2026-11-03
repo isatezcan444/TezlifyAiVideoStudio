@@ -8,6 +8,7 @@ import {
   Radio,
   X,
   Server,
+  Youtube,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -50,6 +51,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           icon: UploadCloud,
           badge: 'Yeni',
           badgeColor: 'bg-[#28C76F]/15 text-[#28C76F] dark:bg-[#28C76F]/25 dark:text-[#5CE698]',
+        },
+        {
+          id: 'youtube-publisher',
+          label: 'YouTube Publisher',
+          icon: Youtube,
+          badge: 'Aşama 2',
+          badgeColor: 'bg-red-500/15 text-red-600 dark:bg-red-500/25 dark:text-red-400',
         },
       ],
     },
