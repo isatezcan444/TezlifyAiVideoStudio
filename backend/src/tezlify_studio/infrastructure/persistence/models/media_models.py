@@ -60,3 +60,4 @@ class ImportRecordModel(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     asset = relationship("MediaAssetModel", back_populates="import_records")
+

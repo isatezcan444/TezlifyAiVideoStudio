@@ -19,3 +19,4 @@ def get_system_status(
 ):
     dto = use_case.execute()
     return SystemStatusResponse(**dto.__dict__)
+

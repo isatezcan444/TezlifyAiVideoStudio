@@ -145,3 +145,4 @@ Tezlify-AI-Video-Studio/
 - [ ] **Aşama 8:** Render Worker (Per-Scene Chunking) & FFmpeg Montaj
 - [ ] **Aşama 9:** Ses, TTS ve Lip-Sync
 - [ ] **Aşama 10:** Instagram, TikTok ve Gelir Merkezi
+

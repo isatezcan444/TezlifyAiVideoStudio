@@ -14,3 +14,4 @@ class ListMediaUseCase:
             items=[media_asset_to_dto(a) for a in assets],
             total=total,
         )
+

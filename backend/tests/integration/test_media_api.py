@@ -52,29 +52,44 @@ def test_api_video_upload_stream_and_delete_flow():
     assert stream_res.status_code == 200
     assert len(stream_res.content) == len(sample_video_bytes)
 
-    # 6. Stream video (HTTP Range Partial Content for seek playback)
+    # 6. Stream video (HTTP Range: standard start-end)
     range_res = client.get(f"/api/v1/media/{media_id}/stream", headers={"Range": "bytes=0-49"})
     assert range_res.status_code == 206
     assert len(range_res.content) == 50
     assert "bytes 0-49/" in range_res.headers.get("Content-Range", "")
 
-    # 7. Duplicate upload detection (must return 409 Conflict)
+    # 7. Stream video (HTTP Range: suffix range, e.g. last 40 bytes)
+    suffix_res = client.get(f"/api/v1/media/{media_id}/stream", headers={"Range": "bytes=-40"})
+    assert suffix_res.status_code == 206
+    assert len(suffix_res.content) == 40
+    assert suffix_res.content == sample_video_bytes[-40:]
+
+    # 8. Stream video (HTTP Range: out of bounds range -> HTTP 416)
+    oob_res = client.get(f"/api/v1/media/{media_id}/stream", headers={"Range": "bytes=999999-"})
+    assert oob_res.status_code == 416
+    assert "bytes */" in oob_res.headers.get("Content-Range", "")
+
+    # 9. Stream video (HTTP Range: malformed range -> HTTP 416)
+    bad_range = client.get(f"/api/v1/media/{media_id}/stream", headers={"Range": "bytes=bad-range"})
+    assert bad_range.status_code == 416
+
+    # 10. Duplicate upload detection (must return 409 Conflict)
     dup_files = {"file": ("test_presentation_copy.mp4", io.BytesIO(sample_video_bytes), "video/mp4")}
     dup_res = client.post("/api/v1/media/upload", files=dup_files)
     assert dup_res.status_code == 409
     assert dup_res.json()["error_code"] == "DUPLICATE_MEDIA"
 
-    # 8. Invalid extension upload (must return 400 Bad Request)
+    # 11. Invalid extension upload (must return 400 Bad Request)
     bad_files = {"file": ("malicious.exe", io.BytesIO(b"bad binary"), "application/x-msdownload")}
     bad_res = client.post("/api/v1/media/upload", files=bad_files)
     assert bad_res.status_code == 400
     assert bad_res.json()["error_code"] == "INVALID_MEDIA_FILE"
 
-    # 9. Delete media
+    # 12. Delete media
     del_res = client.delete(f"/api/v1/media/{media_id}")
     assert del_res.status_code == 200
     assert del_res.json()["success"] is True
 
-    # 10. Verify deleted
+    # 13. Verify deleted
     get_after_del = client.get(f"/api/v1/media/{media_id}")
     assert get_after_del.status_code == 404

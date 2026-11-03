@@ -26,3 +26,4 @@
 ## Bileşen Standartları
 - Kart Kenarlık Yuvarlaklığı: `0.625rem` (10px)
 - Gölgeler: `0 2px 9px 0 rgba(47, 43, 61, 0.06)` (Açık mod) / `0 2px 14px 0 rgba(15, 20, 34, 0.4)` (Koyu mod)
+

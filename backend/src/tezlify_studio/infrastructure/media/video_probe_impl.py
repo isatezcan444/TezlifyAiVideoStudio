@@ -9,8 +9,18 @@ from tezlify_studio.domain.value_objects.video_metadata import VideoMetadata
 
 class VideoProbeImpl(VideoProbePort):
     def __init__(self, ffmpeg_bin: Optional[str] = None, ffprobe_bin: Optional[str] = None):
-        self.ffmpeg_bin = ffmpeg_bin or shutil.which("ffmpeg")
-        self.ffprobe_bin = ffprobe_bin or shutil.which("ffprobe")
+        self.ffmpeg_bin = (
+            ffmpeg_bin
+            or shutil.which("ffmpeg")
+            or ("/opt/homebrew/bin/ffmpeg" if os.path.exists("/opt/homebrew/bin/ffmpeg") else None)
+            or ("/usr/local/bin/ffmpeg" if os.path.exists("/usr/local/bin/ffmpeg") else None)
+        )
+        self.ffprobe_bin = (
+            ffprobe_bin
+            or shutil.which("ffprobe")
+            or ("/opt/homebrew/bin/ffprobe" if os.path.exists("/opt/homebrew/bin/ffprobe") else None)
+            or ("/usr/local/bin/ffprobe" if os.path.exists("/usr/local/bin/ffprobe") else None)
+        )
 
     def is_ffmpeg_available(self) -> bool:
         return bool(self.ffmpeg_bin and os.path.exists(self.ffmpeg_bin))
@@ -21,7 +31,21 @@ class VideoProbeImpl(VideoProbePort):
     def probe_video(self, file_path: str) -> VideoMetadata:
         if self.is_ffprobe_available():
             try:
-                return self._probe_with_ffprobe(file_path)
+                meta = self._probe_with_ffprobe(file_path)
+                # If ffprobe succeeded but missed duration or dimensions, augment with python fallback
+                if meta.duration_seconds is None or meta.width is None:
+                    py_meta = self._probe_with_python_fallback(file_path)
+                    return VideoMetadata(
+                        duration_seconds=meta.duration_seconds or py_meta.duration_seconds,
+                        width=meta.width or py_meta.width,
+                        height=meta.height or py_meta.height,
+                        fps=meta.fps or py_meta.fps,
+                        video_codec=meta.video_codec or py_meta.video_codec,
+                        audio_codec=meta.audio_codec or py_meta.audio_codec,
+                        aspect_ratio=meta.aspect_ratio or py_meta.aspect_ratio,
+                        probe_source="ffprobe+python",
+                    )
+                return meta
             except Exception:
                 # Fallback to python inspection if ffprobe failed on this specific file
                 pass
@@ -171,3 +195,4 @@ class VideoProbeImpl(VideoProbePort):
             pass
 
         return None
+

@@ -25,3 +25,4 @@ class VideoProbePort(ABC):
     @abstractmethod
     def is_ffmpeg_available(self) -> bool:
         pass
+

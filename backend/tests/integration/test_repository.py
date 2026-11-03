@@ -58,3 +58,4 @@ def test_repository_save_and_get(repo):
     assert deleted is True
     assert repo.get_by_id("repo-test-1") is None
     assert repo.count() == 0
+

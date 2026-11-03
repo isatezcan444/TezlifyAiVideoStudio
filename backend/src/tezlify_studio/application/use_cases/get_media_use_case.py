@@ -13,3 +13,4 @@ class GetMediaUseCase:
         if not asset:
             raise EntityNotFoundException("MediaAsset", media_id)
         return media_asset_to_dto(asset)
+

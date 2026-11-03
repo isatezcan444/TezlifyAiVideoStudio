@@ -55,3 +55,4 @@ class SystemStatusDTO:
     disk_free_gb: float
     total_videos: int
     total_storage_bytes: int
+

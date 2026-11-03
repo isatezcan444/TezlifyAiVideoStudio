@@ -62,3 +62,4 @@ def test_domain_exceptions():
 
     inv = InvalidMediaFileException("Corrupt format")
     assert "Corrupt format" in str(inv)
+

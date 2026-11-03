@@ -30,3 +30,4 @@ class MediaAsset:
     def mark_failed(self) -> None:
         self.status = MediaStatus.FAILED
         self.updated_at = datetime.now(timezone.utc)
+

@@ -1,9 +1,12 @@
 import os
 import hashlib
 import shutil
-from typing import BinaryIO, Generator, Tuple
+from typing import BinaryIO, Generator, Tuple, Optional
 from tezlify_studio.application.ports.media_storage_port import MediaStoragePort
-from tezlify_studio.domain.exceptions.media_exceptions import MediaStorageException
+from tezlify_studio.domain.exceptions.media_exceptions import (
+    MediaStorageException,
+    InvalidMediaFileException,
+)
 
 class LocalMediaStorage(MediaStoragePort):
     def __init__(self, media_dir: str, temp_dir: str):
@@ -23,7 +26,8 @@ class LocalMediaStorage(MediaStoragePort):
         self,
         stream: BinaryIO,
         destination_filename: str,
-        chunk_size: int = 1024 * 1024
+        chunk_size: int = 1024 * 1024,
+        max_bytes: Optional[int] = None,
     ) -> Tuple[str, int, str]:
         temp_path = os.path.join(self.temp_dir, f"temp_{os.path.basename(destination_filename)}")
         dest_path = self._sanitize_path(self.media_dir, destination_filename)
@@ -39,12 +43,24 @@ class LocalMediaStorage(MediaStoragePort):
                         break
                     hasher.update(chunk)
                     total_size += len(chunk)
+                    if max_bytes and total_size > max_bytes:
+                        limit_mb = round(max_bytes / (1024 * 1024), 1)
+                        raise InvalidMediaFileException(
+                            f"Dosya boyutu sınırı aşıldı (İzin verilen maksimum: {limit_mb} MB)."
+                        )
                     f_out.write(chunk)
 
             # Move atomically from temp to final destination
             shutil.move(temp_path, dest_path)
             return dest_path, total_size, hasher.hexdigest()
 
+        except InvalidMediaFileException:
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except OSError:
+                    pass
+            raise
         except Exception as e:
             if os.path.exists(temp_path):
                 try:
@@ -90,3 +106,4 @@ class LocalMediaStorage(MediaStoragePort):
                     break
                 bytes_left -= len(data)
                 yield data
+

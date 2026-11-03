@@ -32,3 +32,4 @@ def media_asset_to_dto(asset: MediaAsset) -> MediaAssetDTO:
         updated_at=asset.updated_at.isoformat(),
         metadata=metadata_to_dto(asset.metadata),
     )
+

@@ -23,3 +23,4 @@ Tezlify AI Video Studio; gelecekte Blender 2.5D animasyon motoru, çoklu LLM sa�
 
 4. **Hata Yönetimi ve Dayanıklılık:**
    - FFprobe veya Blender sistemde yüklü olmasa dahi uygulama çökmez; pure-Python başlık okuma mekanizmasına geri çekilir.
+

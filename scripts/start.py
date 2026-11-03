@@ -27,11 +27,17 @@ def cleanup(sig=None, frame=None):
     print("\n🛑 Tezlify AI Video Studio kapatılıyor...")
     for p in processes:
         if p.poll() is None:
-            p.terminate()
+            try:
+                os.killpg(os.getpgid(p.pid), signal.SIGTERM)
+            except Exception:
+                p.terminate()
             try:
                 p.wait(timeout=3)
             except subprocess.TimeoutExpired:
-                p.kill()
+                try:
+                    os.killpg(os.getpgid(p.pid), signal.SIGKILL)
+                except Exception:
+                    p.kill()
     print("👋 Tüm servisler güvenli bir şekilde sonlandırıldı.")
     sys.exit(0)
 
@@ -83,7 +89,8 @@ def main():
         cwd=PROJECT_ROOT,
         env=env,
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
     )
     processes.append(backend_proc)
 
@@ -100,7 +107,8 @@ def main():
         [npm_bin, "run", "dev", "--", "--host", "127.0.0.1", "--port", "5173"],
         cwd=FRONTEND_DIR,
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
     )
     processes.append(frontend_proc)
 
@@ -127,3 +135,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

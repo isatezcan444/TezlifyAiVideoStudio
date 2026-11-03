@@ -26,3 +26,4 @@ class MediaStorageException(DomainException):
     """Error reading or writing media on the storage layer"""
     def __init__(self, message: str):
         super().__init__(f"Storage error: {message}")
+

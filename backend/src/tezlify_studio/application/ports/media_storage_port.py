@@ -7,7 +7,8 @@ class MediaStoragePort(ABC):
         self,
         stream: BinaryIO,
         destination_filename: str,
-        chunk_size: int = 1024 * 1024
+        chunk_size: int = 1024 * 1024,
+        max_bytes: Optional[int] = None,
     ) -> Tuple[str, int, str]:
         """
         Saves a streaming upload to permanent storage.
@@ -39,3 +40,4 @@ class MediaStoragePort(ABC):
         Generator yielding bytes for HTTP Range requests.
         """
         pass
+

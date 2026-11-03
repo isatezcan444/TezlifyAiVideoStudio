@@ -65,3 +65,4 @@ def create_valid_minimal_mp4(filepath: str, width: int = 1280, height: int = 720
 if __name__ == "__main__":
     out_path = os.path.join(os.path.dirname(__file__), "..", "data", "temp", "sample_test_video.mp4")
     create_valid_minimal_mp4(out_path, width=1920, height=1080, duration_seconds=15)
+

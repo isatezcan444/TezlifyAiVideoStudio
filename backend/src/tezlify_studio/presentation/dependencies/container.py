@@ -29,7 +29,8 @@ def get_import_use_case(
     storage: LocalMediaStorage = Depends(get_storage),
     probe: VideoProbeImpl = Depends(get_probe),
 ) -> ImportVideoUseCase:
-    return ImportVideoUseCase(repo, storage, probe)
+    max_bytes = settings.max_upload_size_mb * 1024 * 1024
+    return ImportVideoUseCase(repo, storage, probe, max_upload_bytes=max_bytes)
 
 def get_media_use_case(
     repo: MediaRepositoryImpl = Depends(get_repository),
@@ -52,3 +53,4 @@ def get_system_status_use_case(
     probe: VideoProbeImpl = Depends(get_probe),
 ) -> GetSystemStatusUseCase:
     return GetSystemStatusUseCase(repo, probe, settings.data_dir)
+

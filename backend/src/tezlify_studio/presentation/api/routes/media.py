@@ -88,15 +88,27 @@ def stream_media(
 
     # Handle HTTP Range header for seekable video playback
     if range:
-        range_match = re.search(r"bytes=(\d+)-(\d*)", range)
+        range_match = re.search(r"bytes=(?:(\d+)-(\d*)|-(\d+))", range)
         if range_match:
-            start = int(range_match.group(1))
-            end = int(range_match.group(2)) if range_match.group(2) else file_size - 1
+            g1, g2, g3 = range_match.groups()
+            if g3 is not None:
+                # Suffix byte range (last N bytes)
+                suffix_len = int(g3)
+                start = max(0, file_size - suffix_len)
+                end = file_size - 1
+            else:
+                start = int(g1)
+                end = int(g2) if g2 else file_size - 1
+
+            if start >= file_size or start > end:
+                raise HTTPException(
+                    status_code=status.HTTP_416_RANGE_NOT_SATISFIABLE,
+                    detail="Requested range not satisfiable",
+                    headers={"Content-Range": f"bytes */{file_size}"},
+                )
+
             start = max(0, start)
             end = min(end, file_size - 1)
-
-            if start > end:
-                raise HTTPException(status_code=416, detail="Requested range not satisfiable")
 
             content_length = (end - start) + 1
             headers = {
@@ -109,6 +121,12 @@ def stream_media(
                 storage.open_range_stream(file_path, start, end),
                 status_code=status.HTTP_206_PARTIAL_CONTENT,
                 headers=headers,
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_416_RANGE_NOT_SATISFIABLE,
+                detail="Malformed Range header",
+                headers={"Content-Range": f"bytes */{file_size}"},
             )
 
     # Full content response
@@ -130,3 +148,4 @@ def delete_media(
 ):
     success = use_case.execute(media_id)
     return {"success": success, "id": media_id}
+

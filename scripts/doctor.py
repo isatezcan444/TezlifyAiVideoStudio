@@ -43,8 +43,16 @@ def main():
     print(f"   npm:     {npm_ver} {check_mark(bool(npm_bin))}")
 
     # 4. Media Tools: FFmpeg & FFprobe
-    ffmpeg_bin = shutil.which("ffmpeg")
-    ffprobe_bin = shutil.which("ffprobe")
+    ffmpeg_bin = (
+        shutil.which("ffmpeg")
+        or ("/opt/homebrew/bin/ffmpeg" if os.path.exists("/opt/homebrew/bin/ffmpeg") else None)
+        or ("/usr/local/bin/ffmpeg" if os.path.exists("/usr/local/bin/ffmpeg") else None)
+    )
+    ffprobe_bin = (
+        shutil.which("ffprobe")
+        or ("/opt/homebrew/bin/ffprobe" if os.path.exists("/opt/homebrew/bin/ffprobe") else None)
+        or ("/usr/local/bin/ffprobe" if os.path.exists("/usr/local/bin/ffprobe") else None)
+    )
     print(f"4. FFmpeg:  {ffmpeg_bin or 'Sistemde yok (Python fallback devrede)'} {check_mark(bool(ffmpeg_bin))}")
     print(f"   FFprobe: {ffprobe_bin or 'Sistemde yok (Python fallback devrede)'} {check_mark(bool(ffprobe_bin))}")
     if not ffmpeg_bin:
@@ -74,3 +82,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

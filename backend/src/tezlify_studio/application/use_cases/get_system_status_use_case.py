@@ -50,3 +50,4 @@ class GetSystemStatusUseCase:
             total_videos=len(assets),
             total_storage_bytes=total_storage,
         )
+

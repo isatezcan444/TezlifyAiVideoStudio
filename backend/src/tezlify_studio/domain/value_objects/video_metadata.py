@@ -17,3 +17,4 @@ class VideoMetadata:
         if self.width and self.height:
             return f"{self.width}x{self.height}"
         return "Bilinmiyor"
+

@@ -11,3 +11,4 @@ class ImportRecord:
     status: str = "success"
     error_message: Optional[str] = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+

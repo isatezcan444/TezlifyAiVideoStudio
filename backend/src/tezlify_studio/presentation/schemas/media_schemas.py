@@ -48,3 +48,4 @@ class SystemStatusResponse(BaseModel):
 class ErrorResponse(BaseModel):
     detail: str
     error_code: str
+

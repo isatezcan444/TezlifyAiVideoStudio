@@ -103,3 +103,4 @@ export const apiService = {
     return `${API_BASE}/media/${mediaId}/thumbnail`;
   },
 };
+

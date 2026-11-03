@@ -25,10 +25,12 @@ class ImportVideoUseCase:
         repository: MediaRepositoryPort,
         storage: MediaStoragePort,
         probe: VideoProbePort,
+        max_upload_bytes: Optional[int] = None,
     ):
         self.repository = repository
         self.storage = storage
         self.probe = probe
+        self.max_upload_bytes = max_upload_bytes
 
     def execute(
         self,
@@ -53,47 +55,57 @@ class ImportVideoUseCase:
         # 3. Stream to storage, compute sha256 and size on the fly
         file_path, file_size, sha256_hash = self.storage.save_stream(
             stream=stream,
-            destination_filename=stored_filename
+            destination_filename=stored_filename,
+            max_bytes=self.max_upload_bytes,
         )
 
-        # 4. Check for duplicate SHA-256 hash in database
-        existing = self.repository.get_by_hash(sha256_hash)
-        if existing:
-            # Clean up newly uploaded file to avoid duplicate storage
-            self.storage.delete_file(file_path)
-            raise DuplicateMediaException(sha256_hash, existing.id)
+        try:
+            # 4. Check for duplicate SHA-256 hash in database
+            existing = self.repository.get_by_hash(sha256_hash)
+            if existing:
+                raise DuplicateMediaException(sha256_hash, existing.id)
 
-        # 5. Extract video metadata
-        metadata = self.probe.probe_video(file_path)
+            # 5. Extract video metadata
+            metadata = self.probe.probe_video(file_path)
 
-        # 6. Attempt thumbnail generation if possible
-        thumb_filename = f"thumb_{asset_id}.jpg"
-        thumb_dest = os.path.join(os.path.dirname(file_path), thumb_filename)
-        thumbnail_path = self.probe.generate_thumbnail(file_path, thumb_dest)
+            # 6. Attempt thumbnail generation if possible
+            thumb_filename = f"thumb_{asset_id}.jpg"
+            thumb_dest = os.path.join(os.path.dirname(file_path), thumb_filename)
+            thumbnail_path = self.probe.generate_thumbnail(file_path, thumb_dest)
 
-        # 7. Create MediaAsset entity
-        asset = MediaAsset(
-            id=asset_id,
-            filename=stored_filename,
-            original_filename=clean_name,
-            file_path=file_path,
-            file_size_bytes=file_size,
-            mime_type=content_type or f"video/{ext.lstrip('.')}",
-            sha256_hash=sha256_hash,
-            status=MediaStatus.READY,
-            thumbnail_path=thumbnail_path,
-            metadata=metadata,
-        )
+            # 7. Create MediaAsset entity
+            asset = MediaAsset(
+                id=asset_id,
+                filename=stored_filename,
+                original_filename=clean_name,
+                file_path=file_path,
+                file_size_bytes=file_size,
+                mime_type=content_type or f"video/{ext.lstrip('.')}",
+                sha256_hash=sha256_hash,
+                status=MediaStatus.READY,
+                thumbnail_path=thumbnail_path,
+                metadata=metadata,
+            )
 
-        saved_asset = self.repository.save(asset)
+            saved_asset = self.repository.save(asset)
 
-        # 8. Create ImportRecord
-        import_record = ImportRecord(
-            id=str(uuid.uuid4()),
-            media_asset_id=asset.id,
-            source_type=ImportSource.MANUAL_UPLOAD,
-            status="success",
-        )
-        self.repository.save_import_record(import_record)
+            # 8. Create ImportRecord
+            import_record = ImportRecord(
+                id=str(uuid.uuid4()),
+                media_asset_id=asset.id,
+                source_type=ImportSource.MANUAL_UPLOAD,
+                status="success",
+            )
+            self.repository.save_import_record(import_record)
 
-        return media_asset_to_dto(saved_asset)
+            return media_asset_to_dto(saved_asset)
+
+        except Exception:
+            # Clean up permanent file and thumbnail if anything fails downstream
+            if self.storage.exists(file_path):
+                self.storage.delete_file(file_path)
+            thumb_path = os.path.join(os.path.dirname(file_path), f"thumb_{asset_id}.jpg")
+            if self.storage.exists(thumb_path):
+                self.storage.delete_file(thumb_path)
+            raise
+

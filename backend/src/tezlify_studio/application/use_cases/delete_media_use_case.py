@@ -16,12 +16,16 @@ class DeleteMediaUseCase:
         if not asset:
             raise EntityNotFoundException("MediaAsset", media_id)
 
-        # 1. Remove physical files
-        if asset.file_path and self.storage.exists(asset.file_path):
-            self.storage.delete_file(asset.file_path)
+        # 1. Remove record from database first (if DB fails, files remain intact)
+        deleted = self.repository.delete(media_id)
 
-        if asset.thumbnail_path and self.storage.exists(asset.thumbnail_path):
-            self.storage.delete_file(asset.thumbnail_path)
+        # 2. Clean up physical files on disk
+        if deleted:
+            if asset.file_path and self.storage.exists(asset.file_path):
+                self.storage.delete_file(asset.file_path)
 
-        # 2. Remove record from database
-        return self.repository.delete(media_id)
+            if asset.thumbnail_path and self.storage.exists(asset.thumbnail_path):
+                self.storage.delete_file(asset.thumbnail_path)
+
+        return deleted
+

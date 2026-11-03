@@ -31,8 +31,10 @@ frontend/dist/
 *.key
 
 # Data & Media Storage (Local-First Runtime Data)
-data/database/*.db
+data/database/*.db*
 data/database/*.sqlite*
+data/database/*.db-shm
+data/database/*.db-wal
 data/media/*
 !data/media/.gitkeep
 data/temp/*
@@ -55,3 +57,4 @@ temp/
 *.webm
 *.mkv
 *.m4v
+

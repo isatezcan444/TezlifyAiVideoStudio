@@ -45,3 +45,4 @@ export interface SystemStatus {
   total_videos: number;
   total_storage_bytes: number;
 }
+

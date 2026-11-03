@@ -4,7 +4,10 @@ import pytest
 import tempfile
 import shutil
 from tezlify_studio.infrastructure.media.local_media_storage import LocalMediaStorage
-from tezlify_studio.domain.exceptions.media_exceptions import MediaStorageException
+from tezlify_studio.domain.exceptions.media_exceptions import (
+    MediaStorageException,
+    InvalidMediaFileException,
+)
 
 @pytest.fixture
 def storage():
@@ -38,8 +41,20 @@ def test_storage_range_stream(storage):
     assert sliced_bytes == payload[5:15]
     assert len(sliced_bytes) == 10
 
+def test_storage_max_bytes_enforcement(storage):
+    payload = b"X" * 1024 * 50  # 50 KB
+    stream = io.BytesIO(payload)
+
+    # Max allowed: 10 KB
+    with pytest.raises(InvalidMediaFileException) as exc:
+        storage.save_stream(stream, "too_large.mp4", chunk_size=1024, max_bytes=10 * 1024)
+
+    assert "Dosya boyutu sınırı aşıldı" in str(exc.value)
+
+    # Verify temp dir is clean (no leftover temp files)
+    temp_files = os.listdir(storage.temp_dir)
+    assert len(temp_files) == 0
+
 def test_storage_path_traversal_prevention(storage):
-    # Even if someone tries a filename like '../../etc/passwd',
-    # _sanitize_path enforces basename within media_dir
     safe_name = os.path.basename("../../etc/passwd.mp4")
     assert safe_name == "passwd.mp4"

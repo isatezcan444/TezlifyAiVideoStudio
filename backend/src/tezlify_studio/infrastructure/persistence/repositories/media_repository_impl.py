@@ -1,11 +1,13 @@
 from typing import List, Optional
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from tezlify_studio.application.ports.media_repository_port import MediaRepositoryPort
 from tezlify_studio.domain.entities.media_asset import MediaAsset
 from tezlify_studio.domain.entities.import_record import ImportRecord
 from tezlify_studio.domain.value_objects.video_metadata import VideoMetadata
 from tezlify_studio.domain.enums.media_status import MediaStatus, ImportSource
+from tezlify_studio.domain.exceptions.media_exceptions import DuplicateMediaException
 from tezlify_studio.infrastructure.persistence.models.media_models import (
     MediaAssetModel,
     VideoMetadataModel,
@@ -103,9 +105,19 @@ class MediaRepositoryImpl(MediaRepositoryPort):
                 meta_model.aspect_ratio = asset.metadata.aspect_ratio
                 meta_model.probe_source = asset.metadata.probe_source
 
-        self.db.commit()
-        self.db.refresh(model)
-        return self._to_domain(model)
+        try:
+            self.db.commit()
+            self.db.refresh(model)
+            return self._to_domain(model)
+        except IntegrityError:
+            self.db.rollback()
+            existing = self.get_by_hash(asset.sha256_hash)
+            if existing:
+                raise DuplicateMediaException(asset.sha256_hash, existing.id)
+            raise
+        except Exception:
+            self.db.rollback()
+            raise
 
     def get_by_id(self, asset_id: str) -> Optional[MediaAsset]:
         model = self.db.query(MediaAssetModel).filter(MediaAssetModel.id == asset_id).first()
@@ -131,9 +143,13 @@ class MediaRepositoryImpl(MediaRepositoryPort):
     def delete(self, asset_id: str) -> bool:
         model = self.db.query(MediaAssetModel).filter(MediaAssetModel.id == asset_id).first()
         if model:
-            self.db.delete(model)
-            self.db.commit()
-            return True
+            try:
+                self.db.delete(model)
+                self.db.commit()
+                return True
+            except Exception:
+                self.db.rollback()
+                raise
         return False
 
     def save_import_record(self, record: ImportRecord) -> ImportRecord:
@@ -148,3 +164,4 @@ class MediaRepositoryImpl(MediaRepositoryPort):
         self.db.add(model)
         self.db.commit()
         return record
+
