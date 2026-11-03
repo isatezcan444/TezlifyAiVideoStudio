@@ -146,3 +146,4 @@ def test_processing_remains_processing_when_transcoding_in_progress():
 
     # Must stay in PROCESSING because YouTube is still actively transcoding!
     assert record.status == PublishStatus.PROCESSING
+

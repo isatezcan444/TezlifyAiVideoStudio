@@ -47,7 +47,7 @@ def main():
     print(f"   [✓] Kanal ID:  {account.channel_id}")
 
     # 2. Verify Media Asset
-    test_media_id = "211fefdd-e27f-4642-a022-d353260d4867"
+    test_media_id = "9a07f034-6be6-4bd8-bf14-764434c44cf6"
     media = media_repo.get_by_id(test_media_id)
     if not media:
         print(f"❌ HATA: Test medya varlığı bulunamadı: {test_media_id}")
@@ -60,6 +60,7 @@ def main():
     print(f"   [✓] Boyut:      {media.file_size_bytes} bayt ({media.file_size_bytes / 1024:.1f} KB)")
     print(f"   [✓] Çözünürlük: {media.metadata.width}x{media.metadata.height}")
     print(f"   [✓] Süre:       {media.metadata.duration_seconds}s")
+    print(f"   [✓] Codec:      {media.metadata.video_codec} / {media.metadata.audio_codec}")
 
     # 3. Prepare Publish Request (Strictly PRIVATE)
     title = "[TEST] Tezlify AI Video Studio Verification"
@@ -109,13 +110,16 @@ def main():
 
     status_obj = video_details.get("status", {})
     snippet_obj = video_details.get("snippet", {})
+    proc_obj = video_details.get("processingDetails", {})
     actual_privacy = status_obj.get("privacyStatus")
     actual_title = snippet_obj.get("title")
     upload_status = status_obj.get("uploadStatus")
+    processing_status = proc_obj.get("processingStatus")
 
     print(f"   [✓] Doğrulanan Başlık:      {actual_title}")
     print(f"   [✓] Doğrulanan Gizlilik:    {actual_privacy}")
     print(f"   [✓] Yükleme Durumu:         {upload_status}")
+    print(f"   [✓] İşleme Durumu:          {processing_status}")
 
     if actual_privacy != "private":
         print(f"❌ KRİTİK GÜVENLİK UYARISI: Gizlilik private değil ({actual_privacy})!")

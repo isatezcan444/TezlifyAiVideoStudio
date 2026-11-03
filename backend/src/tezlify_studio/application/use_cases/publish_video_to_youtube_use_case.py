@@ -42,6 +42,8 @@ class PublishVideoToYouTubeUseCase:
         chunk_size: int = DEFAULT_CHUNK_SIZE,
         repo_factory: Optional[Callable[[], Tuple[PublishRecordRepositoryPort, Any]]] = None,
         stop_checker: Optional[Callable[[], bool]] = None,
+        poll_processing_attempts: int = 15,
+        poll_processing_interval: float = 3.0,
     ):
         self.media_repo = media_repo
         self.storage = storage
@@ -52,6 +54,8 @@ class PublishVideoToYouTubeUseCase:
         self.chunk_size = chunk_size
         self.repo_factory = repo_factory
         self.stop_checker = stop_checker
+        self.poll_processing_attempts = poll_processing_attempts
+        self.poll_processing_interval = poll_processing_interval
 
     def _get_valid_access_token(self, account_id: str) -> str:
         account = self.account_repo.get_by_id(account_id)
@@ -271,6 +275,8 @@ class PublishVideoToYouTubeUseCase:
                             record=record,
                             access_token=access_token,
                             repo=repo,
+                            max_poll_attempts=self.poll_processing_attempts,
+                            poll_interval=self.poll_processing_interval,
                         )
                         return
 
