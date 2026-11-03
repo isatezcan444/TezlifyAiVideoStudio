@@ -100,7 +100,8 @@ client = TestClient(app)
 
 def test_youtube_status_initially_disconnected():
     # Ensure any existing account is purged
-    client.delete("/api/v1/social/youtube/disconnect")
+    while client.delete("/api/v1/social/youtube/disconnect").json().get("success"):
+        pass
 
     res = client.get("/api/v1/social/youtube/status")
     assert res.status_code == 200

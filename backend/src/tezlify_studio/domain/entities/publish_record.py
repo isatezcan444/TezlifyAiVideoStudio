@@ -8,6 +8,7 @@ ALLOWED_TRANSITIONS = {
     PublishStatus.PENDING: {
         PublishStatus.AUTHENTICATING,
         PublishStatus.UPLOADING,
+        PublishStatus.REQUIRES_REAUTH,
         PublishStatus.CANCELLED,
         PublishStatus.FAILED,
     },

@@ -75,3 +75,11 @@ Yayın kayıtları yalnızca izin verilen durumlara geçiş yapabilir:
 - `PROCESSING` -> `PUBLISHED`, `FAILED`
 - `REQUIRES_REAUTH` -> `AUTHENTICATING`, `PENDING`, `CANCELLED`
 - `PUBLISHED` -> (Son durum / Terminal state)
+
+---
+
+## 4. Aşama 3 (Yayın Takvimi ve Otomatik Zamanlayıcı) Entegrasyonu
+Aşama 3 ile YouTube Publisher, arka planda çalışan zamanlayıcı servisi (`PublishSchedulerService`) ile entegre edilmiştir. Detaylı mimari ve zamanlama algoritmaları için bknz:
+- [Yayın Takvimi ve Zamanlayıcı Mimarisi](file:///Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/docs/architecture/scheduler.md)
+- [Kaçırılan Görevler ve Başlatma Uzlaştırması](file:///Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/docs/operations/schedule-recovery-and-missed-jobs.md)
+- [YouTube API Kota Modeli](file:///Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/docs/setup/youtube-api-quota.md)

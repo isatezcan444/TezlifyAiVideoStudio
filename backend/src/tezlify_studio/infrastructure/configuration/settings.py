@@ -30,6 +30,13 @@ class Settings(BaseSettings):
         alias="YOUTUBE_REDIRECT_URI"
     )
 
+    # Scheduler Settings
+    scheduler_enabled: bool = Field(default=True, alias="SCHEDULER_ENABLED")
+    scheduler_interval_seconds: int = Field(default=30, alias="SCHEDULER_INTERVAL_SECONDS")
+    scheduler_missed_grace_period_minutes: int = Field(default=60, alias="SCHEDULER_MISSED_GRACE_PERIOD_MINUTES")
+    scheduler_max_attempts: int = Field(default=3, alias="SCHEDULER_MAX_ATTEMPTS")
+    scheduler_retry_delay_minutes: int = Field(default=5, alias="SCHEDULER_RETRY_DELAY_MINUTES")
+
     model_config = SettingsConfigDict(
         env_file=os.path.join(PROJECT_ROOT, ".env"),
         env_file_encoding="utf-8",

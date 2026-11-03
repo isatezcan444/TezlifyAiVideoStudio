@@ -1,9 +1,12 @@
+import os
+import sys
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from tezlify_studio.infrastructure.configuration.settings import settings
 from tezlify_studio.infrastructure.persistence.database import init_db
-from tezlify_studio.presentation.api.routes import health, media, publish
+from tezlify_studio.presentation.api.routes import health, media, publish, scheduler
 from tezlify_studio.domain.exceptions.media_exceptions import (
     EntityNotFoundException,
     DuplicateMediaException,
@@ -18,6 +21,26 @@ from tezlify_studio.domain.exceptions.publish_exceptions import (
     AuthenticationRequiredException,
     TokenStorageException,
 )
+from tezlify_studio.domain.exceptions.schedule_exceptions import (
+    ScheduledPublishNotFoundException,
+    DuplicateScheduleException,
+    InvalidScheduleTimeException,
+    InvalidScheduleStateTransitionException,
+    ScheduleAlreadyClaimedException,
+)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Start background scheduler worker if enabled and not running inside pytest
+    is_test = os.environ.get("TEZLIFY_TEST_ENV") == "1" or "pytest" in sys.modules
+    if settings.scheduler_enabled and not is_test:
+        from tezlify_studio.presentation.dependencies.container import publish_scheduler_service
+        publish_scheduler_service.start()
+    yield
+    # Graceful shutdown of scheduler worker
+    if settings.scheduler_enabled and not is_test:
+        from tezlify_studio.presentation.dependencies.container import publish_scheduler_service
+        publish_scheduler_service.stop()
 
 def create_app() -> FastAPI:
     # Initialize SQLite database schema
@@ -27,15 +50,28 @@ def create_app() -> FastAPI:
     from tezlify_studio.infrastructure.persistence.repositories.publish_record_repository_impl import (
         PublishRecordRepositoryImpl,
     )
+    from tezlify_studio.infrastructure.persistence.repositories.scheduled_publish_repository_impl import (
+        ScheduledPublishRepositoryImpl,
+    )
     from tezlify_studio.infrastructure.persistence.database import SessionLocal
     from tezlify_studio.application.use_cases.reconcile_publish_records_use_case import (
         ReconcilePublishRecordsUseCase,
     )
+    from tezlify_studio.application.use_cases.reconcile_scheduled_publishes_use_case import (
+        ReconcileScheduledPublishesUseCase,
+    )
 
     startup_db = SessionLocal()
     try:
-        repo = PublishRecordRepositoryImpl(startup_db)
-        ReconcilePublishRecordsUseCase(repo).execute()
+        pub_repo = PublishRecordRepositoryImpl(startup_db)
+        ReconcilePublishRecordsUseCase(pub_repo).execute()
+
+        sched_repo = ScheduledPublishRepositoryImpl(startup_db)
+        ReconcileScheduledPublishesUseCase(
+            schedule_repo=sched_repo,
+            publish_repo=pub_repo,
+            grace_period_minutes=settings.scheduler_missed_grace_period_minutes,
+        ).execute()
     finally:
         startup_db.close()
 
@@ -45,6 +81,7 @@ def create_app() -> FastAPI:
         version="1.0.0",
         docs_url="/docs" if settings.debug else None,
         redoc_url=None,
+        lifespan=lifespan,
     )
 
     # CORS Middleware
@@ -128,6 +165,45 @@ def create_app() -> FastAPI:
             content={"detail": str(exc), "error_code": "TOKEN_STORAGE_ERROR"},
         )
 
+    @app.exception_handler(ScheduledPublishNotFoundException)
+    async def schedule_not_found_handler(request: Request, exc: ScheduledPublishNotFoundException):
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"detail": str(exc), "error_code": "SCHEDULE_NOT_FOUND"},
+        )
+
+    @app.exception_handler(DuplicateScheduleException)
+    async def duplicate_schedule_handler(request: Request, exc: DuplicateScheduleException):
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={
+                "detail": str(exc),
+                "error_code": "DUPLICATE_SCHEDULE",
+                "existing_schedule_id": exc.existing_schedule_id,
+            },
+        )
+
+    @app.exception_handler(InvalidScheduleTimeException)
+    async def invalid_schedule_time_handler(request: Request, exc: InvalidScheduleTimeException):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": str(exc), "error_code": "INVALID_SCHEDULE_TIME"},
+        )
+
+    @app.exception_handler(InvalidScheduleStateTransitionException)
+    async def invalid_schedule_transition_handler(request: Request, exc: InvalidScheduleStateTransitionException):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": str(exc), "error_code": "INVALID_STATE_TRANSITION"},
+        )
+
+    @app.exception_handler(ScheduleAlreadyClaimedException)
+    async def schedule_claimed_handler(request: Request, exc: ScheduleAlreadyClaimedException):
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={"detail": str(exc), "error_code": "SCHEDULE_ALREADY_CLAIMED"},
+        )
+
     @app.exception_handler(DomainException)
     async def general_domain_handler(request: Request, exc: DomainException):
         return JSONResponse(
@@ -139,6 +215,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router, prefix="/api/v1")
     app.include_router(media.router, prefix="/api/v1")
     app.include_router(publish.router, prefix="/api/v1")
+    app.include_router(scheduler.router, prefix="/api/v1")
 
     return app
 

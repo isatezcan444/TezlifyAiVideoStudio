@@ -9,6 +9,7 @@ import {
   X,
   Server,
   Youtube,
+  Calendar,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -58,6 +59,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           icon: Youtube,
           badge: 'Aşama 2',
           badgeColor: 'bg-red-500/15 text-red-600 dark:bg-red-500/25 dark:text-red-400',
+        },
+        {
+          id: 'scheduler',
+          label: 'Yayın Takvimi',
+          icon: Calendar,
+          badge: 'Aşama 3',
+          badgeColor: 'bg-indigo-500/15 text-indigo-600 dark:bg-indigo-500/25 dark:text-indigo-400',
         },
       ],
     },

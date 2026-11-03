@@ -48,7 +48,7 @@ Tezlify AI Video Studio, YouTube Data API v3 Resumable Upload protokolünü ve R
 
 ### Senaryo D: Granüler Kota ve Yetki Ayrımı (403 Forbidden)
 Google API 403 hataları tek bir kategoriye indirgenmez, hassasiyetle ayrıştırılır:
-- **`quotaExceeded` / `dailyLimitExceeded`**: Günlük YouTube Data API kota havuzu tükenmiştir (1 video yükleme = 1600 birim). Pasifik Saatine (PT) göre gece yarısı otomatik sıfırlanır. Durum `FAILED (QUOTA_EXCEEDED)` yapılır.
+- **`quotaExceeded` / `dailyLimitExceeded`**: Günlük YouTube Data API kota havuzu tükenmiştir (ayrılmış videos.insert havuzu aşımı). Pasifik Saatine (PT) göre gece yarısı otomatik sıfırlanır. Durum `FAILED (QUOTA_EXCEEDED)` yapılır. (Bkz: `docs/setup/youtube-api-quota.md`)
 - **`uploadLimitExceeded`**: Kanalın günlük video yükleme sınırına veya YouTube'un kanal doğrulama kısıtlamasına takılmıştır.
 - **`accessNotConfigured`**: YouTube Data API v3 Google Cloud projesinde etkinleştirilmemiştir.
 - **Diğer 403 Yanıtları**: İzin veya kanal sahipliği reddi olarak kullanıcıya ayrıntılı hata mesajıyla bildirilir.

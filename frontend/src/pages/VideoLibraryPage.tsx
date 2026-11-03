@@ -15,6 +15,7 @@ import {
   Eye,
   Clock,
   HardDrive,
+  Calendar,
 } from 'lucide-react';
 
 interface VideoLibraryPageProps {
@@ -24,6 +25,7 @@ interface VideoLibraryPageProps {
   onRequestDelete: (asset: MediaAsset) => void;
   onNavigateImport: () => void;
   onPublishVideo?: (asset: MediaAsset) => void;
+  onScheduleVideo?: (asset: MediaAsset) => void;
 }
 
 export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
@@ -33,6 +35,7 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
   onRequestDelete,
   onNavigateImport,
   onPublishVideo,
+  onScheduleVideo,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -169,6 +172,17 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
                   <StatusBadge status={asset.status} />
 
                   <div className="flex items-center space-x-1">
+                    {onScheduleVideo && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onScheduleVideo(asset)}
+                        title="Yayın Takvimine Ekle"
+                        className="h-7 w-7 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/20"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
                     {onPublishVideo && (
                       <Button
                         variant="ghost"
@@ -259,6 +273,17 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end space-x-1">
+                        {onScheduleVideo && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onScheduleVideo(asset)}
+                            title="Yayın Takvimine Ekle"
+                            className="h-7 w-7 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/20"
+                          >
+                            <Calendar className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
                         {onPublishVideo && (
                           <Button
                             variant="ghost"

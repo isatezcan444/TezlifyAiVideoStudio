@@ -1,9 +1,11 @@
 from tezlify_studio.domain.entities.media_asset import MediaAsset
 from tezlify_studio.domain.entities.social_account import SocialAccount
 from tezlify_studio.domain.entities.publish_record import PublishRecord
+from tezlify_studio.domain.entities.scheduled_publish import ScheduledPublish
 from tezlify_studio.domain.value_objects.video_metadata import VideoMetadata
 from tezlify_studio.application.dto.media_dto import MediaAssetDTO, VideoMetadataDTO
 from tezlify_studio.application.dto.publish_dto import SocialAccountDTO, PublishRecordDTO
+from tezlify_studio.application.dto.schedule_dto import ScheduledPublishDTO
 
 def metadata_to_dto(meta: VideoMetadata | None) -> VideoMetadataDTO | None:
     if not meta:
@@ -70,5 +72,30 @@ def publish_record_to_dto(record: PublishRecord) -> PublishRecordDTO:
         created_at=record.created_at.isoformat(),
         updated_at=record.updated_at.isoformat(),
         published_at=record.published_at.isoformat() if record.published_at else None,
+    )
+
+def scheduled_publish_to_dto(schedule: ScheduledPublish) -> ScheduledPublishDTO:
+    return ScheduledPublishDTO(
+        id=schedule.id,
+        media_asset_id=schedule.media_asset_id,
+        social_account_id=schedule.social_account_id,
+        platform=schedule.platform.value,
+        title=schedule.title,
+        description=schedule.description,
+        tags=schedule.tags or [],
+        privacy_status=schedule.privacy_status.value,
+        scheduled_at_utc=schedule.scheduled_at_utc.isoformat(),
+        timezone=schedule.timezone,
+        status=schedule.status.value,
+        publish_record_id=schedule.publish_record_id,
+        attempt_count=schedule.attempt_count,
+        max_attempts=schedule.max_attempts,
+        last_error_code=schedule.last_error_code,
+        last_error_message=schedule.last_error_message,
+        started_at=schedule.started_at.isoformat() if schedule.started_at else None,
+        completed_at=schedule.completed_at.isoformat() if schedule.completed_at else None,
+        created_at=schedule.created_at.isoformat(),
+        updated_at=schedule.updated_at.isoformat(),
+        version=schedule.version,
     )
 

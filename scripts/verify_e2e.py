@@ -107,6 +107,22 @@ def run_verification():
     assert yt_list_res.status_code == 200, f"YouTube list failed: {yt_list_res.text}"
     print(f"   [✓] YouTube Yayın Geçmişi Endpoint'i OK (Kayıt sayısı: {yt_list_res.json()['total']})")
 
+    # 10. Scheduler & Calendar Endpoints Check (Stage 3)
+    print("\n10. Aşama 3 - Yayın Takvimi ve Otomatik Zamanlayıcı Test Ediliyor...")
+    sched_status_res = client.get("/api/v1/scheduler/status")
+    assert sched_status_res.status_code == 200, f"Scheduler status failed: {sched_status_res.text}"
+    sched_status = sched_status_res.json()
+    assert "is_running" in sched_status
+    print(f"   [✓] Scheduler Motor Durumu: {sched_status['is_running']} (Kontrol Aralığı: {sched_status['check_interval_seconds']}s)")
+
+    sched_list_res = client.get("/api/v1/scheduler")
+    assert sched_list_res.status_code == 200, f"Scheduler list failed: {sched_list_res.text}"
+    print(f"   [✓] Yayın Takvimi Listeleme OK (Toplam Plan: {sched_list_res.json()['total']})")
+
+    sched_upcoming_res = client.get("/api/v1/scheduler/upcoming")
+    assert sched_upcoming_res.status_code == 200, f"Scheduler upcoming failed: {sched_upcoming_res.text}"
+    print(f"   [✓] Yaklaşan Yayınlar Endpoint'i OK (Gelecek Planlar: {len(sched_upcoming_res.json())})")
+
     print("\n" + "=" * 65)
     print("  🎉 TÜM UÇTAN UCA TESTLER BAŞARIYLA TAMAMLANDI!")
     print("=" * 65 + "\n")

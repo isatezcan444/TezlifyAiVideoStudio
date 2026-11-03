@@ -7,6 +7,9 @@ from tezlify_studio.infrastructure.persistence.database import get_db, SessionLo
 from tezlify_studio.infrastructure.persistence.repositories.media_repository_impl import MediaRepositoryImpl
 from tezlify_studio.infrastructure.persistence.repositories.social_account_repository_impl import SocialAccountRepositoryImpl
 from tezlify_studio.infrastructure.persistence.repositories.publish_record_repository_impl import PublishRecordRepositoryImpl
+from tezlify_studio.infrastructure.persistence.repositories.scheduled_publish_repository_impl import (
+    ScheduledPublishRepositoryImpl,
+)
 from tezlify_studio.infrastructure.media.local_media_storage import LocalMediaStorage
 from tezlify_studio.infrastructure.media.video_probe_impl import VideoProbeImpl
 from tezlify_studio.application.ports.token_storage_port import TokenStoragePort
@@ -15,6 +18,7 @@ from tezlify_studio.infrastructure.security.token_storage_impl import (
     InMemoryTokenStorageAdapter,
 )
 from tezlify_studio.infrastructure.media.youtube_api_client_impl import YouTubeApiClientImpl
+from tezlify_studio.infrastructure.scheduler.scheduler_service import PublishSchedulerService
 
 from tezlify_studio.application.use_cases.import_video_use_case import ImportVideoUseCase
 from tezlify_studio.application.use_cases.get_media_use_case import GetMediaUseCase
@@ -30,6 +34,27 @@ from tezlify_studio.application.use_cases.resume_youtube_upload_use_case import 
 from tezlify_studio.application.use_cases.cancel_youtube_upload_use_case import CancelYouTubeUploadUseCase
 from tezlify_studio.application.use_cases.get_youtube_publish_status_use_case import GetYouTubePublishStatusUseCase
 from tezlify_studio.application.use_cases.list_publish_records_use_case import ListPublishRecordsUseCase
+from tezlify_studio.application.use_cases.create_scheduled_publish_use_case import (
+    CreateScheduledPublishUseCase,
+)
+from tezlify_studio.application.use_cases.update_scheduled_publish_use_case import (
+    UpdateScheduledPublishUseCase,
+)
+from tezlify_studio.application.use_cases.cancel_scheduled_publish_use_case import (
+    CancelScheduledPublishUseCase,
+)
+from tezlify_studio.application.use_cases.get_scheduled_publish_use_case import (
+    GetScheduledPublishUseCase,
+)
+from tezlify_studio.application.use_cases.list_scheduled_publishes_use_case import (
+    ListScheduledPublishesUseCase,
+)
+from tezlify_studio.application.use_cases.get_upcoming_publishes_use_case import (
+    GetUpcomingPublishesUseCase,
+)
+from tezlify_studio.application.use_cases.retry_failed_scheduled_publish_use_case import (
+    RetryFailedScheduledPublishUseCase,
+)
 
 # Singleton instances
 media_storage = LocalMediaStorage(settings.media_dir, settings.temp_dir)
@@ -173,3 +198,57 @@ def get_list_publish_records_use_case(
     publish_repo: PublishRecordRepositoryImpl = Depends(get_publish_record_repository),
 ) -> ListPublishRecordsUseCase:
     return ListPublishRecordsUseCase(publish_repo)
+
+# Scheduler dependencies
+def get_scheduled_publish_repository(db: Session = Depends(get_db)) -> ScheduledPublishRepositoryImpl:
+    return ScheduledPublishRepositoryImpl(db)
+
+publish_scheduler_service = PublishSchedulerService(
+    storage=media_storage,
+    token_storage=token_storage,
+    youtube_publisher=youtube_publisher,
+    check_interval_seconds=settings.scheduler_interval_seconds,
+    grace_period_minutes=settings.scheduler_missed_grace_period_minutes,
+    retry_delay_minutes=settings.scheduler_retry_delay_minutes,
+)
+
+def get_scheduler_service() -> PublishSchedulerService:
+    return publish_scheduler_service
+
+def get_create_scheduled_publish_use_case(
+    sched_repo: ScheduledPublishRepositoryImpl = Depends(get_scheduled_publish_repository),
+    media_repo: MediaRepositoryImpl = Depends(get_repository),
+    account_repo: SocialAccountRepositoryImpl = Depends(get_social_account_repository),
+    publish_repo: PublishRecordRepositoryImpl = Depends(get_publish_record_repository),
+) -> CreateScheduledPublishUseCase:
+    return CreateScheduledPublishUseCase(sched_repo, media_repo, account_repo, publish_repo)
+
+def get_update_scheduled_publish_use_case(
+    sched_repo: ScheduledPublishRepositoryImpl = Depends(get_scheduled_publish_repository),
+) -> UpdateScheduledPublishUseCase:
+    return UpdateScheduledPublishUseCase(sched_repo)
+
+def get_cancel_scheduled_publish_use_case(
+    sched_repo: ScheduledPublishRepositoryImpl = Depends(get_scheduled_publish_repository),
+) -> CancelScheduledPublishUseCase:
+    return CancelScheduledPublishUseCase(sched_repo)
+
+def get_get_scheduled_publish_use_case(
+    sched_repo: ScheduledPublishRepositoryImpl = Depends(get_scheduled_publish_repository),
+) -> GetScheduledPublishUseCase:
+    return GetScheduledPublishUseCase(sched_repo)
+
+def get_list_scheduled_publishes_use_case(
+    sched_repo: ScheduledPublishRepositoryImpl = Depends(get_scheduled_publish_repository),
+) -> ListScheduledPublishesUseCase:
+    return ListScheduledPublishesUseCase(sched_repo)
+
+def get_upcoming_publishes_use_case(
+    sched_repo: ScheduledPublishRepositoryImpl = Depends(get_scheduled_publish_repository),
+) -> GetUpcomingPublishesUseCase:
+    return GetUpcomingPublishesUseCase(sched_repo)
+
+def get_retry_scheduled_publish_use_case(
+    sched_repo: ScheduledPublishRepositoryImpl = Depends(get_scheduled_publish_repository),
+) -> RetryFailedScheduledPublishUseCase:
+    return RetryFailedScheduledPublishUseCase(sched_repo)

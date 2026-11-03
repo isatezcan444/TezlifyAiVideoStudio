@@ -5,6 +5,14 @@ import {
   PublishRecord,
   PublishListResponse,
 } from '../types/publish';
+import {
+  ScheduledPublish,
+  ScheduledPublishListResponse,
+  SchedulerStatusResponse,
+  CreateScheduledPublishPayload,
+  UpdateScheduledPublishPayload,
+  ScheduleStatus,
+} from '../types/schedule';
 
 const API_BASE = '/api/v1';
 
@@ -184,6 +192,93 @@ export const apiService = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new ApiError(err.detail || 'Yükleme iptal edilemedi.', res.status, err.error_code);
+    }
+    return res.json();
+  },
+
+  // Publishing Schedule & Automatic Scheduler API (Stage 3)
+  async createSchedule(payload: CreateScheduledPublishPayload): Promise<ScheduledPublish> {
+    const res = await fetch(`${API_BASE}/scheduler`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'Yayın planlanamadı.', res.status, err.error_code);
+    }
+    return res.json();
+  },
+
+  async listSchedules(status?: ScheduleStatus, limit = 50, offset = 0): Promise<ScheduledPublishListResponse> {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    params.append('limit', limit.toString());
+    params.append('offset', offset.toString());
+
+    const res = await fetch(`${API_BASE}/scheduler?${params.toString()}`);
+    if (!res.ok) throw new ApiError('Planlama listesi alınamadı.', res.status);
+    return res.json();
+  },
+
+  async getUpcomingSchedules(limit = 20): Promise<ScheduledPublish[]> {
+    const res = await fetch(`${API_BASE}/scheduler/upcoming?limit=${limit}`);
+    if (!res.ok) throw new ApiError('Yaklaşan yayınlar alınamadı.', res.status);
+    return res.json();
+  },
+
+  async getSchedulerStatus(): Promise<SchedulerStatusResponse> {
+    const res = await fetch(`${API_BASE}/scheduler/status`);
+    if (!res.ok) throw new ApiError('Scheduler durumu alınamadı.', res.status);
+    return res.json();
+  },
+
+  async getSchedule(scheduleId: string): Promise<ScheduledPublish> {
+    const res = await fetch(`${API_BASE}/scheduler/${scheduleId}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'Plan detayı bulunamadı.', res.status, err.error_code);
+    }
+    return res.json();
+  },
+
+  async updateSchedule(scheduleId: string, payload: UpdateScheduledPublishPayload): Promise<ScheduledPublish> {
+    const res = await fetch(`${API_BASE}/scheduler/${scheduleId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'Plan güncellenemedi.', res.status, err.error_code);
+    }
+    return res.json();
+  },
+
+  async cancelSchedule(scheduleId: string): Promise<ScheduledPublish> {
+    const res = await fetch(`${API_BASE}/scheduler/${scheduleId}/cancel`, {
+      method: 'POST',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'Plan iptal edilemedi.', res.status, err.error_code);
+    }
+    return res.json();
+  },
+
+  async retrySchedule(scheduleId: string, scheduledAt?: string, timezone?: string): Promise<ScheduledPublish> {
+    const payload: { scheduled_at?: string; timezone?: string } = {};
+    if (scheduledAt) payload.scheduled_at = scheduledAt;
+    if (timezone) payload.timezone = timezone;
+
+    const res = await fetch(`${API_BASE}/scheduler/${scheduleId}/retry`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'Yayın tekrar denenemedi.', res.status, err.error_code);
     }
     return res.json();
   },

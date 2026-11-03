@@ -1,0 +1,116 @@
+import uuid
+import zoneinfo
+from datetime import datetime, timezone, timedelta
+from tezlify_studio.application.ports.scheduled_publish_repository_port import (
+    ScheduledPublishRepositoryPort,
+)
+from tezlify_studio.application.ports.media_repository_port import MediaRepositoryPort
+from tezlify_studio.application.ports.social_account_repository_port import (
+    SocialAccountRepositoryPort,
+)
+from tezlify_studio.application.ports.publish_record_repository_port import (
+    PublishRecordRepositoryPort,
+)
+from tezlify_studio.domain.entities.scheduled_publish import ScheduledPublish
+from tezlify_studio.domain.enums.schedule_status import ScheduleStatus
+from tezlify_studio.domain.enums.publish_status import SocialPlatform, PrivacyStatus, PublishStatus
+from tezlify_studio.domain.enums.media_status import MediaStatus
+from tezlify_studio.domain.exceptions.media_exceptions import (
+    EntityNotFoundException,
+    InvalidMediaFileException,
+)
+from tezlify_studio.domain.exceptions.publish_exceptions import (
+    SocialAccountNotFoundException,
+    DuplicatePublishException,
+)
+from tezlify_studio.domain.exceptions.schedule_exceptions import (
+    InvalidScheduleTimeException,
+    DuplicateScheduleException,
+)
+from tezlify_studio.application.dto.schedule_dto import (
+    CreateScheduledPublishDTO,
+    ScheduledPublishDTO,
+)
+from tezlify_studio.application.dto.mappers import scheduled_publish_to_dto
+
+class CreateScheduledPublishUseCase:
+    def __init__(
+        self,
+        schedule_repo: ScheduledPublishRepositoryPort,
+        media_repo: MediaRepositoryPort,
+        account_repo: SocialAccountRepositoryPort,
+        publish_repo: PublishRecordRepositoryPort,
+    ):
+        self.schedule_repo = schedule_repo
+        self.media_repo = media_repo
+        self.account_repo = account_repo
+        self.publish_repo = publish_repo
+
+    def execute(self, dto: CreateScheduledPublishDTO) -> ScheduledPublishDTO:
+        # 1. Validate Media
+        media = self.media_repo.get_by_id(dto.media_asset_id)
+        if not media:
+            raise EntityNotFoundException("MediaAsset", dto.media_asset_id)
+        if media.status != MediaStatus.READY:
+            raise InvalidMediaFileException("Video henüz işlenmedi veya hazır durumda değil.")
+
+        # 2. Validate Connected Social Account
+        account = self.account_repo.get_active_by_platform(SocialPlatform.YOUTUBE)
+        if not account or not account.is_active:
+            raise SocialAccountNotFoundException("youtube")
+
+        # 3. Validate Timezone
+        tz_name = (dto.timezone or "UTC").strip()
+        try:
+            zoneinfo.ZoneInfo(tz_name)
+        except Exception:
+            raise InvalidScheduleTimeException(f"Geçersiz saat dilimi (timezone): '{tz_name}'")
+
+        # 4. Parse & Validate Scheduled DateTime
+        try:
+            raw_dt = datetime.fromisoformat(dto.scheduled_at_iso)
+        except Exception as e:
+            raise InvalidScheduleTimeException(f"Geçersiz ISO 8601 tarih formatı: {str(e)}")
+
+        if raw_dt.tzinfo is None:
+            # Naive datetime is forbidden per specifications
+            raise InvalidScheduleTimeException("Tarih zaman dilimi (timezone) bilgisi içermelidir (ISO 8601 with offset).")
+
+        sched_utc = raw_dt.astimezone(timezone.utc)
+        now_utc = datetime.now(timezone.utc)
+        if sched_utc <= now_utc + timedelta(seconds=30):
+            raise InvalidScheduleTimeException("Planlanan yayın tarihi gelecekte olmalıdır (en az 1 dakika sonrası).")
+
+        # 5. Check for active schedule conflict (idempotency)
+        existing_schedule = self.schedule_repo.get_active_by_media(media.id, SocialPlatform.YOUTUBE)
+        if existing_schedule:
+            raise DuplicateScheduleException(media.id, "youtube", existing_schedule.id)
+
+        # 6. Check for active live publish conflict
+        active_publish = self.publish_repo.get_active_by_media(media.id, SocialPlatform.YOUTUBE)
+        if active_publish and active_publish.status in (
+            PublishStatus.PENDING,
+            PublishStatus.AUTHENTICATING,
+            PublishStatus.UPLOADING,
+            PublishStatus.PROCESSING,
+        ):
+            raise DuplicatePublishException(media.id, "youtube", active_publish.id)
+
+        # 7. Create ScheduledPublish Entity
+        schedule = ScheduledPublish(
+            id=str(uuid.uuid4()),
+            media_asset_id=media.id,
+            social_account_id=account.id,
+            platform=SocialPlatform.YOUTUBE,
+            title=dto.title.strip() or media.original_filename,
+            description=dto.description.strip(),
+            tags=dto.tags or [],
+            privacy_status=PrivacyStatus(dto.privacy_status),
+            scheduled_at_utc=sched_utc,
+            timezone=tz_name,
+            status=ScheduleStatus.SCHEDULED,
+            max_attempts=dto.max_attempts,
+        )
+
+        saved = self.schedule_repo.save(schedule)
+        return scheduled_publish_to_dto(saved)
