@@ -14,6 +14,7 @@ class SocialAccountResponse(BaseModel):
 class YouTubeAuthUrlResponse(BaseModel):
     auth_url: str
     state: str
+    loopback_port: int = 0
 
 class StartPublishRequest(BaseModel):
     media_asset_id: str
@@ -39,7 +40,6 @@ class PublishRecordResponse(BaseModel):
     progress_percentage: int
     uploaded_bytes: int
     total_bytes: int
-    upload_session_uri: Optional[str] = None
     thumbnail_path: Optional[str] = None
     error_code: Optional[str] = None
     error_message: Optional[str] = None

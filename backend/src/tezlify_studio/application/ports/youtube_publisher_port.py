@@ -3,12 +3,17 @@ from typing import Optional, List, Tuple, Dict, Any
 
 class YouTubePublisherPort(ABC):
     @abstractmethod
-    def generate_auth_url(self, state: str, code_challenge: str) -> str:
+    def generate_auth_url(self, state: str, code_challenge: str, redirect_uri: Optional[str] = None) -> str:
         """Constructs Google OAuth 2.0 PKCE desktop authorization URL."""
         pass
 
     @abstractmethod
-    def exchange_code_for_tokens(self, code: str, code_verifier: str) -> Dict[str, Any]:
+    def exchange_code_for_tokens(
+        self,
+        code: str,
+        code_verifier: str,
+        redirect_uri: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Exchanges auth code with PKCE verifier for access and refresh tokens."""
         pass
 

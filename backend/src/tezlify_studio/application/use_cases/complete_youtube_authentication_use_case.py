@@ -22,12 +22,17 @@ class CompleteYouTubeAuthenticationUseCase:
         self.publisher = publisher
 
     def execute(self, code: str, state: str) -> SocialAccountDTO:
-        verifier = oauth_session_store.consume_verifier(state)
-        if not verifier:
+        session = oauth_session_store.consume_session(state)
+        if not session:
             raise AuthenticationRequiredException("Geçersiz veya süresi dolmuş OAuth state oturumu.")
+        verifier, redirect_uri = session
 
-        # 1. Exchange authorization code with PKCE verifier
-        tokens = self.publisher.exchange_code_for_tokens(code=code, code_verifier=verifier)
+        # 1. Exchange authorization code with PKCE verifier and matching redirect URI
+        tokens = self.publisher.exchange_code_for_tokens(
+            code=code,
+            code_verifier=verifier,
+            redirect_uri=redirect_uri,
+        )
         access_token = tokens.get("access_token")
         refresh_token = tokens.get("refresh_token")
         expires_in = tokens.get("expires_in", 3600)
@@ -53,6 +58,9 @@ class CompleteYouTubeAuthenticationUseCase:
             account.is_active = True
             account.token_expires_at = expires_at
             account.updated_at = datetime.now(timezone.utc)
+            # If Google didn't return a refresh token, preserve the existing one in Keychain
+            if not refresh_token:
+                refresh_token = self.token_storage.get_refresh_token(existing.id)
         else:
             account = SocialAccount(
                 id=str(uuid.uuid4()),

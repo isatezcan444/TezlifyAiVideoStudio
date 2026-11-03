@@ -21,10 +21,16 @@ class FakeYouTubePublisher(YouTubePublisherPort):
         self.initiate_calls = []
         self.pause_chunks = False
 
-    def generate_auth_url(self, state: str, code_challenge: str) -> str:
-        return f"https://accounts.google.com/o/oauth2/v2/auth?client_id=test_client&state={state}&code_challenge={code_challenge}"
+    def generate_auth_url(self, state: str, code_challenge: str, redirect_uri: Optional[str] = None) -> str:
+        r_uri = redirect_uri or "http://127.0.0.1:8000/api/v1/social/youtube/callback"
+        return f"https://accounts.google.com/o/oauth2/v2/auth?client_id=test_client&state={state}&code_challenge={code_challenge}&redirect_uri={r_uri}"
 
-    def exchange_code_for_tokens(self, code: str, code_verifier: str) -> Dict[str, Any]:
+    def exchange_code_for_tokens(
+        self,
+        code: str,
+        code_verifier: str,
+        redirect_uri: Optional[str] = None,
+    ) -> Dict[str, Any]:
         return {
             "access_token": "fake_access_token_123",
             "refresh_token": "fake_refresh_token_456",
@@ -82,9 +88,13 @@ class FakeYouTubePublisher(YouTubePublisherPort):
 fake_publisher = FakeYouTubePublisher()
 test_token_storage = InMemoryTokenStorageAdapter()
 
-# Override dependencies for test runner
-app.dependency_overrides[get_youtube_publisher] = lambda: fake_publisher
-app.dependency_overrides[get_token_storage] = lambda: test_token_storage
+@pytest.fixture(autouse=True)
+def override_youtube_deps():
+    app.dependency_overrides[get_youtube_publisher] = lambda: fake_publisher
+    app.dependency_overrides[get_token_storage] = lambda: test_token_storage
+    yield
+    app.dependency_overrides.pop(get_youtube_publisher, None)
+    app.dependency_overrides.pop(get_token_storage, None)
 
 client = TestClient(app)
 

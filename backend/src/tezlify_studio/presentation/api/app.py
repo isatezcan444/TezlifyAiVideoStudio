@@ -23,6 +23,22 @@ def create_app() -> FastAPI:
     # Initialize SQLite database schema
     init_db()
 
+    # Reconcile interrupted in-flight publishing jobs on startup
+    from tezlify_studio.infrastructure.persistence.repositories.publish_record_repository_impl import (
+        PublishRecordRepositoryImpl,
+    )
+    from tezlify_studio.infrastructure.persistence.database import SessionLocal
+    from tezlify_studio.application.use_cases.reconcile_publish_records_use_case import (
+        ReconcilePublishRecordsUseCase,
+    )
+
+    startup_db = SessionLocal()
+    try:
+        repo = PublishRecordRepositoryImpl(startup_db)
+        ReconcilePublishRecordsUseCase(repo).execute()
+    finally:
+        startup_db.close()
+
     app = FastAPI(
         title=settings.app_name,
         description="Local-First Professional Video Production & Publishing Core",

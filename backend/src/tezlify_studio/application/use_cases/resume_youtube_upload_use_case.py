@@ -1,6 +1,7 @@
 import threading
 from tezlify_studio.domain.enums.publish_status import PublishStatus
 from tezlify_studio.domain.exceptions.media_exceptions import EntityNotFoundException, InvalidMediaFileException
+from tezlify_studio.domain.exceptions.publish_exceptions import UploadSessionExpiredException
 from tezlify_studio.application.ports.media_repository_port import MediaRepositoryPort
 from tezlify_studio.application.ports.social_account_repository_port import SocialAccountRepositoryPort
 from tezlify_studio.application.ports.publish_record_repository_port import PublishRecordRepositoryPort
@@ -54,6 +55,16 @@ class ResumeYouTubeUploadUseCase:
                 record.update_progress(confirmed_bytes, record.total_bytes)
                 record.transition_to(PublishStatus.UPLOADING)
                 record = self.publish_repo.save(record)
+            except UploadSessionExpiredException:
+                record.upload_session_uri = None
+                record.uploaded_bytes = 0
+                record.transition_to(
+                    PublishStatus.FAILED,
+                    error_code="SESSION_EXPIRED",
+                    error_message="Google yükleme oturumunun süresi dolmuş. Yeni bir oturum başlatılmalıdır.",
+                )
+                self.publish_repo.save(record)
+                raise
             except Exception:
                 pass
 

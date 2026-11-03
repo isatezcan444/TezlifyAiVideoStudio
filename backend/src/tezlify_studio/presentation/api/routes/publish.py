@@ -18,6 +18,7 @@ from tezlify_studio.application.use_cases.resume_youtube_upload_use_case import 
 from tezlify_studio.application.use_cases.cancel_youtube_upload_use_case import CancelYouTubeUploadUseCase
 from tezlify_studio.application.use_cases.get_youtube_publish_status_use_case import GetYouTubePublishStatusUseCase
 from tezlify_studio.application.use_cases.list_publish_records_use_case import ListPublishRecordsUseCase
+from tezlify_studio.infrastructure.security.oauth_desktop_listener import DesktopOAuthListener
 from tezlify_studio.presentation.dependencies.container import (
     get_generate_youtube_auth_url_use_case,
     get_complete_youtube_auth_use_case,
@@ -46,10 +47,23 @@ def get_youtube_status(
 
 @router.post("/connect", response_model=YouTubeAuthUrlResponse)
 def connect_youtube(
-    use_case: GenerateYouTubeAuthUrlUseCase = Depends(get_generate_youtube_auth_url_use_case),
+    gen_auth_use_case: GenerateYouTubeAuthUrlUseCase = Depends(get_generate_youtube_auth_url_use_case),
+    complete_auth_use_case: CompleteYouTubeAuthenticationUseCase = Depends(get_complete_youtube_auth_use_case),
 ):
-    dto = use_case.execute()
-    return YouTubeAuthUrlResponse(auth_url=dto.auth_url, state=dto.state)
+    # Spawn Desktop OAuth loopback listener on dynamic 127.0.0.1 port
+    listener = DesktopOAuthListener.start_new(
+        oauth_handler_cb=complete_auth_use_case.execute,
+        timeout_seconds=300,
+    )
+    dto = gen_auth_use_case.execute(
+        redirect_uri=listener.redirect_uri,
+        loopback_port=listener.port,
+    )
+    return YouTubeAuthUrlResponse(
+        auth_url=dto.auth_url,
+        state=dto.state,
+        loopback_port=dto.loopback_port,
+    )
 
 @router.get("/callback", response_class=HTMLResponse)
 def youtube_callback(

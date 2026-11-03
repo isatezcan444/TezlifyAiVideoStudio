@@ -16,6 +16,7 @@ from tezlify_studio.domain.exceptions.publish_exceptions import (
     DuplicatePublishException,
     AuthenticationRequiredException,
     QuotaExceededException,
+    UploadSessionExpiredException,
 )
 from tezlify_studio.application.ports.media_repository_port import MediaRepositoryPort
 from tezlify_studio.application.ports.media_storage_port import MediaStoragePort
@@ -169,6 +170,9 @@ class PublishVideoToYouTubeUseCase:
             if not record:
                 return
             self._upload_file_chunks(record, file_path, access_token, repo)
+        except Exception:
+            # Error state has already been updated and persisted to repo by _upload_file_chunks
+            pass
         finally:
             if cleanup and callable(cleanup):
                 cleanup()
@@ -229,6 +233,16 @@ class PublishVideoToYouTubeUseCase:
                                 pass
                         return
 
+        except UploadSessionExpiredException as e:
+            record.upload_session_uri = None
+            record.uploaded_bytes = 0
+            record.transition_to(
+                PublishStatus.FAILED,
+                error_code="SESSION_EXPIRED",
+                error_message="Google yükleme oturumunun süresi dolmuş. Yeni bir oturum başlatılmalıdır.",
+            )
+            repo.save(record)
+            raise
         except QuotaExceededException as e:
             record.transition_to(PublishStatus.FAILED, error_code="QUOTA_EXCEEDED", error_message=str(e))
             repo.save(record)

@@ -37,3 +37,7 @@ class TokenStorageException(PublishDomainException):
 class AuthenticationRequiredException(PublishDomainException):
     def __init__(self, reason: str = "Re-authentication required."):
         super().__init__(reason)
+
+class UploadSessionExpiredException(PublishDomainException):
+    def __init__(self, message: str = "Upload session expired or invalid (HTTP 404). A new session must be initiated."):
+        super().__init__(message)

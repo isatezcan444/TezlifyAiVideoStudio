@@ -2,16 +2,20 @@ import time
 import secrets
 import hashlib
 import base64
+import threading
 from typing import Dict, Optional, Tuple
 
 class OAuthSessionStore:
     """
-    In-memory thread-safe storage for pending OAuth state and PKCE verifiers.
+    In-memory thread-safe storage for pending OAuth state, PKCE verifiers,
+    and associated dynamic loopback redirect URIs.
     Enforces TTL (10 minutes) and single-use validation (CSRF prevention).
     """
     def __init__(self, ttl_seconds: int = 600):
         self.ttl_seconds = ttl_seconds
-        self._sessions: Dict[str, Tuple[str, float]] = {}  # state -> (code_verifier, timestamp)
+        # state -> (code_verifier, redirect_uri, created_at)
+        self._sessions: Dict[str, Tuple[str, Optional[str], float]] = {}
+        self._lock = threading.Lock()
 
     @staticmethod
     def generate_pkce() -> Tuple[str, str]:
@@ -23,33 +27,42 @@ class OAuthSessionStore:
         code_challenge = base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
         return code_verifier, code_challenge
 
-    def create_session(self) -> Tuple[str, str]:
+    def create_session(self, redirect_uri: Optional[str] = None) -> Tuple[str, str]:
         """
-        Creates a new OAuth state and PKCE pair.
+        Creates a new OAuth state and PKCE pair with optional dynamic redirect_uri.
         Returns: (state, code_challenge)
         """
         state = secrets.token_urlsafe(32)
         verifier, challenge = self.generate_pkce()
-        self._sessions[state] = (verifier, time.time())
-        self._cleanup_expired()
+        with self._lock:
+            self._sessions[state] = (verifier, redirect_uri, time.time())
+            self._cleanup_expired_locked()
         return state, challenge
+
+    def consume_session(self, state: str) -> Optional[Tuple[str, Optional[str]]]:
+        """
+        Validates state, retrieves (verifier, redirect_uri), and immediately deletes it (single-use CSRF).
+        """
+        with self._lock:
+            self._cleanup_expired_locked()
+            session = self._sessions.pop(state, None)
+            if not session:
+                return None
+            verifier, redirect_uri, created_at = session
+            if time.time() - created_at > self.ttl_seconds:
+                return None
+            return verifier, redirect_uri
 
     def consume_verifier(self, state: str) -> Optional[str]:
         """
-        Validates state, retrieves verifier and immediately deletes it (single-use).
+        Backward-compatible helper returning only the verifier.
         """
-        self._cleanup_expired()
-        session = self._sessions.pop(state, None)
-        if not session:
-            return None
-        verifier, created_at = session
-        if time.time() - created_at > self.ttl_seconds:
-            return None
-        return verifier
+        res = self.consume_session(state)
+        return res[0] if res else None
 
-    def _cleanup_expired(self) -> None:
+    def _cleanup_expired_locked(self) -> None:
         now = time.time()
-        expired = [s for s, (_, t) in self._sessions.items() if now - t > self.ttl_seconds]
+        expired = [s for s, (_, _, t) in self._sessions.items() if now - t > self.ttl_seconds]
         for s in expired:
             self._sessions.pop(s, None)
 

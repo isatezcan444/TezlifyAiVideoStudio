@@ -138,6 +138,19 @@ class PublishRecordRepositoryImpl(PublishRecordRepositoryPort):
         )
         return [self._to_domain(m) for m in models]
 
+    def get_in_flight_records(self) -> List[PublishRecord]:
+        in_flight = [
+            PublishStatus.PENDING.value,
+            PublishStatus.AUTHENTICATING.value,
+            PublishStatus.UPLOADING.value,
+        ]
+        models = (
+            self.db.query(PublishRecordModel)
+            .filter(PublishRecordModel.status.in_(in_flight))
+            .all()
+        )
+        return [self._to_domain(m) for m in models]
+
     def count(self) -> int:
         return self.db.query(PublishRecordModel).count()
 

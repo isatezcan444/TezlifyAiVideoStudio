@@ -25,6 +25,11 @@ class PublishRecordRepositoryPort(ABC):
         pass
 
     @abstractmethod
+    def get_in_flight_records(self) -> List[PublishRecord]:
+        """Returns records currently in non-terminal/in-flight states (PENDING, AUTHENTICATING, UPLOADING)."""
+        pass
+
+    @abstractmethod
     def count(self) -> int:
         pass
 

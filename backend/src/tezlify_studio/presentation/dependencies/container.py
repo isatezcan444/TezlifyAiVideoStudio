@@ -1,3 +1,5 @@
+import os
+import sys
 from fastapi import Depends
 from sqlalchemy.orm import Session
 from tezlify_studio.infrastructure.configuration.settings import settings
@@ -7,7 +9,11 @@ from tezlify_studio.infrastructure.persistence.repositories.social_account_repos
 from tezlify_studio.infrastructure.persistence.repositories.publish_record_repository_impl import PublishRecordRepositoryImpl
 from tezlify_studio.infrastructure.media.local_media_storage import LocalMediaStorage
 from tezlify_studio.infrastructure.media.video_probe_impl import VideoProbeImpl
-from tezlify_studio.infrastructure.security.token_storage_impl import KeychainTokenStorageAdapter
+from tezlify_studio.application.ports.token_storage_port import TokenStoragePort
+from tezlify_studio.infrastructure.security.token_storage_impl import (
+    KeychainTokenStorageAdapter,
+    InMemoryTokenStorageAdapter,
+)
 from tezlify_studio.infrastructure.media.youtube_api_client_impl import YouTubeApiClientImpl
 
 from tezlify_studio.application.use_cases.import_video_use_case import ImportVideoUseCase
@@ -28,7 +34,12 @@ from tezlify_studio.application.use_cases.list_publish_records_use_case import L
 # Singleton instances
 media_storage = LocalMediaStorage(settings.media_dir, settings.temp_dir)
 video_probe = VideoProbeImpl()
-token_storage = KeychainTokenStorageAdapter(fallback_to_memory=True)
+
+# Strict Environment Isolation: InMemoryTokenStorageAdapter is strictly reserved for pytest / CI
+_is_test_runner = os.environ.get("TEZLIFY_TEST_ENV") == "1" or "pytest" in sys.modules
+token_storage: TokenStoragePort = (
+    InMemoryTokenStorageAdapter() if _is_test_runner else KeychainTokenStorageAdapter(fallback_to_memory=False)
+)
 youtube_publisher = YouTubeApiClientImpl()
 
 def get_repository(db: Session = Depends(get_db)) -> MediaRepositoryImpl:
@@ -46,7 +57,7 @@ def get_storage() -> LocalMediaStorage:
 def get_probe() -> VideoProbeImpl:
     return video_probe
 
-def get_token_storage() -> KeychainTokenStorageAdapter:
+def get_token_storage() -> TokenStoragePort:
     return token_storage
 
 def get_youtube_publisher() -> YouTubeApiClientImpl:
@@ -91,21 +102,21 @@ def get_generate_youtube_auth_url_use_case(
 
 def get_complete_youtube_auth_use_case(
     account_repo: SocialAccountRepositoryImpl = Depends(get_social_account_repository),
-    storage: KeychainTokenStorageAdapter = Depends(get_token_storage),
+    storage: TokenStoragePort = Depends(get_token_storage),
     publisher: YouTubeApiClientImpl = Depends(get_youtube_publisher),
 ) -> CompleteYouTubeAuthenticationUseCase:
     return CompleteYouTubeAuthenticationUseCase(account_repo, storage, publisher)
 
 def get_connected_youtube_account_use_case(
     account_repo: SocialAccountRepositoryImpl = Depends(get_social_account_repository),
-    storage: KeychainTokenStorageAdapter = Depends(get_token_storage),
+    storage: TokenStoragePort = Depends(get_token_storage),
     publisher: YouTubeApiClientImpl = Depends(get_youtube_publisher),
 ) -> GetConnectedYouTubeAccountUseCase:
     return GetConnectedYouTubeAccountUseCase(account_repo, storage, publisher)
 
 def get_disconnect_youtube_account_use_case(
     account_repo: SocialAccountRepositoryImpl = Depends(get_social_account_repository),
-    storage: KeychainTokenStorageAdapter = Depends(get_token_storage),
+    storage: TokenStoragePort = Depends(get_token_storage),
 ) -> DisconnectYouTubeAccountUseCase:
     return DisconnectYouTubeAccountUseCase(account_repo, storage)
 
@@ -120,7 +131,7 @@ def get_publish_video_use_case(
     storage: LocalMediaStorage = Depends(get_storage),
     account_repo: SocialAccountRepositoryImpl = Depends(get_social_account_repository),
     publish_repo: PublishRecordRepositoryImpl = Depends(get_publish_record_repository),
-    token_store: KeychainTokenStorageAdapter = Depends(get_token_storage),
+    token_store: TokenStoragePort = Depends(get_token_storage),
     publisher: YouTubeApiClientImpl = Depends(get_youtube_publisher),
 ) -> PublishVideoToYouTubeUseCase:
     return PublishVideoToYouTubeUseCase(

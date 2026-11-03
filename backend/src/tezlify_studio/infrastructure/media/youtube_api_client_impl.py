@@ -1,5 +1,6 @@
 import os
 import re
+import time
 import urllib.parse
 from typing import Optional, List, Tuple, Dict, Any
 import httpx
@@ -8,6 +9,7 @@ from tezlify_studio.domain.exceptions.publish_exceptions import (
     AuthenticationRequiredException,
     QuotaExceededException,
     PublishDomainException,
+    UploadSessionExpiredException,
 )
 from tezlify_studio.infrastructure.configuration.settings import settings
 
@@ -42,11 +44,17 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
                 "Google Client ID is not configured. Please set GOOGLE_CLIENT_ID or YOUTUBE_CLIENT_ID in .env."
             )
 
-    def generate_auth_url(self, state: str, code_challenge: str) -> str:
+    def generate_auth_url(
+        self,
+        state: str,
+        code_challenge: str,
+        redirect_uri: Optional[str] = None,
+    ) -> str:
         self._ensure_credentials()
+        effective_redirect = redirect_uri or self.redirect_uri
         params = {
             "client_id": self.client_id,
-            "redirect_uri": self.redirect_uri,
+            "redirect_uri": effective_redirect,
             "response_type": "code",
             "scope": " ".join(self.SCOPES),
             "access_type": "offline",
@@ -57,14 +65,20 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
         }
         return f"{self.AUTH_ENDPOINT}?{urllib.parse.urlencode(params)}"
 
-    def exchange_code_for_tokens(self, code: str, code_verifier: str) -> Dict[str, Any]:
+    def exchange_code_for_tokens(
+        self,
+        code: str,
+        code_verifier: str,
+        redirect_uri: Optional[str] = None,
+    ) -> Dict[str, Any]:
         self._ensure_credentials()
+        effective_redirect = redirect_uri or self.redirect_uri
         data = {
             "client_id": self.client_id,
             "code": code,
             "code_verifier": code_verifier,
             "grant_type": "authorization_code",
-            "redirect_uri": self.redirect_uri,
+            "redirect_uri": effective_redirect,
         }
         if self.client_secret:
             data["client_secret"] = self.client_secret
@@ -112,8 +126,7 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
         if resp.status_code == 401:
             raise AuthenticationRequiredException("Access token expired while fetching YouTube channel.")
         if resp.status_code == 403:
-            self._check_quota_error(resp)
-            raise PublishDomainException(f"Access forbidden: {resp.text}")
+            self._check_quota_and_forbidden_error(resp, "fetching YouTube channel")
         if resp.status_code != 200:
             raise PublishDomainException(f"Failed to fetch channel profile: {resp.text}")
 
@@ -171,8 +184,7 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
         if resp.status_code == 401:
             raise AuthenticationRequiredException("Access token expired during upload initiation.")
         if resp.status_code == 403:
-            self._check_quota_error(resp)
-            raise PublishDomainException(f"Upload initiation forbidden: {resp.text}")
+            self._check_quota_and_forbidden_error(resp, "upload initiation")
         if resp.status_code != 200:
             raise PublishDomainException(f"Failed to initiate upload session: HTTP {resp.status_code}: {resp.text}")
 
@@ -188,6 +200,7 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
         chunk_data: bytes,
         start_byte: int,
         total_bytes: int,
+        max_retries: int = 3,
     ) -> Tuple[int, Optional[Dict[str, Any]]]:
         end_byte = start_byte + len(chunk_data) - 1
         headers = {
@@ -196,22 +209,49 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
             "Content-Type": "application/octet-stream",
         }
 
-        try:
-            resp = self._client.put(upload_session_uri, headers=headers, content=chunk_data)
-        except Exception as e:
-            raise PublishDomainException(f"Network error sending upload chunk: {str(e)}")
+        attempt = 0
+        backoff = 1.0
 
-        if resp.status_code == 308:
-            return (308, None)
-        elif resp.status_code in (200, 201):
-            return (resp.status_code, resp.json())
-        elif resp.status_code == 401:
-            raise AuthenticationRequiredException("Access token expired during chunk upload.")
-        elif resp.status_code == 403:
-            self._check_quota_error(resp)
-            raise PublishDomainException(f"Upload chunk forbidden: {resp.text}")
-        else:
-            raise PublishDomainException(f"Upload chunk error {resp.status_code}: {resp.text}")
+        while True:
+            try:
+                resp = self._client.put(upload_session_uri, headers=headers, content=chunk_data)
+            except (httpx.TimeoutException, httpx.NetworkError) as e:
+                attempt += 1
+                if attempt > max_retries:
+                    raise PublishDomainException(f"Network error sending upload chunk after {max_retries} retries: {str(e)}")
+                time.sleep(backoff)
+                backoff = min(backoff * 2, 32.0)
+                continue
+            except Exception as e:
+                raise PublishDomainException(f"Unexpected error sending upload chunk: {str(e)}")
+
+            if resp.status_code == 308:
+                return (308, None)
+            elif resp.status_code in (200, 201):
+                return (resp.status_code, resp.json())
+            elif resp.status_code == 404:
+                raise UploadSessionExpiredException("Upload session expired or invalid (HTTP 404).")
+            elif resp.status_code == 401:
+                raise AuthenticationRequiredException("Access token expired during chunk upload.")
+            elif resp.status_code == 403:
+                self._check_quota_and_forbidden_error(resp, "chunk upload")
+            elif resp.status_code in (500, 502, 503, 504):
+                attempt += 1
+                if attempt > max_retries:
+                    raise PublishDomainException(f"Upload chunk failed with server error HTTP {resp.status_code}: {resp.text}")
+
+                retry_after = resp.headers.get("Retry-After")
+                wait_seconds = backoff
+                if retry_after:
+                    try:
+                        wait_seconds = float(retry_after)
+                    except ValueError:
+                        wait_seconds = backoff
+                time.sleep(min(wait_seconds, 60.0))
+                backoff = min(backoff * 2, 32.0)
+                continue
+            else:
+                raise PublishDomainException(f"Upload chunk error HTTP {resp.status_code}: {resp.text}")
 
     def query_upload_status(self, upload_session_uri: str, total_bytes: int) -> int:
         headers = {
@@ -222,6 +262,9 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
             resp = self._client.put(upload_session_uri, headers=headers)
         except Exception as e:
             raise PublishDomainException(f"Network error querying upload status: {str(e)}")
+
+        if resp.status_code == 404:
+            raise UploadSessionExpiredException("Upload session expired or invalid (HTTP 404).")
 
         if resp.status_code in (200, 201):
             return total_bytes
@@ -235,6 +278,11 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
             if m:
                 return int(m.group(1)) + 1
             return 0
+
+        if resp.status_code == 401:
+            raise AuthenticationRequiredException("Access token expired during status query.")
+        if resp.status_code == 403:
+            self._check_quota_and_forbidden_error(resp, "status query")
 
         raise PublishDomainException(f"Query upload status returned HTTP {resp.status_code}: {resp.text}")
 
@@ -264,14 +312,28 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
         except Exception:
             return False
 
-    def _check_quota_error(self, resp: httpx.Response) -> None:
+    def _check_quota_and_forbidden_error(self, resp: httpx.Response, action_desc: str = "") -> None:
         try:
             err = resp.json().get("error", {})
+            message = err.get("message", resp.text)
             errors = err.get("errors", [])
             for e in errors:
-                if e.get("reason") in ("quotaExceeded", "dailyLimitExceeded"):
+                reason = e.get("reason", "")
+                if reason in ("quotaExceeded", "dailyLimitExceeded"):
                     raise QuotaExceededException(
-                        "YouTube API daily quota exceeded. Resets at midnight Pacific Time (PT).",
+                        "YouTube API günlük kota sınırına ulaşıldı (videos.insert günlük havuzu aşıldı). Pasifik Saati (PT) gece yarısı sıfırlanacaktır."
                     )
+                if reason == "uploadLimitExceeded":
+                    raise PublishDomainException(
+                        "YouTube günlük video yükleme sınırına ulaşıldı (Kanal doğrulama veya YouTube yükleme kısıtı)."
+                    )
+                if reason == "accessNotConfigured":
+                    raise PublishDomainException(
+                        "YouTube Data API v3 Google Cloud Console üzerinde etkinleştirilmemiş."
+                    )
+            raise PublishDomainException(f"YouTube erişimi reddedildi ({action_desc}): {message}")
         except (ValueError, KeyError):
-            pass
+            raise PublishDomainException(f"YouTube 403 Forbidden: {resp.text}")
+
+    def _check_quota_error(self, resp: httpx.Response) -> None:
+        self._check_quota_and_forbidden_error(resp, "operation")
