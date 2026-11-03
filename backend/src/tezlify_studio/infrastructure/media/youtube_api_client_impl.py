@@ -114,7 +114,14 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
             raise PublishDomainException(f"Network error refreshing access token: {str(e)}")
 
         if resp.status_code != 200:
-            raise AuthenticationRequiredException("Failed to refresh access token. Please reconnect YouTube account.")
+            err_data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+            err_code = err_data.get("error", "")
+            err_desc = err_data.get("error_description", resp.text)
+            if err_code == "invalid_grant":
+                raise AuthenticationRequiredException(
+                    "Google yetkilendirme anahtarının (refresh token) süresi dolmuş veya yetki geri çekilmiş. Lütfen YouTube kanalınızı yeniden bağlayın."
+                )
+            raise AuthenticationRequiredException(f"Failed to refresh access token ({err_code}): {err_desc}")
 
         return resp.json()
 
@@ -136,7 +143,7 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
         data = resp.json()
         items = data.get("items", [])
         if not items:
-            raise PublishDomainException("No YouTube channel found for this Google account.")
+            raise PublishDomainException("Bu Google hesabına bağlı bir YouTube kanalı bulunamadı. Lütfen önce YouTube Studio üzerinde bir kanal oluşturun.")
 
         channel = items[0]
         snippet = channel.get("snippet", {})
@@ -188,6 +195,10 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
             raise AuthenticationRequiredException("Access token expired during upload initiation.")
         if resp.status_code == 403:
             self._check_quota_and_forbidden_error(resp, "upload initiation")
+        if resp.status_code == 400:
+            err = resp.json().get("error", {}) if resp.headers.get("content-type", "").startswith("application/json") else {}
+            msg = err.get("message", resp.text)
+            raise PublishDomainException(f"YouTube video parametre hatası (HTTP 400): {msg}")
         if resp.status_code != 200:
             raise PublishDomainException(f"Failed to initiate upload session: HTTP {resp.status_code}: {resp.text}")
 

@@ -55,10 +55,15 @@ def connect_youtube(
         oauth_handler_cb=complete_auth_use_case.execute,
         timeout_seconds=300,
     )
-    dto = gen_auth_use_case.execute(
-        redirect_uri=listener.redirect_uri,
-        loopback_port=listener.port,
-    )
+    try:
+        dto = gen_auth_use_case.execute(
+            redirect_uri=listener.redirect_uri,
+            loopback_port=listener.port,
+        )
+    except Exception:
+        DesktopOAuthListener.stop_current()
+        raise
+
     return YouTubeAuthUrlResponse(
         auth_url=dto.auth_url,
         state=dto.state,
