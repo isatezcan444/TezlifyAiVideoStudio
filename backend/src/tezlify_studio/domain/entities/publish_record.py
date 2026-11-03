@@ -48,7 +48,9 @@ ALLOWED_TRANSITIONS = {
     PublishStatus.CANCELLED: {
         PublishStatus.PENDING,
     },
-    PublishStatus.PUBLISHED: set(),  # Terminal state
+    PublishStatus.PUBLISHED: {
+        PublishStatus.FAILED,
+    },
 }
 
 @dataclass

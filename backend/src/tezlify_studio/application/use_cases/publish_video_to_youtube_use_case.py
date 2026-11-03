@@ -250,6 +250,23 @@ class PublishVideoToYouTubeUseCase:
                         video_id = response_data.get("id")
                         record.external_video_id = video_id
                         record.external_video_url = f"https://youtu.be/{video_id}"
+
+                        # Detect immediate rejection in YouTube upload response
+                        status_info = response_data.get("status", {})
+                        upload_status = status_info.get("uploadStatus")
+                        rejection_reason = status_info.get("rejectionReason")
+                        failure_reason = status_info.get("failureReason")
+
+                        if upload_status == "rejected" or rejection_reason or failure_reason:
+                            reason = rejection_reason or failure_reason or upload_status or "Unknown"
+                            record.transition_to(
+                                PublishStatus.FAILED,
+                                error_code="YOUTUBE_REJECTED",
+                                error_message=f"YouTube video işleme motoru yüklemeyi reddetti: {reason}",
+                            )
+                            repo.save(record)
+                            return
+
                         record.transition_to(PublishStatus.PUBLISHED)
                         repo.save(record)
 

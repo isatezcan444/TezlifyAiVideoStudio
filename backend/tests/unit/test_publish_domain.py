@@ -85,3 +85,18 @@ def test_publish_record_invalid_transitions():
     # CANCELLED cannot jump directly to PUBLISHED
     with pytest.raises(InvalidPublishStateTransitionException):
         rec_cancelled.transition_to(PublishStatus.PUBLISHED)
+
+def test_published_transition_to_failed_on_remote_rejection():
+    rec = PublishRecord(
+        id="pub-remote-fail",
+        media_asset_id="med-fail",
+        status=PublishStatus.PUBLISHED,
+    )
+    # PUBLISHED can transition to FAILED when post-verification discovers remote deletion/rejection
+    rec.transition_to(
+        PublishStatus.FAILED,
+        error_code="YOUTUBE_REJECTED",
+        error_message="Remote stream processing rejected the video",
+    )
+    assert rec.status == PublishStatus.FAILED
+    assert rec.error_code == "YOUTUBE_REJECTED"
