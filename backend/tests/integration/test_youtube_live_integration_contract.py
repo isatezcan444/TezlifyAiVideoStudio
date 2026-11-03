@@ -17,7 +17,7 @@ def test_missing_google_client_id_raises_clear_auth_error():
     """Verify that if GOOGLE_CLIENT_ID is not configured, a clear 401 error is raised and listener is cleaned up."""
     from tezlify_studio.presentation.dependencies.container import get_youtube_publisher
     
-    unconfigured_publisher = YouTubeApiClientImpl(client_id=None)
+    unconfigured_publisher = YouTubeApiClientImpl(client_id="")
     app.dependency_overrides[get_youtube_publisher] = lambda: unconfigured_publisher
     try:
         client = TestClient(app)

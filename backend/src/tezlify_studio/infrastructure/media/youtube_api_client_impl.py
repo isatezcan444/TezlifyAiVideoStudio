@@ -36,8 +36,8 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
         redirect_uri: Optional[str] = None,
         client: Optional[httpx.Client] = None,
     ) -> None:
-        self.client_id = client_id or settings.resolved_youtube_client_id
-        self.client_secret = client_secret or settings.resolved_youtube_client_secret
+        self.client_id = client_id if client_id is not None else settings.resolved_youtube_client_id
+        self.client_secret = client_secret if client_secret is not None else settings.resolved_youtube_client_secret
         self.redirect_uri = redirect_uri or settings.youtube_redirect_uri
         self._client = client or httpx.Client(timeout=30.0)
 
@@ -330,6 +330,25 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
             return resp.status_code in (200, 201)
         except Exception:
             return False
+
+    def get_video_details(self, access_token: str, video_id: str) -> Dict[str, Any]:
+        url = f"{self.API_BASE}/videos?part=snippet,status&id={video_id}"
+        headers = {"Authorization": f"Bearer {access_token}"}
+        try:
+            resp = self._client.get(url, headers=headers)
+        except Exception as e:
+            raise PublishDomainException(f"Network error querying video details: {str(e)}")
+
+        if resp.status_code == 401:
+            raise AuthenticationRequiredException("Access token expired querying video details.")
+        if resp.status_code == 403:
+            self._check_quota_and_forbidden_error(resp, "querying video details")
+        if resp.status_code != 200:
+            raise PublishDomainException(f"Failed to query video details (HTTP {resp.status_code}): {resp.text}")
+
+        data = resp.json()
+        items = data.get("items", [])
+        return items[0] if items else {}
 
     def _check_quota_and_forbidden_error(self, resp: httpx.Response, action_desc: str = "") -> None:
         try:

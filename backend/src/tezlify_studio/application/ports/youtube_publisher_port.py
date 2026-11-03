@@ -81,3 +81,7 @@ class YouTubePublisherPort(ABC):
     ) -> bool:
         """Uploads custom thumbnail for the specified YouTube video."""
         pass
+
+    def get_video_details(self, access_token: str, video_id: str) -> Dict[str, Any]:
+        """Queries video details (snippet, status) from YouTube Data API."""
+        return {}

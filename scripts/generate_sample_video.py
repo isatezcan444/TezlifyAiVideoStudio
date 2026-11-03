@@ -2,7 +2,7 @@
 import struct
 import os
 
-def create_valid_minimal_mp4(filepath: str, width: int = 1280, height: int = 720, duration_seconds: int = 10):
+def create_valid_minimal_mp4(filepath: str, width: int = 1280, height: int = 720, duration_seconds: int = 10, extra_payload: bytes = b""):
     """
     Creates a syntactically valid minimal ISO BMFF / MP4 container with moov, mvhd, and tkhd boxes.
     """
@@ -53,7 +53,7 @@ def create_valid_minimal_mp4(filepath: str, width: int = 1280, height: int = 720
     moov_box = struct.pack(">I", 8 + len(moov_data)) + b"moov" + moov_data
 
     # 6. mdat box with dummy media payload
-    media_content = b"\x00" * 1024 * 64  # 64 KB payload
+    media_content = extra_payload + b"\x00" * max(0, 1024 * 64 - len(extra_payload))  # 64 KB payload
     mdat_box = struct.pack(">I", 8 + len(media_content)) + b"mdat" + media_content
 
     os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)

@@ -30,15 +30,18 @@ def run_verification():
     print(f"   [✓] Python: {status_data['python_version']}")
     print(f"   [✓] Storage Path: {status_data['data_dir']}")
 
-    # 3. Video Upload Flow with sample MP4
+    # 3. Video Upload Flow with unique sample MP4
     print("\n3. Gerçek Video Yükleme Akışı Test Ediliyor...")
-    sample_path = os.path.join(os.path.dirname(__file__), "..", "data", "temp", "sample_test_video.mp4")
-    assert os.path.exists(sample_path), f"Sample video not found at: {sample_path}"
+    import uuid
+    from generate_sample_video import create_valid_minimal_mp4
+    sample_name = f"e2e_test_{uuid.uuid4().hex[:8]}.mp4"
+    sample_path = os.path.join(os.path.dirname(__file__), "..", "data", "temp", sample_name)
+    create_valid_minimal_mp4(sample_path, width=1280, height=720, duration_seconds=5, extra_payload=uuid.uuid4().bytes)
 
     with open(sample_path, "rb") as f:
         upload_res = client.post(
             "/api/v1/media/upload",
-            files={"file": ("sample_test_video.mp4", f, "video/mp4")}
+            files={"file": (sample_name, f, "video/mp4")}
         )
     assert upload_res.status_code == 201, f"Upload failed: {upload_res.text}"
     asset = upload_res.json()
@@ -122,6 +125,9 @@ def run_verification():
     sched_upcoming_res = client.get("/api/v1/scheduler/upcoming")
     assert sched_upcoming_res.status_code == 200, f"Scheduler upcoming failed: {sched_upcoming_res.text}"
     print(f"   [✓] Yaklaşan Yayınlar Endpoint'i OK (Gelecek Planlar: {len(sched_upcoming_res.json())})")
+
+    if os.path.exists(sample_path):
+        os.remove(sample_path)
 
     print("\n" + "=" * 65)
     print("  🎉 TÜM UÇTAN UCA TESTLER BAŞARIYLA TAMAMLANDI!")
