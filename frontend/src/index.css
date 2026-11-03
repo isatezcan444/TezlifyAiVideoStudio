@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #F8F7FA;
+    color: #4B465C;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .dark body {
+    background-color: #25293C;
+    color: #DBD7EC;
+  }
+}
+
+/* Vuexy Clean Card Standards */
+.vuexy-card {
+  background-color: #FFFFFF;
+  border-radius: 0.625rem;
+  border: 1px solid rgba(47, 43, 61, 0.08);
+  box-shadow: 0 2px 9px 0 rgba(47, 43, 61, 0.06);
+  transition: all 0.2s ease;
+}
+
+.dark .vuexy-card {
+  background-color: #2F3349;
+  border-color: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 2px 14px 0 rgba(15, 20, 34, 0.4);
+}
+
+.vuexy-input {
+  background-color: #FFFFFF;
+  border: 1px solid #DBDADE;
+  color: #4B465C;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.vuexy-input::placeholder {
+  color: #94A3B8;
+  font-weight: 400;
+  opacity: 1;
+}
+
+.vuexy-input:focus {
+  outline: none;
+  border-color: #7367F0;
+  box-shadow: 0 0 0 3px rgba(115, 103, 240, 0.15);
+}
+
+.dark .vuexy-input {
+  background-color: #25293C;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #DBD7EC;
+}
+
+.dark .vuexy-input::placeholder {
+  color: #7E7F96;
+  font-weight: 400;
+  opacity: 1;
+}
+
+.dark .vuexy-input:focus {
+  border-color: #7367F0;
+  box-shadow: 0 0 0 3px rgba(115, 103, 240, 0.25);
+  background-color: #2F3349;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(115, 103, 240, 0.2);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(115, 103, 240, 0.4);
+}

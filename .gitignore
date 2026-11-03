@@ -1,0 +1,57 @@
+# Operating System
+.DS_Store
+Thumbs.db
+
+# Python & Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node & Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# Local Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Data & Media Storage (Local-First Runtime Data)
+data/database/*.db
+data/database/*.sqlite*
+data/media/*
+!data/media/.gitkeep
+data/temp/*
+!data/temp/.gitkeep
+data/logs/*
+!data/logs/.gitkeep
+data/backups/*
+!data/backups/.gitkeep
+
+# SQLite local DBs
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary & Media uploads
+uploads/
+temp/
+*.mp4
+*.mov
+*.webm
+*.mkv
+*.m4v
