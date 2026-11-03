@@ -117,6 +117,18 @@ class PublishRecordRepositoryImpl(PublishRecordRepositoryPort):
         )
         return self._to_domain(model) if model else None
 
+    def get_latest_by_media(self, media_id: str, platform: SocialPlatform) -> Optional[PublishRecord]:
+        model = (
+            self.db.query(PublishRecordModel)
+            .filter(
+                PublishRecordModel.media_asset_id == media_id,
+                PublishRecordModel.platform == platform.value,
+            )
+            .order_by(PublishRecordModel.created_at.desc())
+            .first()
+        )
+        return self._to_domain(model) if model else None
+
     def list_by_platform(self, platform: SocialPlatform, limit: int = 50, offset: int = 0) -> List[PublishRecord]:
         models = (
             self.db.query(PublishRecordModel)

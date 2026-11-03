@@ -24,8 +24,10 @@ from tezlify_studio.domain.exceptions.publish_exceptions import (
     DuplicatePublishException,
 )
 from tezlify_studio.domain.exceptions.schedule_exceptions import (
-    InvalidScheduleTimeException,
     DuplicateScheduleException,
+)
+from tezlify_studio.domain.services.schedule_timezone_validator import (
+    validate_and_normalize_schedule_time,
 )
 from tezlify_studio.application.dto.schedule_dto import (
     CreateScheduledPublishDTO,
@@ -59,29 +61,11 @@ class CreateScheduledPublishUseCase:
         if not account or not account.is_active:
             raise SocialAccountNotFoundException("youtube")
 
-        # 3. Validate Timezone
+        # 3. Validate & Normalize Timezone & DateTime (including DST edge cases)
         tz_name = (dto.timezone or "UTC").strip()
-        try:
-            zoneinfo.ZoneInfo(tz_name)
-        except Exception:
-            raise InvalidScheduleTimeException(f"Geçersiz saat dilimi (timezone): '{tz_name}'")
+        sched_utc = validate_and_normalize_schedule_time(dto.scheduled_at_iso, tz_name)
 
-        # 4. Parse & Validate Scheduled DateTime
-        try:
-            raw_dt = datetime.fromisoformat(dto.scheduled_at_iso)
-        except Exception as e:
-            raise InvalidScheduleTimeException(f"Geçersiz ISO 8601 tarih formatı: {str(e)}")
-
-        if raw_dt.tzinfo is None:
-            # Naive datetime is forbidden per specifications
-            raise InvalidScheduleTimeException("Tarih zaman dilimi (timezone) bilgisi içermelidir (ISO 8601 with offset).")
-
-        sched_utc = raw_dt.astimezone(timezone.utc)
-        now_utc = datetime.now(timezone.utc)
-        if sched_utc <= now_utc + timedelta(seconds=30):
-            raise InvalidScheduleTimeException("Planlanan yayın tarihi gelecekte olmalıdır (en az 1 dakika sonrası).")
-
-        # 5. Check for active schedule conflict (idempotency)
+        # 4. Check for active schedule conflict (idempotency)
         existing_schedule = self.schedule_repo.get_active_by_media(media.id, SocialPlatform.YOUTUBE)
         if existing_schedule:
             raise DuplicateScheduleException(media.id, "youtube", existing_schedule.id)

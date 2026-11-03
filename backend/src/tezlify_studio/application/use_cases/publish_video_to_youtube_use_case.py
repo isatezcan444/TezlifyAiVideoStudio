@@ -41,6 +41,7 @@ class PublishVideoToYouTubeUseCase:
         publisher: YouTubePublisherPort,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
         repo_factory: Optional[Callable[[], Tuple[PublishRecordRepositoryPort, Any]]] = None,
+        stop_checker: Optional[Callable[[], bool]] = None,
     ):
         self.media_repo = media_repo
         self.storage = storage
@@ -50,6 +51,7 @@ class PublishVideoToYouTubeUseCase:
         self.publisher = publisher
         self.chunk_size = chunk_size
         self.repo_factory = repo_factory
+        self.stop_checker = stop_checker
 
     def _get_valid_access_token(self, account_id: str) -> str:
         account = self.account_repo.get_by_id(account_id)
@@ -96,7 +98,12 @@ class PublishVideoToYouTubeUseCase:
 
         # 3. Check for concurrent active publish jobs
         existing = self.publish_repo.get_active_by_media(media.id, SocialPlatform.YOUTUBE)
-        if existing and existing.status in (PublishStatus.PENDING, PublishStatus.UPLOADING, PublishStatus.PROCESSING):
+        if existing and existing.status in (
+            PublishStatus.PENDING,
+            PublishStatus.UPLOADING,
+            PublishStatus.PROCESSING,
+            PublishStatus.PAUSED,
+        ):
             raise DuplicatePublishException(media.id, "youtube", existing.id)
 
         # 4. Create PublishRecord (PENDING)
@@ -187,10 +194,35 @@ class PublishVideoToYouTubeUseCase:
         total_bytes = record.total_bytes
         start_byte = record.uploaded_bytes
 
+        # If already at total bytes (e.g. uncertain last chunk), verify status
+        if start_byte >= total_bytes and record.upload_session_uri:
+            try:
+                status_res = self.publisher.query_upload_status(record.upload_session_uri, total_bytes)
+                finalized = getattr(status_res, "finalized_data", None)
+                if finalized and finalized.get("id"):
+                    video_id = finalized["id"]
+                    record.external_video_id = video_id
+                    record.external_video_url = f"https://youtu.be/{video_id}"
+                    record.transition_to(PublishStatus.PUBLISHED)
+                    repo.save(record)
+                    return
+            except Exception:
+                pass
+
         try:
             with open(file_path, "rb") as f:
                 f.seek(start_byte)
                 while start_byte < total_bytes:
+                    # Check if server/worker is shutting down
+                    if self.stop_checker and self.stop_checker():
+                        record.transition_to(
+                            PublishStatus.PAUSED,
+                            error_code="SERVER_STOPPING",
+                            error_message="Sunucu kapanırken yükleme temiz şekilde duraklatıldı.",
+                        )
+                        repo.save(record)
+                        return
+
                     # Check if user cancelled upload in DB
                     current = repo.get_by_id(record.id)
                     if current and current.status == PublishStatus.CANCELLED:

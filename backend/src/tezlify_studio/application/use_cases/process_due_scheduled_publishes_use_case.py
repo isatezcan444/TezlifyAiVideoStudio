@@ -40,11 +40,13 @@ class ProcessDueScheduledPublishesUseCase:
         publish_repo: PublishRecordRepositoryPort,
         publish_use_case: PublishVideoToYouTubeUseCase,
         retry_delay_minutes: int = 5,
+        resume_use_case: Optional[Any] = None,
     ):
         self.schedule_repo = schedule_repo
         self.publish_repo = publish_repo
         self.publish_use_case = publish_use_case
         self.retry_delay_minutes = retry_delay_minutes
+        self.resume_use_case = resume_use_case
 
     def execute(self, max_batch: int = 10) -> int:
         now_utc = datetime.now(timezone.utc)
@@ -69,19 +71,47 @@ class ProcessDueScheduledPublishesUseCase:
             processed_count += 1
             logger.info("Starting processing for scheduled publish '%s' (title: '%s')", record.id, record.title)
 
-            # 2. Prepare Publish Request DTO
-            publish_req = StartPublishRequestDTO(
-                media_asset_id=record.media_asset_id,
-                title=record.title,
-                description=record.description,
-                tags=record.tags,
-                privacy_status=record.privacy_status.value,
-            )
+            # Idempotency Guard: Check if a publish record already exists for this schedule or media asset
+            existing_pub = None
+            if record.publish_record_id:
+                existing_pub = self.publish_repo.get_by_id(record.publish_record_id)
+            if not existing_pub:
+                latest_pub = self.publish_repo.get_latest_by_media(record.media_asset_id, record.platform)
+                if latest_pub and latest_pub.status == PublishStatus.PUBLISHED:
+                    existing_pub = latest_pub
+
+            # If already successfully published, avoid duplicate upload entirely
+            if existing_pub and existing_pub.status == PublishStatus.PUBLISHED:
+                record.mark_published(existing_pub.id)
+                self.schedule_repo.save(record)
+                logger.info(
+                    "Schedule '%s' found existing completed publish '%s' (YT URL: %s). Resolved idempotently.",
+                    record.id,
+                    existing_pub.id,
+                    existing_pub.external_video_url,
+                )
+                continue
 
             try:
-                # Synchronous chunked upload in this scheduler worker thread
-                publish_dto = self.publish_use_case.execute(publish_req, async_upload=False)
-                record.publish_record_id = publish_dto.id
+                # If an interrupted upload exists with a session URI, resume it rather than starting over
+                if existing_pub and existing_pub.status in (PublishStatus.PAUSED, PublishStatus.UPLOADING) and existing_pub.upload_session_uri and self.resume_use_case:
+                    logger.info("Resuming existing interrupted upload session for schedule '%s'", record.id)
+                    record.publish_record_id = existing_pub.id
+                    self.schedule_repo.save(record)
+                    publish_dto = self.resume_use_case.execute(existing_pub.id, async_upload=False)
+                else:
+                    # Prepare Publish Request DTO
+                    publish_req = StartPublishRequestDTO(
+                        media_asset_id=record.media_asset_id,
+                        title=record.title,
+                        description=record.description,
+                        tags=record.tags,
+                        privacy_status=record.privacy_status.value,
+                    )
+                    # Synchronous chunked upload in this scheduler worker thread
+                    publish_dto = self.publish_use_case.execute(publish_req, async_upload=False)
+                    record.publish_record_id = publish_dto.id
+                    self.schedule_repo.save(record)
 
                 # Verify publish record status in DB
                 db_pub = self.publish_repo.get_by_id(publish_dto.id)

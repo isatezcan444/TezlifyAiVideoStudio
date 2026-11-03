@@ -144,6 +144,18 @@ class PublishSchedulerService:
                 publish_repo=pub_repo,
                 token_storage=self.token_storage,
                 publisher=self.youtube_publisher,
+                stop_checker=self._stop_event.is_set,
+            )
+
+            from tezlify_studio.application.use_cases.resume_youtube_upload_use_case import (
+                ResumeYouTubeUploadUseCase,
+            )
+            resume_use_case = ResumeYouTubeUploadUseCase(
+                publish_use_case=publish_use_case,
+                publish_repo=pub_repo,
+                media_repo=media_repo,
+                account_repo=account_repo,
+                publisher=self.youtube_publisher,
             )
 
             process_use_case = ProcessDueScheduledPublishesUseCase(
@@ -151,6 +163,7 @@ class PublishSchedulerService:
                 publish_repo=pub_repo,
                 publish_use_case=publish_use_case,
                 retry_delay_minutes=self.retry_delay_minutes,
+                resume_use_case=resume_use_case,
             )
 
             processed = process_use_case.execute(max_batch=10)

@@ -8,6 +8,9 @@ from tezlify_studio.domain.exceptions.schedule_exceptions import (
     ScheduledPublishNotFoundException,
     InvalidScheduleTimeException,
 )
+from tezlify_studio.domain.services.schedule_timezone_validator import (
+    validate_and_normalize_schedule_time,
+)
 from tezlify_studio.application.dto.schedule_dto import (
     UpdateScheduledPublishDTO,
     ScheduledPublishDTO,
@@ -38,22 +41,9 @@ class UpdateScheduledPublishUseCase:
 
         # 2. Reschedule if new time or timezone provided
         if dto.scheduled_at_iso is not None:
-            try:
-                raw_dt = datetime.fromisoformat(dto.scheduled_at_iso)
-            except Exception as e:
-                raise InvalidScheduleTimeException(f"Geçersiz ISO 8601 tarih: {str(e)}")
-
-            if raw_dt.tzinfo is None:
-                raise InvalidScheduleTimeException("Tarih zaman dilimi (timezone) bilgisi içermelidir.")
-
             new_tz = dto.timezone or schedule.timezone
-            if dto.timezone is not None:
-                try:
-                    zoneinfo.ZoneInfo(new_tz)
-                except Exception:
-                    raise InvalidScheduleTimeException(f"Geçersiz saat dilimi: '{new_tz}'")
-
-            schedule.reschedule(new_scheduled_at_utc=raw_dt, new_timezone=new_tz)
+            sched_utc = validate_and_normalize_schedule_time(dto.scheduled_at_iso, new_tz)
+            schedule.reschedule(new_scheduled_at_utc=sched_utc, new_timezone=new_tz)
         elif dto.timezone is not None:
             try:
                 zoneinfo.ZoneInfo(dto.timezone)

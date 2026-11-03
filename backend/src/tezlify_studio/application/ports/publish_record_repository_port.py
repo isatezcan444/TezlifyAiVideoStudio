@@ -17,6 +17,10 @@ class PublishRecordRepositoryPort(ABC):
         pass
 
     @abstractmethod
+    def get_latest_by_media(self, media_id: str, platform: SocialPlatform) -> Optional[PublishRecord]:
+        pass
+
+    @abstractmethod
     def list_by_platform(self, platform: SocialPlatform, limit: int = 50, offset: int = 0) -> List[PublishRecord]:
         pass
 

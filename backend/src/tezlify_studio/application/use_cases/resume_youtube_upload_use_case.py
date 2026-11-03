@@ -48,10 +48,23 @@ class ResumeYouTubeUploadUseCase:
         # 1. Query Google for last uploaded byte position
         if record.upload_session_uri:
             try:
-                confirmed_bytes = self.publisher.query_upload_status(
+                status_res = self.publisher.query_upload_status(
                     record.upload_session_uri,
                     record.total_bytes,
                 )
+                confirmed_bytes = int(status_res)
+                finalized_data = getattr(status_res, "finalized_data", None)
+
+                # Check if YouTube has already completed and finalized this upload
+                if finalized_data and finalized_data.get("id"):
+                    video_id = finalized_data["id"]
+                    record.external_video_id = video_id
+                    record.external_video_url = f"https://youtu.be/{video_id}"
+                    record.update_progress(record.total_bytes, record.total_bytes)
+                    record.transition_to(PublishStatus.PUBLISHED)
+                    record = self.publish_repo.save(record)
+                    return publish_record_to_dto(record)
+
                 record.update_progress(confirmed_bytes, record.total_bytes)
                 record.transition_to(PublishStatus.UPLOADING)
                 record = self.publish_repo.save(record)

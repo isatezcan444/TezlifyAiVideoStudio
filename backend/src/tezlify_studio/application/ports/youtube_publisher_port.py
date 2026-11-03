@@ -1,6 +1,16 @@
 from abc import ABC, abstractmethod
 from typing import Optional, List, Tuple, Dict, Any
 
+class UploadStatusResult(int):
+    """
+    Subclasses int so callers expecting an int byte count continue to work,
+    while optionally carrying finalized YouTube response data when upload completed (200/201).
+    """
+    def __new__(cls, confirmed_bytes: int, finalized_data: Optional[Dict[str, Any]] = None):
+        instance = super().__new__(cls, confirmed_bytes)
+        instance.finalized_data = finalized_data
+        return instance
+
 class YouTubePublisherPort(ABC):
     @abstractmethod
     def generate_auth_url(self, state: str, code_challenge: str, redirect_uri: Optional[str] = None) -> str:

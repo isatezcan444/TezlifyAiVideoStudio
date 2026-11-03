@@ -4,7 +4,10 @@ import time
 import urllib.parse
 from typing import Optional, List, Tuple, Dict, Any
 import httpx
-from tezlify_studio.application.ports.youtube_publisher_port import YouTubePublisherPort
+from tezlify_studio.application.ports.youtube_publisher_port import (
+    YouTubePublisherPort,
+    UploadStatusResult,
+)
 from tezlify_studio.domain.exceptions.publish_exceptions import (
     AuthenticationRequiredException,
     QuotaExceededException,
@@ -267,17 +270,22 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
             raise UploadSessionExpiredException("Upload session expired or invalid (HTTP 404).")
 
         if resp.status_code in (200, 201):
-            return total_bytes
+            data = None
+            try:
+                data = resp.json()
+            except Exception:
+                pass
+            return UploadStatusResult(total_bytes, finalized_data=data)
 
         if resp.status_code == 308:
             range_header = resp.headers.get("Range")
             if not range_header:
-                return 0
+                return UploadStatusResult(0)
             # Format: bytes=0-4194303
             m = re.search(r"bytes=0-(\d+)", range_header)
             if m:
-                return int(m.group(1)) + 1
-            return 0
+                return UploadStatusResult(int(m.group(1)) + 1)
+            return UploadStatusResult(0)
 
         if resp.status_code == 401:
             raise AuthenticationRequiredException("Access token expired during status query.")

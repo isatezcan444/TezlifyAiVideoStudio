@@ -35,13 +35,21 @@ class ReconcileScheduledPublishesUseCase:
         # 1. Reconcile in-flight PROCESSING tasks
         in_flight = self.schedule_repo.get_in_flight_processing_records()
         for schedule in in_flight:
+            pub_record = None
             if schedule.publish_record_id:
                 pub_record = self.publish_repo.get_by_id(schedule.publish_record_id)
-                if pub_record and pub_record.status == PublishStatus.PUBLISHED:
-                    schedule.mark_published(schedule.publish_record_id)
-                    self.schedule_repo.save(schedule)
-                    reconciled_in_flight_count += 1
-                    continue
+            else:
+                # Fallback: check if an existing publish record was created for this media asset
+                latest_pub = self.publish_repo.get_latest_by_media(schedule.media_asset_id, schedule.platform)
+                if latest_pub:
+                    pub_record = latest_pub
+                    schedule.publish_record_id = latest_pub.id
+
+            if pub_record and pub_record.status == PublishStatus.PUBLISHED:
+                schedule.mark_published(pub_record.id)
+                self.schedule_repo.save(schedule)
+                reconciled_in_flight_count += 1
+                continue
 
             # In other cases, pause for safety
             schedule.mark_paused(
