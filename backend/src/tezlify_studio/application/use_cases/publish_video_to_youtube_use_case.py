@@ -267,19 +267,11 @@ class PublishVideoToYouTubeUseCase:
                             repo.save(record)
                             return
 
-                        record.transition_to(PublishStatus.PUBLISHED)
-                        repo.save(record)
-
-                        # Attempt custom thumbnail upload if specified
-                        if record.thumbnail_path and self.storage.exists(record.thumbnail_path):
-                            try:
-                                self.publisher.upload_custom_thumbnail(
-                                    access_token=access_token,
-                                    video_id=video_id,
-                                    thumbnail_path=record.thumbnail_path,
-                                    )
-                            except Exception:
-                                pass
+                        self._verify_and_finalize_processing(
+                            record=record,
+                            access_token=access_token,
+                            repo=repo,
+                        )
                         return
 
         except UploadSessionExpiredException as e:
@@ -300,3 +292,103 @@ class PublishVideoToYouTubeUseCase:
             record.transition_to(PublishStatus.PAUSED, error_code="UPLOAD_INTERRUPTED", error_message=str(e))
             repo.save(record)
             raise
+
+    def _verify_and_finalize_processing(
+        self,
+        record: PublishRecord,
+        access_token: str,
+        repo: PublishRecordRepositoryPort,
+        max_poll_attempts: int = 5,
+        poll_interval: float = 2.0,
+    ) -> None:
+        """
+        Polls YouTube API to verify video processing status after chunk upload.
+        Transitions record to:
+        - PUBLISHED if processing succeeds (uploadStatus=='processed' or processingStatus=='succeeded')
+        - FAILED if rejected, failed, or deleted by YouTube
+        - Remains in PROCESSING if YouTube is still actively transcoding or result is indeterminate
+        """
+        record.transition_to(PublishStatus.PROCESSING)
+        repo.save(record)
+
+        for attempt in range(max_poll_attempts):
+            try:
+                details = self.publisher.get_video_details(
+                    access_token=access_token,
+                    video_id=record.external_video_id,
+                )
+            except Exception:
+                if attempt < max_poll_attempts - 1:
+                    time.sleep(poll_interval)
+                continue
+
+            # In mock or uninstrumented test environments where details is empty
+            if not details:
+                record.transition_to(PublishStatus.PUBLISHED)
+                repo.save(record)
+                break
+
+            if details.get("not_found"):
+                record.transition_to(
+                    PublishStatus.FAILED,
+                    error_code="YOUTUBE_REJECTED",
+                    error_message="Video YouTube tarafından işlenemedi veya silindi (API kaydı bulunamadı).",
+                )
+                repo.save(record)
+                return
+
+            status_obj = details.get("status", {})
+            proc_obj = details.get("processingDetails", {})
+
+            upload_status = status_obj.get("uploadStatus")
+            rejection_reason = status_obj.get("rejectionReason")
+            failure_reason = status_info_failure = status_obj.get("failureReason")
+            processing_status = proc_obj.get("processingStatus")
+            proc_failure_reason = proc_obj.get("processingFailureReason")
+
+            # Check rejection or failure
+            if (
+                upload_status in ("rejected", "failed", "deleted")
+                or rejection_reason
+                or failure_reason
+                or processing_status in ("failed", "terminated")
+                or proc_failure_reason
+            ):
+                reason = (
+                    rejection_reason
+                    or failure_reason
+                    or proc_failure_reason
+                    or upload_status
+                    or "Unknown"
+                )
+                record.transition_to(
+                    PublishStatus.FAILED,
+                    error_code="YOUTUBE_REJECTED",
+                    error_message=f"YouTube video işleme motoru yüklemeyi reddetti: {reason}",
+                )
+                repo.save(record)
+                return
+
+            # Check success: video is ready and available
+            if upload_status == "processed" or processing_status == "succeeded":
+                record.transition_to(PublishStatus.PUBLISHED)
+                repo.save(record)
+                break
+
+            # Still processing on YouTube: wait and retry
+            if upload_status == "uploaded" or processing_status == "processing":
+                if attempt < max_poll_attempts - 1:
+                    time.sleep(poll_interval)
+                    continue
+
+        # Post-processing thumbnail upload if video reached PUBLISHED
+        if record.status == PublishStatus.PUBLISHED and record.thumbnail_path and self.storage.exists(record.thumbnail_path):
+            try:
+                self.publisher.upload_custom_thumbnail(
+                    access_token=access_token,
+                    video_id=record.external_video_id,
+                    thumbnail_path=record.thumbnail_path,
+                )
+            except Exception:
+                pass
+

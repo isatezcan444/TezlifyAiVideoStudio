@@ -332,7 +332,7 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
             return False
 
     def get_video_details(self, access_token: str, video_id: str) -> Dict[str, Any]:
-        url = f"{self.API_BASE}/videos?part=snippet,status&id={video_id}"
+        url = f"{self.API_BASE}/videos?part=snippet,status,processingDetails&id={video_id}"
         headers = {"Authorization": f"Bearer {access_token}"}
         try:
             resp = self._client.get(url, headers=headers)
@@ -348,7 +348,7 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
 
         data = resp.json()
         items = data.get("items", [])
-        return items[0] if items else {}
+        return items[0] if items else {"not_found": True, "items": []}
 
     def _check_quota_and_forbidden_error(self, resp: httpx.Response, action_desc: str = "") -> None:
         try:

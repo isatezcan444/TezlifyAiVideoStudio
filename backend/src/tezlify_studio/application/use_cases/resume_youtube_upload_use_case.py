@@ -61,8 +61,11 @@ class ResumeYouTubeUploadUseCase:
                     record.external_video_id = video_id
                     record.external_video_url = f"https://youtu.be/{video_id}"
                     record.update_progress(record.total_bytes, record.total_bytes)
-                    record.transition_to(PublishStatus.PUBLISHED)
-                    record = self.publish_repo.save(record)
+                    self.publish_use_case._verify_and_finalize_processing(
+                        record=record,
+                        access_token=access_token,
+                        repo=self.publish_repo,
+                    )
                     return publish_record_to_dto(record)
 
                 record.update_progress(confirmed_bytes, record.total_bytes)

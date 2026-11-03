@@ -28,6 +28,7 @@ ALLOWED_TRANSITIONS = {
     },
     PublishStatus.PAUSED: {
         PublishStatus.UPLOADING,
+        PublishStatus.PROCESSING,
         PublishStatus.PUBLISHED,
         PublishStatus.CANCELLED,
         PublishStatus.FAILED,
