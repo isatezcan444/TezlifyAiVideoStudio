@@ -191,6 +191,19 @@ export const CharactersStep: React.FC<CharactersStepProps> = ({
     }
   };
 
+  const updateVoice = async (characterId: string, voiceId: string) => {
+    if (!sceneGraph) return;
+    const nextGraph: SceneGraph = JSON.parse(JSON.stringify(sceneGraph));
+    const character = nextGraph.characters.find((item) => item.id === characterId);
+    if (!character) return;
+    character.voice_id = voiceId;
+    try {
+      await saveGraph(nextGraph, `${character.name} için ses profili güncellendi.`);
+    } catch {
+      // Error already surfaced by saveGraph.
+    }
+  };
+
   const createAndAdd = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!newCharacter.name.trim()) {
@@ -341,13 +354,23 @@ export const CharactersStep: React.FC<CharactersStepProps> = ({
                 <div key={`${color}-${index}`} className="h-3 w-3 rounded-md rounded-sm" style={{ backgroundColor: color }} />
               ))}
             </div>
-          </div>
-          <div className="mt-3">
-            <label className="mb-1 text-[11px] font-bold text-slate-600 dark:text-slate-300">
-              Karakter adı
-            </label>
-            <div className="text-[11px] text-slate-700 dark:text-slate-200 truncate">
-              {character.name}
+            <div className="mt-3">
+              <label className="mb-1 block text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                Ses profili
+              </label>
+              <select
+                value={character.voice_id}
+                onChange={(event) => updateVoice(character.id, event.target.value)}
+                disabled={isUpdatingCharacter}
+                className="vuexy-input h-8 w-full px-2 text-[11px]"
+              >
+                {voices.length === 0 && <option value={character.voice_id}>Varsayılan</option>}
+                {voices.map((profile) => (
+                  <option key={profile.voice_id} value={profile.voice_id}>
+                    {profile.name} · {profile.language}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
           <div className="mt-2 flex items-center gap-2">
@@ -398,7 +421,7 @@ export const CharactersStep: React.FC<CharactersStepProps> = ({
                   Ses kaynağı: {voiceStatus?.is_configured ? 'ElevenLabs bağlı' : 'ElevenLabs bağlantısı yok'}
                 </div>
                 <p className="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">
-                  {voiceStatus?.is_configured ? `Model: ${voiceStatus?.default_model || 'global'} · ${voices.length} ses profili kullanılabilir.` : 'ElevenLabs bağlantısı yapılandırılmamış. Yalnızca mevcut ses dosyaları kullanılabilir.'}
+                  {voiceStatus?.is_configured ? `Model: ${voiceStatus?.default_model || 'global'} · ${voices.length} ses profili kullanılabilir.` : 'ElevenLabs yapılandırılmadı'}
                 </p>
               </div>
             </div>
@@ -461,15 +484,18 @@ export const CharactersStep: React.FC<CharactersStepProps> = ({
           <div className="flex items-center gap-2 mb-2">
             <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">
               <Users className="h-4 w-4 text-[#7367F0]" />
-              Karakter Kadrosu
+              Kütüphaneden Ekle
             </h3>
           </div>
 
           <div className="rounded-xl border border-slate-200 p-4 dark:border-white/[0.08] dark:bg-white/[0.02]">
             <div className="flex flex-col gap-3">
-              {cast.map((character) => {
-                const libraryMatch = library.find((item) => item.id === character.id);
-                return (
+              {availableCharacters.length === 0 ? (
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 text-center py-4">
+                  Kütüphanedeki tüm karakterler proje kadrosunda.
+                </p>
+              ) : (
+                availableCharacters.map((character) => (
                   <div key={character.id} className="rounded-lg border border-slate-200 p-3 dark:border-white/[0.08] dark:bg-white/[0.02]">
                     <div className="flex items-center gap-2">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.3] dark:bg-white/[0.05] text-[11px] font-bold text-slate-700 dark:text-slate-200">
@@ -478,25 +504,17 @@ export const CharactersStep: React.FC<CharactersStepProps> = ({
                       <div className="flex-1 min-w-0">
                         <span className="truncate text-[11px] font-bold text-slate-700 dark:text-slate-200">{character.name}</span>
                         <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-300 mt-1">
-                          {libraryMatch?.clothing_style} &bull; {libraryMatch?.eye_style}
-                          <span className="relative inline-flex h-[14px] w-[6px]">
-                            <span className="text-[9px] text-slate-400">{bodyTypeFromProportions(libraryMatch?.proportions)}</span>
-                          </span>
+                          {character.hair_style} &bull; {character.gender}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Button size="md" onClick={() => openEdit(character)} className="flex-1 gap-2" disabled={isUpdatingCharacter}>
-                          <Edit2 className="h-3 w-3" />
-                          Düzenle
-                        </Button>
-                        <Button type="button" variant="outline" size="md" onClick={() => removeCharacter(character.id)} className="flex-1 text-red-500 dark:text-red-500">
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
+                      <Button size="md" onClick={() => addCharacter(character)} className="flex-1 gap-2">
+                        <Plus className="h-3 w-3" />
+                        Ekle
+                      </Button>
                     </div>
                   </div>
-                );
-              })}
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -603,7 +621,7 @@ export const CharactersStep: React.FC<CharactersStepProps> = ({
               </Button>
               <Button type="submit" size="md" disabled={isUpdatingCharacter || !editForm.name.trim()} className="gap-2">
                 {isUpdatingCharacter ? <Loader2 className="h-4 w-4 animate-spin" /> : <Edit2 className="h-4 w-4" />}
-                Karakteri güncelle
+                Karakteri kaydet
               </Button>
             </div>
           </div>
@@ -666,7 +684,7 @@ export const CharactersStep: React.FC<CharactersStepProps> = ({
               </Button>
               <Button type="submit" size="md" disabled={isCreating || !newCharacter.name.trim()} className="gap-2">
                 {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                Karakteri oluştur ve ekle
+                Karakteri kaydet
               </Button>
             </div>
           </div>
