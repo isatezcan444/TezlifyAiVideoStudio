@@ -8,6 +8,10 @@ from typing import Callable, Optional
 from pathlib import Path
 
 from tezlify_studio.application.ports.blender_animation_engine_port import BlenderAnimationEnginePort
+from tezlify_studio.application.use_cases.execute_render_job_use_case import (
+    deregister_render_process,
+    register_render_process,
+)
 from tezlify_studio.domain.value_objects.scene_graph import SceneGraph
 from tezlify_studio.domain.value_objects.render_metadata import RenderOutputMetadata
 from tezlify_studio.domain.exceptions.studio_exceptions import BlenderRenderException
@@ -29,6 +33,39 @@ class BlenderAnimationEngineImpl(BlenderAnimationEnginePort):
         self.worker_script = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "render_worker.py")
         )
+
+    def _cleanup_render_artifacts(
+        self,
+        renders_dir: str,
+        frames_dir: str,
+        output_mp4_path: str,
+    ) -> None:
+        """Best-effort cleanup of temporary render artifacts on failure.
+
+        Removes the frame sequence and any partial MP4 so a failed render does
+        not leave orphaned files that look like valid output. ``keep_frames``
+        is honoured: when True, frames are preserved.
+        """
+        if not self.keep_frames and os.path.exists(frames_dir):
+            try:
+                shutil.rmtree(frames_dir)
+            except Exception:
+                pass
+        if os.path.exists(output_mp4_path):
+            try:
+                os.remove(output_mp4_path)
+            except Exception:
+                pass
+        # Remove manifest/result if they exist but the render did not complete.
+        for artifact in (
+            os.path.join(renders_dir, "render_manifest.json"),
+            os.path.join(renders_dir, "render_result.json"),
+        ):
+            if os.path.exists(artifact):
+                try:
+                    os.remove(artifact)
+                except Exception:
+                    pass
 
     def _find_blender(self) -> str:
         # Standard macOS & Linux paths
@@ -112,6 +149,9 @@ class BlenderAnimationEngineImpl(BlenderAnimationEnginePort):
                 bufsize=1,
             )
 
+            # Register so cancellation/shutdown can terminate exactly this process.
+            register_render_process(job_id, proc)
+
             # Stream stdout to capture progress
             stdout_lines = []
             if proc.stdout:
@@ -139,14 +179,22 @@ class BlenderAnimationEngineImpl(BlenderAnimationEnginePort):
                 )
 
         except subprocess.TimeoutExpired:
-            proc.kill()
+            try:
+                proc.kill()
+            except Exception:
+                pass
             raise BlenderRenderException("Blender rendering timed out (600s limit exceeded)")
         except Exception as e:
             if isinstance(e, BlenderRenderException):
                 raise
             raise BlenderRenderException(f"Failed to execute Blender subprocess: {str(e)}")
+        finally:
+            # Always deregister so the registry does not hold stale references.
+            deregister_render_process(job_id)
 
         if not os.path.exists(result_path):
+            # Blender exited without a result: clean up temporary frames.
+            self._cleanup_render_artifacts(renders_dir, frames_dir, output_mp4_path)
             raise BlenderRenderException("Blender worker finished without writing result summary")
 
         with open(result_path, "r", encoding="utf-8") as f:
@@ -253,6 +301,7 @@ class BlenderAnimationEngineImpl(BlenderAnimationEnginePort):
             ]
             fb_res = subprocess.run(fallback_cmd, capture_output=True, text=True)
             if fb_res.returncode != 0 or not os.path.exists(output_mp4_path):
+                self._cleanup_render_artifacts(renders_dir, frames_dir, output_mp4_path)
                 raise BlenderRenderException(
                     f"FFmpeg encoding failed: {ff_res.stderr[-400:]}"
                 )
@@ -270,6 +319,7 @@ class BlenderAnimationEngineImpl(BlenderAnimationEnginePort):
         ]
         probe_res = subprocess.run(probe_cmd, capture_output=True, text=True)
         if probe_res.returncode != 0:
+            self._cleanup_render_artifacts(renders_dir, frames_dir, output_mp4_path)
             raise BlenderRenderException(f"FFprobe validation failed: {probe_res.stderr}")
 
         try:

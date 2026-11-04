@@ -93,3 +93,38 @@ def test_api_video_upload_stream_and_delete_flow():
     # 13. Verify deleted
     get_after_del = client.get(f"/api/v1/media/{media_id}")
     assert get_after_del.status_code == 404
+
+
+def test_media_path_containment_thumbnail():
+    """P2-5: Thumbnail endpoint must not allow path traversal outside media dir."""
+    traversal_paths = [
+        "../backend/src/tezlify_studio/presentation/api/app.py",
+        "../../etc/passwd",
+        "/etc/passwd",
+        "..%2f..%2fetc%2fpasswd",
+    ]
+    for path in traversal_paths:
+        res = client.get(f"/api/v1/media/{path}/thumbnail")
+        assert res.status_code == 404, f"Path {path!r} should return 404, got {res.status_code}"
+
+
+def test_media_path_containment_stream():
+    """P2-5: Stream endpoint must not allow path traversal outside media dir."""
+    traversal_paths = [
+        "../backend/src/tezlify_studio/presentation/api/app.py",
+        "../../etc/passwd",
+        "/etc/passwd",
+    ]
+    for path in traversal_paths:
+        res = client.get(f"/api/v1/media/{path}/stream")
+        assert res.status_code == 404, f"Path {path!r} should return 404, got {res.status_code}"
+
+
+def test_media_upload_rejects_non_video_file():
+    """P2-4: A .mp4 file that is not a real video must be rejected."""
+    # File without a valid container header (no ftyp box)
+    fake_video_bytes = b"This is not a real video file at all." + (b"\x00" * 200)
+    files = {"file": ("fake_video.mp4", io.BytesIO(fake_video_bytes), "video/mp4")}
+    res = client.post("/api/v1/media/upload", files=files)
+    assert res.status_code == 400
+    assert res.json()["error_code"] == "INVALID_MEDIA_FILE"

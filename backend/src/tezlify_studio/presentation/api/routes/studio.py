@@ -50,6 +50,12 @@ from tezlify_studio.application.use_cases.list_project_renders_use_case import (
 from tezlify_studio.application.use_cases.list_render_jobs_use_case import (
     ListRenderJobsUseCase,
 )
+from tezlify_studio.application.use_cases.cancel_render_job_use_case import (
+    CancelRenderJobUseCase,
+)
+from tezlify_studio.presentation.dependencies.container import (
+    get_cancel_render_job_use_case,
+)
 from tezlify_studio.domain.enums.studio_status import RenderJobStatus
 from tezlify_studio.application.use_cases.list_voices_use_case import (
     ListVoicesUseCase,
@@ -390,8 +396,13 @@ def list_project_renders(
     use_case: ListProjectRendersUseCase = Depends(get_list_project_renders_use_case),
 ):
     jobs = use_case.execute(project_id, limit=limit, offset=offset)
+    items = []
+    for j in jobs:
+        item = j.__dict__
+        item.pop("output_video_path", None)
+        items.append(item)
     return {
-        "items": [j.__dict__ for j in jobs],
+        "items": items,
         "total": len(jobs),
     }
 
@@ -412,9 +423,51 @@ def list_render_jobs(
 ):
     status_filter = RenderJobStatus(job_status) if job_status else None
     jobs, total = use_case.execute(limit=limit, offset=offset, status=status_filter)
+    items = []
+    for job in jobs:
+        item = job.__dict__
+        item.pop("output_video_path", None)
+        items.append(item)
     return {
-        "items": [job.__dict__ for job in jobs],
+        "items": items,
         "total": total,
+    }
+
+
+def _iso(value) -> Optional[str]:
+    """Convert a datetime or date-like value to an ISO string, pass-through strings."""
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
+def _render_job_to_dict(job) -> dict:
+    """Serialize a RenderJob domain entity to a JSON-safe dict.
+
+    Datetime fields are converted to ISO strings and the absolute server file
+    path is omitted so it is not leaked to API consumers.
+    """
+    output_metadata = None
+    if job.output_metadata is not None:
+        try:
+            output_metadata = job.output_metadata.model_dump()
+        except Exception:
+            output_metadata = str(job.output_metadata)
+
+    return {
+        "id": job.id,
+        "project_id": job.project_id,
+        "status": job.status.value if hasattr(job.status, "value") else job.status,
+        "progress_percent": job.progress_percent,
+        "current_step": job.current_step,
+        # output_video_path intentionally omitted (internal server path)
+        "output_metadata": output_metadata,
+        "error_message": job.error_message,
+        "created_at": _iso(job.created_at),
+        "started_at": _iso(job.started_at),
+        "completed_at": _iso(job.completed_at),
     }
 
 
@@ -428,7 +481,20 @@ def get_render_job(
     use_case: GetRenderJobUseCase = Depends(get_render_job_use_case),
 ):
     res = use_case.execute(job_id)
-    return res.__dict__
+    return _render_job_to_dict(res)
+
+
+@router.post(
+    "/renders/{job_id}/cancel",
+    response_model=RenderJobResponse,
+    status_code=status.HTTP_200_OK,
+)
+def cancel_render_job(
+    job_id: str = Path(..., min_length=1),
+    use_case: CancelRenderJobUseCase = Depends(get_cancel_render_job_use_case),
+):
+    job = use_case.execute(job_id)
+    return _render_job_to_dict(job)
 
 @router.get("/renders/{job_id}/video")
 def stream_render_video(

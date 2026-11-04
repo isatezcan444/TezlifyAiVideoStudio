@@ -60,13 +60,24 @@ class ImportVideoUseCase:
         )
 
         try:
-            # 4. Check for duplicate SHA-256 hash in database
+            # 4. Validate that the file is a real, readable video via FFprobe.
+            # Extension and client-supplied MIME are not trustworthy on their own.
+            metadata = self.probe.probe_video(file_path)
+            if (
+                metadata.video_codec is None
+                and metadata.duration_seconds is None
+                and metadata.width is None
+            ):
+                # No video stream, no duration, and no dimensions: the file is
+                # not a readable media container.
+                raise InvalidMediaFileException(
+                    "Dosya bir video akisi icermiyor. Lutfen gecerli bir video dosyasi yukleyin."
+                )
+
+            # 5. Check for duplicate SHA-256 hash in database
             existing = self.repository.get_by_hash(sha256_hash)
             if existing:
                 raise DuplicateMediaException(sha256_hash, existing.id)
-
-            # 5. Extract video metadata
-            metadata = self.probe.probe_video(file_path)
 
             # 6. Attempt thumbnail generation if possible
             thumb_filename = f"thumb_{asset_id}.jpg"

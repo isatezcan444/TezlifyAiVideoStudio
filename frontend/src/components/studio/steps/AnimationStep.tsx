@@ -40,8 +40,10 @@ export const AnimationStep: React.FC<AnimationStepProps> = ({
   const [synthesizeVoices, setSynthesizeVoices] = useState(true);
   const [currentJob, setCurrentJob] = useState<RenderJob | null>(null);
   const [isStarting, setIsStarting] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   const animationRenders = useMemo(
     () =>
@@ -69,12 +71,13 @@ export const AnimationStep: React.FC<AnimationStepProps> = ({
       try {
         const updated = await apiService.getRenderJob(currentJob.id);
         if (!active) return;
+        setConnectionError(null);
         setCurrentJob(updated);
-        if (updated.status === 'completed' || updated.status === 'failed') {
+        if (updated.status === 'completed' || updated.status === 'failed' || updated.status === 'cancelled') {
           await onRefresh();
         }
       } catch {
-        // A transient polling error should not hide the last known state.
+        setConnectionError('Render durumu sunucudan alınamadı. Bağlantıyı kontrol edin.');
       }
     }, 2000);
     return () => {
@@ -96,6 +99,21 @@ export const AnimationStep: React.FC<AnimationStepProps> = ({
       setError(err.message || 'Animasyon render başlatılamadı.');
     } finally {
       setIsStarting(false);
+    }
+  };
+
+  const cancelRender = async () => {
+    if (!currentJob) return;
+    setIsCancelling(true);
+    setError(null);
+    try {
+      await apiService.cancelRenderJob(currentJob.id);
+      setMessage('Render iptal edildi.');
+      await onRefresh();
+    } catch (err: any) {
+      setError(err.message || 'Render iptali başarısız oldu.');
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -131,6 +149,7 @@ export const AnimationStep: React.FC<AnimationStepProps> = ({
 
       {error && <StudioAlert tone="error">{error}</StudioAlert>}
       {message && <StudioAlert tone="success">{message}</StudioAlert>}
+      {connectionError && <StudioAlert tone="error">{connectionError}</StudioAlert>}
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         <Card className="xl:col-span-2">
@@ -198,14 +217,37 @@ export const AnimationStep: React.FC<AnimationStepProps> = ({
               </StudioAlert>
             )}
 
-            <Button onClick={startRender} disabled={isStarting || isRendering} size="md" className="w-full gap-2">
-              {isStarting || isRendering ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Film className="h-4 w-4" />
+            <div className="flex gap-2">
+              <Button
+                onClick={startRender}
+                disabled={isStarting || isRendering || isCancelling}
+                size="md"
+                className="w-full gap-2"
+              >
+                {isStarting || isRendering ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Film className="h-4 w-4" />
+                )}
+                {isRendering ? 'Animasyon render ediliyor...' : 'Animasyonu render et'}
+              </Button>
+              {isRendering && (
+                <Button
+                  onClick={cancelRender}
+                  disabled={isCancelling}
+                  variant="destructive"
+                  size="md"
+                  className="w-full gap-2"
+                >
+                  {isCancelling ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4" />
+                  )}
+                  {isCancelling ? 'İptal ediliyor...' : 'İptal Et'}
+                </Button>
               )}
-              {isRendering ? 'Animasyon render ediliyor...' : 'Animasyonu render et'}
-            </Button>
+            </div>
             <p className="text-center text-[10px] text-slate-400">
               Bu işlem proje seviyesinde bir RenderJob oluşturur; ilerleme backend’den canlı okunur.
             </p>

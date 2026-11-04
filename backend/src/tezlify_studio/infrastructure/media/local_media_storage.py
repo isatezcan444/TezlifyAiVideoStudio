@@ -15,6 +15,19 @@ class LocalMediaStorage(MediaStoragePort):
         os.makedirs(self.media_dir, exist_ok=True)
         os.makedirs(self.temp_dir, exist_ok=True)
 
+    def _is_contained(self, file_path: str) -> bool:
+        """Return True if ``file_path`` resolves to a location under media_dir.
+
+        Uses realpath to resolve symlinks and ``..`` segments, preventing
+        symlink-based traversal out of the media directory.
+        """
+        try:
+            real_path = os.path.realpath(file_path)
+            real_base = os.path.realpath(self.media_dir)
+            return real_path == real_base or real_path.startswith(real_base + os.sep)
+        except Exception:
+            return False
+
     def _sanitize_path(self, base_dir: str, filename: str) -> str:
         safe_name = os.path.basename(filename)
         dest_path = os.path.abspath(os.path.join(base_dir, safe_name))
@@ -70,14 +83,20 @@ class LocalMediaStorage(MediaStoragePort):
             raise MediaStorageException(f"Failed to stream and save media: {str(e)}")
 
     def get_file_size(self, file_path: str) -> int:
+        if not self._is_contained(file_path):
+            raise MediaStorageException(f"Dosya yolu media dizini dışındadır: {file_path}")
         if not os.path.exists(file_path):
             return 0
         return os.path.getsize(file_path)
 
     def exists(self, file_path: str) -> bool:
+        if not self._is_contained(file_path):
+            return False
         return os.path.exists(file_path)
 
     def delete_file(self, file_path: str) -> bool:
+        if not self._is_contained(file_path):
+            raise MediaStorageException(f"Dosya yolu media dizini dışındadır: {file_path}")
         try:
             if os.path.exists(file_path):
                 os.remove(file_path)
@@ -93,6 +112,8 @@ class LocalMediaStorage(MediaStoragePort):
         end: int,
         chunk_size: int = 1024 * 512
     ) -> Generator[bytes, None, None]:
+        if not self._is_contained(file_path):
+            raise MediaStorageException(f"Dosya yolu media dizini dışındadır: {file_path}")
         if not os.path.exists(file_path):
             raise MediaStorageException(f"File not found: {file_path}")
 

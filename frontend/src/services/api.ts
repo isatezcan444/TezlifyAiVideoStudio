@@ -402,6 +402,17 @@ export const apiService = {
     return res.json();
   },
 
+  async cancelRenderJob(jobId: string): Promise<RenderJob> {
+    const res = await fetch(`${API_BASE}/studio/renders/${jobId}/cancel`, {
+      method: 'POST',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'Render iptali başarısız oldu.', res.status, err.error_code);
+    }
+    return res.json();
+  },
+
   async listProjectRenders(projectId: string): Promise<RenderJobListResponse> {
     const res = await fetch(`${API_BASE}/studio/projects/${projectId}/renders`);
     if (!res.ok) throw new ApiError('Render geçmişi alınamadı.', res.status);

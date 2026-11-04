@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
@@ -35,6 +36,8 @@ from tezlify_studio.domain.exceptions.studio_exceptions import (
     StudioDomainException,
 )
 
+logger = logging.getLogger(__name__)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Start background scheduler worker if enabled and not running inside pytest
@@ -47,6 +50,14 @@ async def lifespan(app: FastAPI):
     if settings.scheduler_enabled and not is_test:
         from tezlify_studio.presentation.dependencies.container import publish_scheduler_service
         publish_scheduler_service.stop()
+    # Graceful shutdown of render workers: cancel running subprocesses and
+    # wait (bounded) for worker threads to finish so no mid-render subprocess
+    # is orphaned and no partial MP4 is mistaken for a completed render.
+    if not is_test:
+        from tezlify_studio.application.use_cases.start_project_render_use_case import (
+            shutdown_render_workers,
+        )
+        shutdown_render_workers(grace_seconds=30.0)
 
 def create_app() -> FastAPI:
     # Initialize SQLite database schema
@@ -78,6 +89,26 @@ def create_app() -> FastAPI:
             publish_repo=pub_repo,
             grace_period_minutes=settings.scheduler_missed_grace_period_minutes,
         ).execute()
+
+        # Reconcile stale render jobs left RUNNING by a previous (crashed or
+        # restarted) server process so affected projects can be re-rendered.
+        from tezlify_studio.infrastructure.persistence.repositories.render_job_repository_impl import (
+            RenderJobRepositoryImpl,
+        )
+        from tezlify_studio.infrastructure.persistence.repositories.studio_project_repository_impl import (
+            StudioProjectRepositoryImpl,
+        )
+        from tezlify_studio.application.use_cases.reconcile_render_jobs_use_case import (
+            ReconcileRenderJobsUseCase,
+        )
+
+        render_job_repo = RenderJobRepositoryImpl(startup_db)
+        project_repo = StudioProjectRepositoryImpl(startup_db)
+        reconciled = ReconcileRenderJobsUseCase(render_job_repo, project_repo).execute()
+        if reconciled:
+            logger.info(
+                f"Render reconciliation: {reconciled} stale RUNNING job(s) marked FAILED."
+            )
 
         from tezlify_studio.infrastructure.persistence.repositories.character_repository_impl import CharacterRepositoryImpl
         from tezlify_studio.infrastructure.persistence.repositories.studio_asset_repository_impl import StudioAssetRepositoryImpl

@@ -168,8 +168,15 @@ class VideoProbeImpl(VideoProbePort):
             width=width,
             height=height,
             fps=30.0 if duration else None,
-            video_codec="h264 (inferred)" if file_path.endswith((".mp4", ".m4v")) else None,
-            audio_codec="aac (inferred)" if file_path.endswith((".mp4", ".m4v")) else None,
+            # Only infer codec from extension when the file has a recognizable
+            # container header (ftyp box). A bare extension on a non-media file
+            # must not be trusted.
+            video_codec=(
+                "h264 (inferred)" if data.startswith(b"ftyp") and file_path.endswith((".mp4", ".m4v")) else None
+            ),
+            audio_codec=(
+                "aac (inferred)" if data.startswith(b"ftyp") and file_path.endswith((".mp4", ".m4v")) else None
+            ),
             aspect_ratio=aspect_ratio,
             probe_source="python_fallback",
         )

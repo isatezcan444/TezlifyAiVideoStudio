@@ -143,3 +143,81 @@ def test_stream_render_video():
 
     finally:
         db.close()
+
+
+def test_cancel_pending_render_job():
+    """P1-2: A PENDING render job can be cancelled."""
+    proj_id = create_test_project_with_scene()
+
+    # Dispatch render (worker is mocked, job stays PENDING)
+    res = client.post(f"/api/v1/studio/projects/{proj_id}/render", json={})
+    assert res.status_code == 202
+    job_id = res.json()["id"]
+
+    # Cancel
+    cancel_res = client.post(f"/api/v1/studio/renders/{job_id}/cancel")
+    assert cancel_res.status_code == 200
+    assert cancel_res.json()["status"] == "cancelled"
+    # Internal server path must not be leaked
+    assert cancel_res.json().get("output_video_path") is None
+
+    # Idempotent: cancelling again is a no-op
+    cancel_res2 = client.post(f"/api/v1/studio/renders/{job_id}/cancel")
+    assert cancel_res2.status_code == 200
+    assert cancel_res2.json()["status"] == "cancelled"
+
+
+def test_cancel_completed_render_job_is_noop():
+    """P1-2: Cancelling a COMPLETED job does not change its state."""
+    proj_id = create_test_project_with_scene()
+
+    db = SessionLocal()
+    try:
+        repo = RenderJobRepositoryImpl(db)
+        job = RenderJob(
+            id="job_cancel_completed_test",
+            project_id=proj_id,
+            status=RenderJobStatus.COMPLETED,
+            progress_percent=100.0,
+            current_step="Render completed successfully",
+        )
+        repo.save(job)
+    finally:
+        db.close()
+
+    cancel_res = client.post("/api/v1/studio/renders/job_cancel_completed_test/cancel")
+    assert cancel_res.status_code == 200
+    assert cancel_res.json()["status"] == "completed"
+
+
+def test_cancel_nonexistent_job_returns_404():
+    """P1-2: Cancelling a non-existent job returns 404."""
+    res = client.post("/api/v1/studio/renders/does_not_exist/cancel")
+    assert res.status_code == 404
+    assert res.json()["error_code"] == "RENDER_JOB_NOT_FOUND"
+
+
+def test_render_api_response_does_not_leak_server_path():
+    """P2-6: Render API responses must not expose absolute server file paths."""
+    proj_id = create_test_project_with_scene()
+
+    res = client.post(f"/api/v1/studio/projects/{proj_id}/render", json={})
+    assert res.status_code == 202
+    job_id = res.json()["id"]
+
+    # Single job endpoint
+    get_res = client.get(f"/api/v1/studio/renders/{job_id}")
+    assert get_res.status_code == 200
+    assert "output_video_path" not in get_res.json() or get_res.json()["output_video_path"] is None
+
+    # Project renders list
+    list_res = client.get(f"/api/v1/studio/projects/{proj_id}/renders")
+    assert list_res.status_code == 200
+    for item in list_res.json()["items"]:
+        assert item.get("output_video_path") is None
+
+    # Global render history
+    global_res = client.get("/api/v1/studio/renders?limit=200")
+    assert global_res.status_code == 200
+    for item in global_res.json()["items"]:
+        assert item.get("output_video_path") is None
