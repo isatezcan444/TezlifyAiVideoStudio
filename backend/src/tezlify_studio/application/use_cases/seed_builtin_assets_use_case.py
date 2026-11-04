@@ -55,7 +55,13 @@ class SeedBuiltinAssetsUseCase:
                 voice_id="tr_male_ali",
                 default_expression=CharacterExpression.CHEERFUL,
                 default_pose=CharacterPose.STANDING,
-                proportions=BodyProportions(),
+                proportions=BodyProportions(
+                    head_scale=1.00,
+                    torso_length=1.05,
+                    arm_length=1.00,
+                    leg_length=1.00,
+                    shoulder_width=1.10,
+                ),
                 blend_file_path=os.path.join(base_assets_dir, "characters", "char_ali", "char_ali.blend"),
                 thumbnail_path=os.path.join(base_assets_dir, "thumbnails", "char_ali.png"),
                 is_builtin=True,
@@ -79,7 +85,13 @@ class SeedBuiltinAssetsUseCase:
                 voice_id="tr_female_ayse",
                 default_expression=CharacterExpression.CHEERFUL,
                 default_pose=CharacterPose.STANDING,
-                proportions=BodyProportions(),
+                proportions=BodyProportions(
+                    head_scale=0.95,
+                    torso_length=0.95,
+                    arm_length=0.95,
+                    leg_length=0.95,
+                    shoulder_width=0.90,
+                ),
                 blend_file_path=os.path.join(base_assets_dir, "characters", "char_ayse", "char_ayse.blend"),
                 thumbnail_path=os.path.join(base_assets_dir, "thumbnails", "char_ayse.png"),
                 is_builtin=True,
@@ -87,14 +99,44 @@ class SeedBuiltinAssetsUseCase:
         ]
 
         for char in builtin_chars:
-            if not self.char_repo.get_by_id(char.id):
-                if self.blender_gen:
-                    try:
-                        b_path, t_path = self.blender_gen.generate_character_assets(char)
-                        char.set_asset_paths(b_path, t_path)
-                    except Exception as e:
-                        logger.warning("Could not pre-render character %s: %s", char.id, e)
-                self.char_repo.save(char)
+            existing = self.char_repo.get_by_id(char.id)
+            if existing:
+                # Update proportions/appearance for existing builtin chars so they
+                # stay visually distinct, and force-regenerate their blend assets.
+                existing_props = existing.proportions
+                is_default = (
+                    abs(existing_props.head_scale - 1.0) < 1e-6
+                    and abs(existing_props.torso_length - 1.0) < 1e-6
+                    and abs(existing_props.arm_length - 1.0) < 1e-6
+                    and abs(existing_props.leg_length - 1.0) < 1e-6
+                    and abs(existing_props.shoulder_width - 1.0) < 1e-6
+                )
+                if is_default:
+                    existing.proportions = char.proportions
+                    existing.hair_style = char.hair_style
+                    existing.eye_style = char.eye_style
+                    existing.clothing_style = char.clothing_style
+                    existing.palette = char.palette
+                    self.char_repo.save(existing)
+                    if self.blender_gen:
+                        try:
+                            b_path, t_path = self.blender_gen.generate_character_assets(
+                                existing, force_regenerate=True
+                            )
+                            existing.set_asset_paths(b_path, t_path)
+                            self.char_repo.save(existing)
+                        except Exception as e:
+                            logger.warning(
+                                "Could not pre-render character %s: %s", char.id, e
+                            )
+                continue
+            if self.blender_gen:
+                try:
+                    b_path, t_path = self.blender_gen.generate_character_assets(char)
+                    char.set_asset_paths(b_path, t_path)
+                except Exception as e:
+                    logger.warning("Could not pre-render character %s: %s", char.id, e)
+            self.char_repo.save(char)
 
         # 2. Built-in Backgrounds
         backgrounds = [

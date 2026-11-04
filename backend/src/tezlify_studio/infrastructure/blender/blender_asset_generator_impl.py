@@ -82,6 +82,11 @@ class BlenderAssetGeneratorImpl(BlenderAssetGeneratorPort):
             "--eye-style", character.eye_style,
             "--expression", character.default_expression.value,
             "--pose", character.default_pose.value,
+            "--head-scale", str(character.proportions.head_scale),
+            "--torso-length", str(character.proportions.torso_length),
+            "--arm-length", str(character.proportions.arm_length),
+            "--leg-length", str(character.proportions.leg_length),
+            "--shoulder-width", str(character.proportions.shoulder_width),
             "--output-blend", blend_path,
             "--output-thumb", thumb_path,
         ]

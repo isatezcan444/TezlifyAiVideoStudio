@@ -158,7 +158,6 @@ export const StudioWorkflow: React.FC<StudioWorkflowProps> = ({
             onCreateCharacter={onCreateCharacter}
             onUpdateCharacter={onUpdateCharacter}
             onOpenCharacterStudio={onOpenCharacterStudio}
-            onNext={nextStep}
           />
         );
       case 'scenes':

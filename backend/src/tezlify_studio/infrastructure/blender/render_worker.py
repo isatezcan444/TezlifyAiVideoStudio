@@ -396,26 +396,31 @@ def main():
             mouth = c_map.get("Mesh_Mouth")
 
             base_torso_z = torso.location.z if torso else 0.95
-            phase_offset = 1.5 if "ayse" in c_id else 0.0
+            # Per-character phase/amplitude so Ali and Ayşe do not breathe in unison.
+            char_hash = sum(ord(ch) for ch in c_id)
+            phase_offset = (char_hash % 100) / 100.0 * math.pi * 2.0
+            breath_amp = 0.010 + 0.004 * (char_hash % 5) / 5.0
+            head_tilt_amp = 0.012 + 0.006 * (char_hash % 3) / 3.0
 
             # Step through frames at 5-frame intervals for smooth continuous curves
             for f in range(scene_start_frame, scene_end_frame + 1, 5):
                 t = (f - scene_start_frame) / fps
                 # Idle breathing on Torso
                 if torso:
-                    torso.location.z = base_torso_z + 0.012 * math.sin(t * 2.8 + phase_offset)
-                    torso.rotation_euler.y = 0.008 * math.sin(t * 1.4 + phase_offset)
+                    torso.location.z = base_torso_z + breath_amp * math.sin(t * 2.8 + phase_offset)
+                    torso.rotation_euler.y = 0.006 * math.sin(t * 1.4 + phase_offset + 1.0)
                     torso.keyframe_insert(data_path="location", frame=f)
                     torso.keyframe_insert(data_path="rotation_euler", frame=f)
 
-                # Idle subtle head tilt
+                # Idle subtle head tilt (per-character phase)
                 if head:
-                    head.rotation_euler.y = 0.015 * math.cos(t * 1.2 + phase_offset)
+                    head.rotation_euler.y = head_tilt_amp * math.cos(t * 1.2 + phase_offset + 0.5)
                     head.keyframe_insert(data_path="rotation_euler", frame=f)
 
-            # Eye Blinks (every ~90 frames / 3 seconds)
+            # Eye Blinks (every ~90 frames / 3 seconds), staggered per character
             blink_interval = 95
-            for blink_frame in range(scene_start_frame + 30, scene_end_frame, blink_interval):
+            blink_offset = (char_hash % 30)
+            for blink_frame in range(scene_start_frame + 30 + blink_offset, scene_end_frame, blink_interval):
                 for eye_obj in (eye_l, eye_r, pupil_l, pupil_r):
                     if eye_obj:
                         eye_obj.scale.z = 1.0
@@ -450,6 +455,16 @@ def main():
             mouth = speaker_map.get("Mesh_Mouth")
             head = speaker_map.get("Anchor_Head")
             arm_r = speaker_map.get("Anchor_Arm_R")
+            arm_l = speaker_map.get("Anchor_Arm_L")
+
+            # Per-character variation so Ali and Ayşe do not move identically.
+            spk_hash = sum(ord(ch) for ch in speaker_id)
+            mouth_open_amp = 1.65 + 0.25 * (spk_hash % 3) / 3.0
+            mouth_mid_amp = 0.55 + 0.15 * (spk_hash % 3) / 3.0
+            # Turn direction derived from character id (not hardcoded names).
+            turn_dir = 0.15 if (spk_hash % 2 == 0) else -0.15
+            # Alternate which arm gestures so speakers do not move in sync.
+            gesture_arm = "r" if (spk_hash % 2 == 0) else "l"
 
             # 1. Mouth flapping during speech
             if mouth:
@@ -459,7 +474,7 @@ def main():
                 for f in range(abs_start, abs_end, 4):
                     cycle = (f - abs_start) // 4
                     # Alternate between open and medium open
-                    mouth_z = 1.65 if (cycle % 2 == 0) else 0.55
+                    mouth_z = mouth_open_amp if (cycle % 2 == 0) else mouth_mid_amp
                     mouth.scale.z = mouth_z
                     mouth.keyframe_insert(data_path="scale", frame=f)
 
@@ -468,24 +483,23 @@ def main():
 
             # 2. Head turning toward partner when speaking
             if head:
-                # If Ali on left, turn slightly to right (+z), if Ayse on right turn to left (-z)
-                turn_dir = 0.15 if "ali" in speaker_id else -0.15
                 head.rotation_euler.z = turn_dir
                 head.keyframe_insert(data_path="rotation_euler", frame=abs_start)
                 head.keyframe_insert(data_path="rotation_euler", frame=abs_end)
                 head.rotation_euler.z = 0.0
                 head.keyframe_insert(data_path="rotation_euler", frame=min(scene_end_frame, abs_end + 10))
 
-            # 3. Gesturing with right arm during speech
-            if arm_r:
-                arm_r.rotation_euler.x = math.radians(-38)
-                arm_r.rotation_euler.z = math.radians(12)
-                arm_r.keyframe_insert(data_path="rotation_euler", frame=abs_start + 4)
-                arm_r.rotation_euler.x = math.radians(-25)
-                arm_r.keyframe_insert(data_path="rotation_euler", frame=(abs_start + abs_end) // 2)
-                arm_r.rotation_euler.x = 0.0
-                arm_r.rotation_euler.z = 0.0
-                arm_r.keyframe_insert(data_path="rotation_euler", frame=min(scene_end_frame, abs_end + 8))
+            # 3. Gesturing with one arm during speech (alternates per speaker)
+            gesture_arm_obj = arm_r if gesture_arm == "r" else arm_l
+            if gesture_arm_obj:
+                gesture_arm_obj.rotation_euler.x = math.radians(-38)
+                gesture_arm_obj.rotation_euler.z = math.radians(12 if gesture_arm == "r" else -12)
+                gesture_arm_obj.keyframe_insert(data_path="rotation_euler", frame=abs_start + 4)
+                gesture_arm_obj.rotation_euler.x = math.radians(-25)
+                gesture_arm_obj.keyframe_insert(data_path="rotation_euler", frame=(abs_start + abs_end) // 2)
+                gesture_arm_obj.rotation_euler.x = 0.0
+                gesture_arm_obj.rotation_euler.z = 0.0
+                gesture_arm_obj.keyframe_insert(data_path="rotation_euler", frame=min(scene_end_frame, abs_end + 8))
 
             # 4. Listener behavior: strict mouth rest and attentive head orientation
             for other_id, other_map in character_maps.items():
@@ -499,7 +513,8 @@ def main():
 
                     o_head = other_map.get("Anchor_Head")
                     if o_head:
-                        o_turn = -0.12 if "ayse" in other_id else 0.12
+                        # Listener turns toward the speaker
+                        o_turn = -turn_dir
                         o_head.rotation_euler.z = o_turn
                         o_head.keyframe_insert(data_path="rotation_euler", frame=abs_start)
                         # Small nod halfway
