@@ -7,6 +7,7 @@ import { ImportVideoPage } from './pages/ImportVideoPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { YouTubePublisherPage } from './pages/YouTubePublisherPage';
 import { SchedulerPage } from './pages/SchedulerPage';
+import { CharacterStudioPage } from './pages/CharacterStudioPage';
 import { VideoDetailsModal } from './components/video/VideoDetailsModal';
 import { YouTubePublishModal } from './components/youtube/YouTubePublishModal';
 import { ConfirmDialog } from './components/ui/ConfirmDialog';
@@ -18,7 +19,7 @@ export const App: React.FC = () => {
   const { isDark, toggleTheme } = useTheme();
 
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'media-library' | 'import-video' | 'youtube-publisher' | 'scheduler' | 'settings'
+    'dashboard' | 'media-library' | 'import-video' | 'youtube-publisher' | 'scheduler' | 'character-studio' | 'settings'
   >('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -185,6 +186,10 @@ export const App: React.FC = () => {
               initialAssetToSchedule={videoToSchedule}
               onClearInitialAsset={() => setVideoToSchedule(null)}
             />
+          )}
+
+          {activeTab === 'character-studio' && (
+            <CharacterStudioPage />
           )}
 
           {activeTab === 'settings' && (

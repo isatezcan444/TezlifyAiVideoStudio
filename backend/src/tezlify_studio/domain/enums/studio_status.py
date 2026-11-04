@@ -25,10 +25,12 @@ class CameraMovement(str, Enum):
 
 class CharacterPose(str, Enum):
     STANDING = "standing"
+    SITTING = "sitting"
     SITTING_TABLE = "sitting_table"
     GESTURING = "gesturing"
     WALKING = "walking"
     POINTING = "pointing"
+    IDLE = "idle"
 
 class CharacterExpression(str, Enum):
     NEUTRAL = "neutral"
@@ -55,3 +57,34 @@ class VisemeShape(str, Enum):
     H = "H"
     O = "O"
     U = "U"
+
+class AssetCategory(str, Enum):
+    BACKGROUND = "background"
+    PROP = "prop"
+    LIGHTING = "lighting"
+
+class AssetFormat(str, Enum):
+    BLEND = "blend"
+    PNG = "png"
+    OBJ = "obj"
+    GLTF = "gltf"
+
+class HairStyle(str, Enum):
+    SHORT_PARTED = "short_parted"
+    BOB_CUT = "bob_cut"
+    LONG_STRAIGHT = "long_straight"
+    CURLY = "curly"
+    PONYTAIL = "ponytail"
+
+class EyeStyle(str, Enum):
+    DOT = "dot"
+    ROUND = "round"
+    ANIME = "anime"
+    MINIMAL = "minimal"
+
+class ClothingStyle(str, Enum):
+    CASUAL = "casual"
+    FORMAL = "formal"
+    HOODIE = "hoodie"
+    SPORTY = "sporty"
+

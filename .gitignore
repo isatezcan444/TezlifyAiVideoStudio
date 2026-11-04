@@ -58,3 +58,8 @@ temp/
 *.mkv
 *.m4v
 
+# Blender backup files
+*.blend1
+*.blend2
+
+

@@ -78,6 +78,16 @@ def create_app() -> FastAPI:
             publish_repo=pub_repo,
             grace_period_minutes=settings.scheduler_missed_grace_period_minutes,
         ).execute()
+
+        from tezlify_studio.infrastructure.persistence.repositories.character_repository_impl import CharacterRepositoryImpl
+        from tezlify_studio.infrastructure.persistence.repositories.studio_asset_repository_impl import StudioAssetRepositoryImpl
+        from tezlify_studio.infrastructure.blender.blender_asset_generator_impl import BlenderAssetGeneratorImpl
+        from tezlify_studio.application.use_cases.seed_builtin_assets_use_case import SeedBuiltinAssetsUseCase
+
+        char_repo = CharacterRepositoryImpl(startup_db)
+        asset_repo = StudioAssetRepositoryImpl(startup_db)
+        blender_gen = BlenderAssetGeneratorImpl()
+        SeedBuiltinAssetsUseCase(char_repo, asset_repo, blender_gen).execute()
     finally:
         startup_db.close()
 
@@ -217,6 +227,41 @@ def create_app() -> FastAPI:
             content={"detail": exc.message, "error_code": exc.error_code},
         )
 
+    from tezlify_studio.domain.exceptions.studio_exceptions import (
+        CharacterNotFoundException,
+        AssetNotFoundException,
+        DuplicateCharacterIdException,
+        DuplicateAssetIdException,
+    )
+
+    @app.exception_handler(CharacterNotFoundException)
+    async def character_not_found_handler(request: Request, exc: CharacterNotFoundException):
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"detail": exc.message, "error_code": exc.error_code},
+        )
+
+    @app.exception_handler(AssetNotFoundException)
+    async def asset_not_found_handler(request: Request, exc: AssetNotFoundException):
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"detail": exc.message, "error_code": exc.error_code},
+        )
+
+    @app.exception_handler(DuplicateCharacterIdException)
+    async def duplicate_character_handler(request: Request, exc: DuplicateCharacterIdException):
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={"detail": exc.message, "error_code": exc.error_code},
+        )
+
+    @app.exception_handler(DuplicateAssetIdException)
+    async def duplicate_asset_handler(request: Request, exc: DuplicateAssetIdException):
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={"detail": exc.message, "error_code": exc.error_code},
+        )
+
     @app.exception_handler(InvalidSceneGraphException)
     async def invalid_scene_graph_handler(request: Request, exc: InvalidSceneGraphException):
         return JSONResponse(
@@ -243,6 +288,13 @@ def create_app() -> FastAPI:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"detail": str(exc), "error_code": "DOMAIN_ERROR"},
+        )
+
+    @app.exception_handler(ValueError)
+    async def value_error_handler(request: Request, exc: ValueError):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": str(exc), "error_code": "VALIDATION_ERROR"},
         )
 
     # Mount API routers under /api/v1

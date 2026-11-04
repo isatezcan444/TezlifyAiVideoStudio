@@ -67,6 +67,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           badge: 'Aşama 3',
           badgeColor: 'bg-indigo-500/15 text-indigo-600 dark:bg-indigo-500/25 dark:text-indigo-400',
         },
+        {
+          id: 'character-studio',
+          label: 'Karakter & Varlıklar',
+          icon: Sparkles,
+          badge: 'Aşama 4.2',
+          badgeColor: 'bg-amber-500/15 text-amber-600 dark:bg-amber-500/25 dark:text-amber-400',
+        },
       ],
     },
     {

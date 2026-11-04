@@ -13,6 +13,12 @@ import {
   UpdateScheduledPublishPayload,
   ScheduleStatus,
 } from '../types/schedule';
+import {
+  Character,
+  CharacterListResponse,
+  StudioAsset,
+  StudioAssetListResponse,
+} from '../types/studio';
 
 const API_BASE = '/api/v1';
 
@@ -282,5 +288,77 @@ export const apiService = {
     }
     return res.json();
   },
+
+  // --- Character & Asset Studio (Stage 4.2) ---
+  getCharacterThumbnailUrl(id: string): string {
+    return `${API_BASE}/studio/characters/${id}/thumbnail`;
+  },
+
+  getAssetThumbnailUrl(id: string): string {
+    return `${API_BASE}/studio/assets/${id}/thumbnail`;
+  },
+
+  async listCharacters(limit = 50, offset = 0): Promise<CharacterListResponse> {
+    const res = await fetch(`${API_BASE}/studio/characters?limit=${limit}&offset=${offset}`);
+    if (!res.ok) throw new ApiError('Karakterler yüklenemedi.', res.status);
+    return res.json();
+  },
+
+  async getCharacter(id: string): Promise<Character> {
+    const res = await fetch(`${API_BASE}/studio/characters/${id}`);
+    if (!res.ok) throw new ApiError('Karakter bulunamadı.', res.status);
+    return res.json();
+  },
+
+  async createCharacter(data: Partial<Character>): Promise<Character> {
+    const res = await fetch(`${API_BASE}/studio/characters`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'Karakter oluşturulamadı.', res.status, err.error_code);
+    }
+    return res.json();
+  },
+
+  async updateCharacter(id: string, data: Partial<Character>): Promise<Character> {
+    const res = await fetch(`${API_BASE}/studio/characters/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'Karakter güncellenemedi.', res.status, err.error_code);
+    }
+    return res.json();
+  },
+
+  async deleteCharacter(id: string): Promise<{ id: string; deleted: boolean }> {
+    const res = await fetch(`${API_BASE}/studio/characters/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'Karakter silinemedi.', res.status, err.error_code);
+    }
+    return res.json();
+  },
+
+  async listAssets(category?: string, limit = 100, offset = 0): Promise<StudioAssetListResponse> {
+    const q = category ? `&category=${category}` : '';
+    const res = await fetch(`${API_BASE}/studio/assets?limit=${limit}&offset=${offset}${q}`);
+    if (!res.ok) throw new ApiError('Varlıklar yüklenemedi.', res.status);
+    return res.json();
+  },
+
+  async getAsset(id: string): Promise<StudioAsset> {
+    const res = await fetch(`${API_BASE}/studio/assets/${id}`);
+    if (!res.ok) throw new ApiError('Varlık bulunamadı.', res.status);
+    return res.json();
+  },
 };
+
 

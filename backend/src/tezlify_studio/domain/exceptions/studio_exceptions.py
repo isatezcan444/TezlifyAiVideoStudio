@@ -61,3 +61,42 @@ class StudioProjectNotFoundException(StudioDomainException):
 class StoryGenerationException(StudioDomainException):
     def __init__(self, message: str):
         super().__init__(message, error_code="STORY_GENERATION_FAILED")
+
+class CharacterNotFoundException(StudioDomainException):
+    def __init__(self, character_id: str):
+        super().__init__(
+            f"Karakter bulunamadı: '{character_id}'",
+            error_code="CHARACTER_NOT_FOUND"
+        )
+        self.character_id = character_id
+
+class InvalidColorHexException(StudioDomainException):
+    def __init__(self, color_field: str, value: str):
+        super().__init__(
+            f"Geçersiz HEX renk kodu '{value}' ({color_field} alanı için). Örnek format: #3B82F6",
+            error_code="INVALID_HEX_COLOR"
+        )
+        self.color_field = color_field
+        self.value = value
+
+class AssetNotFoundException(StudioDomainException):
+    def __init__(self, asset_id: str):
+        super().__init__(
+            f"Varlık (Asset) bulunamadı: '{asset_id}'",
+            error_code="ASSET_NOT_FOUND"
+        )
+        self.asset_id = asset_id
+
+class DuplicateAssetIdException(StudioDomainException):
+    def __init__(self, asset_id: str):
+        super().__init__(
+            f"Varlık ID '{asset_id}' zaten mevcut. Asset ID'leri benzersiz olmalıdır.",
+            error_code="DUPLICATE_ASSET_ID"
+        )
+        self.asset_id = asset_id
+
+class BlenderRenderException(StudioDomainException):
+    def __init__(self, message: str, details: str = ""):
+        super().__init__(message, error_code="BLENDER_RENDER_FAILED")
+        self.details = details
+

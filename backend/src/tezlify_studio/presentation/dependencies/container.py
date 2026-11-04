@@ -323,3 +323,94 @@ def get_delete_studio_project_use_case(
 ) -> DeleteStudioProjectUseCase:
     return DeleteStudioProjectUseCase(repo)
 
+# Character & Asset Studio (Stage 4.2)
+from tezlify_studio.infrastructure.persistence.repositories.character_repository_impl import (
+    CharacterRepositoryImpl,
+)
+from tezlify_studio.infrastructure.persistence.repositories.studio_asset_repository_impl import (
+    StudioAssetRepositoryImpl,
+)
+from tezlify_studio.infrastructure.blender.blender_asset_generator_impl import (
+    BlenderAssetGeneratorImpl,
+)
+from tezlify_studio.application.use_cases.create_character_use_case import (
+    CreateCharacterUseCase,
+)
+from tezlify_studio.application.use_cases.get_character_use_case import (
+    GetCharacterUseCase,
+)
+from tezlify_studio.application.use_cases.list_characters_use_case import (
+    ListCharactersUseCase,
+)
+from tezlify_studio.application.use_cases.update_character_use_case import (
+    UpdateCharacterUseCase,
+)
+from tezlify_studio.application.use_cases.delete_character_use_case import (
+    DeleteCharacterUseCase,
+)
+from tezlify_studio.application.use_cases.get_studio_asset_use_case import (
+    GetStudioAssetUseCase,
+)
+from tezlify_studio.application.use_cases.list_studio_assets_use_case import (
+    ListStudioAssetsUseCase,
+)
+from tezlify_studio.application.use_cases.seed_builtin_assets_use_case import (
+    SeedBuiltinAssetsUseCase,
+)
+
+blender_asset_generator_singleton = BlenderAssetGeneratorImpl()
+
+def get_character_repository(db: Session = Depends(get_db)) -> CharacterRepositoryImpl:
+    return CharacterRepositoryImpl(db)
+
+def get_studio_asset_repository(db: Session = Depends(get_db)) -> StudioAssetRepositoryImpl:
+    return StudioAssetRepositoryImpl(db)
+
+def get_blender_asset_generator() -> BlenderAssetGeneratorImpl:
+    return blender_asset_generator_singleton
+
+def get_create_character_use_case(
+    repo: CharacterRepositoryImpl = Depends(get_character_repository),
+    blender: BlenderAssetGeneratorImpl = Depends(get_blender_asset_generator),
+) -> CreateCharacterUseCase:
+    return CreateCharacterUseCase(repo, blender)
+
+def get_character_use_case(
+    repo: CharacterRepositoryImpl = Depends(get_character_repository),
+) -> GetCharacterUseCase:
+    return GetCharacterUseCase(repo)
+
+def get_list_characters_use_case(
+    repo: CharacterRepositoryImpl = Depends(get_character_repository),
+) -> ListCharactersUseCase:
+    return ListCharactersUseCase(repo)
+
+def get_update_character_use_case(
+    repo: CharacterRepositoryImpl = Depends(get_character_repository),
+    blender: BlenderAssetGeneratorImpl = Depends(get_blender_asset_generator),
+) -> UpdateCharacterUseCase:
+    return UpdateCharacterUseCase(repo, blender)
+
+def get_delete_character_use_case(
+    repo: CharacterRepositoryImpl = Depends(get_character_repository),
+) -> DeleteCharacterUseCase:
+    return DeleteCharacterUseCase(repo)
+
+def get_studio_asset_use_case(
+    repo: StudioAssetRepositoryImpl = Depends(get_studio_asset_repository),
+) -> GetStudioAssetUseCase:
+    return GetStudioAssetUseCase(repo)
+
+def get_list_studio_assets_use_case(
+    repo: StudioAssetRepositoryImpl = Depends(get_studio_asset_repository),
+) -> ListStudioAssetsUseCase:
+    return ListStudioAssetsUseCase(repo)
+
+def get_seed_builtin_assets_use_case(
+    char_repo: CharacterRepositoryImpl = Depends(get_character_repository),
+    asset_repo: StudioAssetRepositoryImpl = Depends(get_studio_asset_repository),
+    blender: BlenderAssetGeneratorImpl = Depends(get_blender_asset_generator),
+) -> SeedBuiltinAssetsUseCase:
+    return SeedBuiltinAssetsUseCase(char_repo, asset_repo, blender)
+
+
