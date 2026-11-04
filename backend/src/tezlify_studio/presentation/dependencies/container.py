@@ -413,4 +413,45 @@ def get_seed_builtin_assets_use_case(
 ) -> SeedBuiltinAssetsUseCase:
     return SeedBuiltinAssetsUseCase(char_repo, asset_repo, blender)
 
+# ==========================================
+# Render Engine & Jobs (Stage 4.3)
+# ==========================================
+from tezlify_studio.infrastructure.persistence.repositories.render_job_repository_impl import RenderJobRepositoryImpl
+from tezlify_studio.infrastructure.blender.blender_animation_engine_impl import BlenderAnimationEngineImpl
+from tezlify_studio.application.use_cases.start_project_render_use_case import StartProjectRenderUseCase
+from tezlify_studio.application.use_cases.get_render_job_use_case import GetRenderJobUseCase
+from tezlify_studio.application.use_cases.list_project_renders_use_case import ListProjectRendersUseCase
+from tezlify_studio.application.use_cases.execute_render_job_use_case import ExecuteRenderJobUseCase
+
+blender_animation_engine_singleton = BlenderAnimationEngineImpl()
+
+def get_render_job_repository(db: Session = Depends(get_db)) -> RenderJobRepositoryImpl:
+    return RenderJobRepositoryImpl(db)
+
+def get_blender_animation_engine() -> BlenderAnimationEngineImpl:
+    return blender_animation_engine_singleton
+
+def get_execute_render_job_use_case(
+    engine: BlenderAnimationEngineImpl = Depends(get_blender_animation_engine),
+) -> ExecuteRenderJobUseCase:
+    return ExecuteRenderJobUseCase(engine)
+
+def get_start_project_render_use_case(
+    project_repo: StudioProjectRepositoryImpl = Depends(get_studio_project_repository),
+    job_repo: RenderJobRepositoryImpl = Depends(get_render_job_repository),
+    execute_worker: ExecuteRenderJobUseCase = Depends(get_execute_render_job_use_case),
+) -> StartProjectRenderUseCase:
+    return StartProjectRenderUseCase(project_repo, job_repo, execute_worker)
+
+def get_render_job_use_case(
+    repo: RenderJobRepositoryImpl = Depends(get_render_job_repository),
+) -> GetRenderJobUseCase:
+    return GetRenderJobUseCase(repo)
+
+def get_list_project_renders_use_case(
+    repo: RenderJobRepositoryImpl = Depends(get_render_job_repository),
+) -> ListProjectRendersUseCase:
+    return ListProjectRendersUseCase(repo)
+
+
 

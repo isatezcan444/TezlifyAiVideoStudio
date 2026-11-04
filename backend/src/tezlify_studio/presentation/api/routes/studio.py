@@ -19,6 +19,23 @@ from tezlify_studio.presentation.schemas.character_schemas import (
     StudioAssetResponse,
     StudioAssetListResponse,
 )
+from tezlify_studio.presentation.schemas.render_schemas import (
+    StartRenderRequest,
+    RenderJobResponse,
+    RenderJobListResponse,
+)
+from tezlify_studio.application.dto.render_dto import (
+    StartRenderRequestDTO,
+)
+from tezlify_studio.application.use_cases.start_project_render_use_case import (
+    StartProjectRenderUseCase,
+)
+from tezlify_studio.application.use_cases.get_render_job_use_case import (
+    GetRenderJobUseCase,
+)
+from tezlify_studio.application.use_cases.list_project_renders_use_case import (
+    ListProjectRendersUseCase,
+)
 from tezlify_studio.application.dto.studio_dto import (
     CreateStudioProjectRequestDTO,
     UpdateStudioProjectRequestDTO,
@@ -81,6 +98,9 @@ from tezlify_studio.presentation.dependencies.container import (
     get_delete_character_use_case,
     get_studio_asset_use_case,
     get_list_studio_assets_use_case,
+    get_start_project_render_use_case,
+    get_render_job_use_case,
+    get_list_project_renders_use_case,
 )
 
 router = APIRouter(prefix="/studio", tags=["AI Studio"])
@@ -296,4 +316,72 @@ def get_asset_thumbnail(
     if asset.thumbnail_path and os.path.isfile(asset.thumbnail_path):
         return FileResponse(asset.thumbnail_path, media_type="image/png")
     raise HTTPException(status_code=404, detail="Varlık önizleme görseli bulunamadı.")
+
+# ==========================================
+# Render Engine Endpoints (Stage 4.3)
+# ==========================================
+
+@router.post(
+    "/projects/{project_id}/render",
+    response_model=RenderJobResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def start_render(
+    project_id: str = Path(..., min_length=1),
+    req: Optional[StartRenderRequest] = None,
+    use_case: StartProjectRenderUseCase = Depends(get_start_project_render_use_case),
+):
+    dto = StartRenderRequestDTO(
+        project_id=project_id,
+        engine_override=req.engine_override if req else None,
+    )
+    res = use_case.execute(dto)
+    return res.__dict__
+
+@router.get(
+    "/projects/{project_id}/renders",
+    response_model=RenderJobListResponse,
+    status_code=status.HTTP_200_OK,
+)
+def list_project_renders(
+    project_id: str = Path(..., min_length=1),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    use_case: ListProjectRendersUseCase = Depends(get_list_project_renders_use_case),
+):
+    jobs = use_case.execute(project_id, limit=limit, offset=offset)
+    return {
+        "items": [j.__dict__ for j in jobs],
+        "total": len(jobs),
+    }
+
+@router.get(
+    "/renders/{job_id}",
+    response_model=RenderJobResponse,
+    status_code=status.HTTP_200_OK,
+)
+def get_render_job(
+    job_id: str = Path(..., min_length=1),
+    use_case: GetRenderJobUseCase = Depends(get_render_job_use_case),
+):
+    res = use_case.execute(job_id)
+    return res.__dict__
+
+@router.get("/renders/{job_id}/video")
+def stream_render_video(
+    job_id: str = Path(..., min_length=1),
+    use_case: GetRenderJobUseCase = Depends(get_render_job_use_case),
+):
+    job = use_case.execute(job_id)
+    if not job.output_video_path or not os.path.isfile(job.output_video_path):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Render videosu henüz mevcut değil veya işleniyor (Durum: {job.status}).",
+        )
+    return FileResponse(
+        job.output_video_path,
+        media_type="video/mp4",
+        filename=f"render_{job_id}.mp4",
+    )
+
 

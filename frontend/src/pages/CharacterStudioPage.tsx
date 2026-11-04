@@ -12,14 +12,20 @@ import {
   Check,
   X,
   Search,
+  Film,
+  Play,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Layers,
 } from 'lucide-react';
-import { Character, StudioAsset } from '../types/studio';
+import { Character, StudioAsset, RenderJob, StudioProject } from '../types/studio';
 import { apiService } from '../services/api';
 import { Button } from '../components/ui/button';
 import { Spinner } from '../components/ui/Spinner';
 
 export const CharacterStudioPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'characters' | 'assets'>('characters');
+  const [activeTab, setActiveTab] = useState<'characters' | 'assets' | 'renders'>('characters');
 
   // Characters state
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -31,6 +37,18 @@ export const CharacterStudioPage: React.FC = () => {
   const [isLoadingAssets, setIsLoadingAssets] = useState(true);
   const [assetCategory, setAssetCategory] = useState<string>('all');
   const [assetSearch, setAssetSearch] = useState('');
+
+  // Render & Animation Studio State (Stage 4.3)
+  const [projects, setProjects] = useState<StudioProject[]>([]);
+  const [selectedProject, setSelectedProject] = useState<StudioProject | null>(null);
+  const [, setIsLoadingProjects] = useState(false);
+  const [currentJob, setCurrentJob] = useState<RenderJob | null>(null);
+  const [projectRenders, setProjectRenders] = useState<RenderJob[]>([]);
+  const [isStartingRender, setIsStartingRender] = useState(false);
+  const [selectedEngine, setSelectedEngine] = useState<'BLENDER_WORKBENCH' | 'BLENDER_EEVEE'>('BLENDER_WORKBENCH');
+  const [newStoryPrompt, setNewStoryPrompt] = useState('Ali ve Ayşe modern bir kafede buluşuyor. Ali kahve ısmarlıyor ve gülerek sohbet ediyorlar. Video 15 saniye sürsün.');
+  const [isGeneratingStory, setIsGeneratingStory] = useState(false);
+  const [renderError, setRenderError] = useState<string | null>(null);
 
   // Edit/Create Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -78,13 +96,108 @@ export const CharacterStudioPage: React.FC = () => {
     }
   }, [assetCategory]);
 
+  const fetchProjects = useCallback(async () => {
+    setIsLoadingProjects(true);
+    try {
+      const res = await apiService.listProjects(50, 0);
+      setProjects(res.items);
+      if (res.items.length > 0 && !selectedProject) {
+        setSelectedProject(res.items[0]);
+      }
+    } catch (err) {
+      console.error('Projeler yüklenemedi:', err);
+    } finally {
+      setIsLoadingProjects(false);
+    }
+  }, [selectedProject]);
+
+  const fetchProjectRenders = useCallback(async (projId: string) => {
+    try {
+      const res = await apiService.listProjectRenders(projId);
+      setProjectRenders(res.items);
+      if (res.items.length > 0) {
+        setCurrentJob(res.items[0]);
+      }
+    } catch (err) {
+      console.error('Render geçmişi yüklenemedi:', err);
+    }
+  }, []);
+
   useEffect(() => {
     if (activeTab === 'characters') {
       fetchCharacters();
-    } else {
+    } else if (activeTab === 'assets') {
       fetchAssets();
+    } else if (activeTab === 'renders') {
+      fetchProjects();
     }
-  }, [activeTab, fetchCharacters, fetchAssets]);
+  }, [activeTab, fetchCharacters, fetchAssets, fetchProjects]);
+
+  useEffect(() => {
+    if (selectedProject) {
+      fetchProjectRenders(selectedProject.id);
+    }
+  }, [selectedProject, fetchProjectRenders]);
+
+  // Real-time polling for active render jobs
+  useEffect(() => {
+    if (!currentJob) return;
+    if (currentJob.status !== 'pending' && currentJob.status !== 'running') return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        const updated = await apiService.getRenderJob(currentJob.id);
+        setCurrentJob(updated);
+        if (updated.status === 'completed' || updated.status === 'failed') {
+          if (selectedProject) {
+            fetchProjectRenders(selectedProject.id);
+          }
+        }
+      } catch (err) {
+        console.error('Render polling error:', err);
+      }
+    }, 2000);
+
+    return () => clearInterval(intervalId);
+  }, [currentJob, selectedProject, fetchProjectRenders]);
+
+  const handleGenerateStoryProject = async () => {
+    if (!newStoryPrompt.trim()) return;
+    setIsGeneratingStory(true);
+    setRenderError(null);
+    try {
+      const res = await apiService.generateStory({
+        prompt: newStoryPrompt.trim(),
+        target_duration_seconds: 15.0,
+      });
+      const createdProj = await apiService.createProject({
+        title: res.title || 'Yeni AI Animasyon Sahnesi',
+        description: res.description || newStoryPrompt.trim(),
+        scene_graph: res,
+      });
+      setSelectedProject(createdProj);
+      await fetchProjects();
+    } catch (err: any) {
+      setRenderError(err.message || 'Senaryo ve proje üretilemedi.');
+    } finally {
+      setIsGeneratingStory(false);
+    }
+  };
+
+  const handleStartRender = async () => {
+    if (!selectedProject) return;
+    setIsStartingRender(true);
+    setRenderError(null);
+    try {
+      const job = await apiService.startProjectRender(selectedProject.id, selectedEngine);
+      setCurrentJob(job);
+      await fetchProjectRenders(selectedProject.id);
+    } catch (err: any) {
+      setRenderError(err.message || 'Render başlatılamadı.');
+    } finally {
+      setIsStartingRender(false);
+    }
+  };
 
   const handleOpenCreateModal = () => {
     setEditingCharacter(null);
@@ -225,6 +338,17 @@ export const CharacterStudioPage: React.FC = () => {
           >
             <Box className="w-4 h-4" />
             Sahne Varlıkları ({assets.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('renders')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              activeTab === 'renders'
+                ? 'bg-white dark:bg-[#7367F0] text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <Film className="w-4 h-4" />
+            Blender Render Motoru
           </button>
         </div>
       </div>
@@ -468,6 +592,383 @@ export const CharacterStudioPage: React.FC = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 3: BLENDER RENDER ENGINE (Stage 4.3) */}
+      {activeTab === 'renders' && (
+        <div className="space-y-6">
+          {/* Studio Header Bar */}
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 shadow-xs">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#7367F0]/10 text-[#7367F0] flex items-center justify-center shrink-0">
+                  <Film className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                    Blender Headless Animasyon & Video Render Motoru
+                  </h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    SceneGraph sahnelerini Blender 5.2.3 ile arka planda işleyip MP4 videoya dönüştürür.
+                  </p>
+                </div>
+              </div>
+
+              {/* Project Selection / Create */}
+              <div className="flex flex-wrap items-center gap-3">
+                {projects.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Proje:</span>
+                    <select
+                      value={selectedProject?.id || ''}
+                      onChange={(e) => {
+                        const p = projects.find((x) => x.id === e.target.value);
+                        if (p) setSelectedProject(p);
+                      }}
+                      className="px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium text-gray-900 dark:text-white"
+                    >
+                      {projects.map((proj) => (
+                        <option key={proj.id} value={proj.id}>
+                          {proj.title} ({proj.scene_count} sahne, {proj.total_duration_seconds}s)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {renderError && (
+              <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-xl text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{renderError}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Quick Scene Creation / Prompt Input */}
+          {(!selectedProject || projects.length === 0) && (
+            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-gray-900 dark:to-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 rounded-2xl p-6">
+              <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-2">
+                <Sparkles className="w-5 h-5 text-[#7367F0]" />
+                Hızlı Sahne Senaryosu Oluştur
+              </h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
+                Animasyon oluşturmak için karakterleri, mekanı ve diyalogları tarif eden kısa bir fikir yazın.
+              </p>
+
+              <div className="space-y-3">
+                <textarea
+                  value={newStoryPrompt}
+                  onChange={(e) => setNewStoryPrompt(e.target.value)}
+                  rows={3}
+                  placeholder="Örn: Ali ve Ayşe modern kafede kahve içerken buluşuyor..."
+                  className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7367F0]"
+                />
+                <Button
+                  onClick={handleGenerateStoryProject}
+                  disabled={isGeneratingStory}
+                  className="bg-[#7367F0] hover:bg-[#6255e4] text-white flex items-center gap-2 text-xs"
+                >
+                  {isGeneratingStory ? <Spinner className="w-4 h-4 text-white" /> : <Play className="w-4 h-4" />}
+                  {isGeneratingStory ? 'Senaryo Oluşturuluyor...' : 'Senaryo & Proje Oluştur'}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Main 2-Column Studio Grid */}
+          {selectedProject && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left Column (5 cols): Project Details & Render Controls */}
+              <div className="lg:col-span-5 space-y-6">
+                {/* Render Dispatch Card */}
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-gray-900 dark:text-white text-sm flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-[#7367F0]" />
+                      Render Kontrolleri
+                    </h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+                      Blender 5.2.3
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Render Motoru Modu
+                    </label>
+                    <select
+                      value={selectedEngine}
+                      onChange={(e) => setSelectedEngine(e.target.value as any)}
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium"
+                    >
+                      <option value="BLENDER_WORKBENCH">
+                        Workbench (Hızlı 2.5D Shading - Önerilen)
+                      </option>
+                      <option value="BLENDER_EEVEE">
+                        Eevee (Işıklandırma ve Gölgeler)
+                      </option>
+                    </select>
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      Workbench, 1080p 30 FPS kareleri saniyeler içinde render eder.
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={handleStartRender}
+                    disabled={isStartingRender || (currentJob?.status === 'running' || currentJob?.status === 'pending')}
+                    className="w-full bg-[#7367F0] hover:bg-[#6255e4] text-white py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-[#7367F0]/20"
+                  >
+                    {isStartingRender ? (
+                      <Spinner className="w-4 h-4 text-white" />
+                    ) : (
+                      <Play className="w-4 h-4 fill-white" />
+                    )}
+                    {isStartingRender ? 'Render Başlatılıyor...' : 'Blender ile Videoyu Render Et'}
+                  </Button>
+                </div>
+
+                {/* Project Info & SceneGraph Summary */}
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 shadow-xs space-y-4">
+                  <h3 className="font-bold text-gray-900 dark:text-white text-sm">
+                    {selectedProject.title}
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {selectedProject.description || 'Açıklama belirtilmemiş.'}
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 dark:border-gray-800 text-xs">
+                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60">
+                      <span className="text-gray-400 block text-[10px]">Toplam Süre</span>
+                      <span className="font-bold text-gray-900 dark:text-white">
+                        {selectedProject.total_duration_seconds} saniye
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60">
+                      <span className="text-gray-400 block text-[10px]">Sahne Sayısı</span>
+                      <span className="font-bold text-gray-900 dark:text-white">
+                        {selectedProject.scene_count} Sahne
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60">
+                      <span className="text-gray-400 block text-[10px]">Karakterler</span>
+                      <span className="font-bold text-gray-900 dark:text-white">
+                        {selectedProject.character_count} Karakter
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60">
+                      <span className="text-gray-400 block text-[10px]">Format / Çözünürlük</span>
+                      <span className="font-bold text-gray-900 dark:text-white">
+                        1920x1080 @ 30fps
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Scene details */}
+                  {selectedProject.scene_graph?.scenes && (
+                    <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                      <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
+                        Sahne Zaman Çizelgesi
+                      </span>
+                      {selectedProject.scene_graph.scenes.map((s: any, idx: number) => (
+                        <div
+                          key={s.scene_id || idx}
+                          className="p-3 bg-gray-50 dark:bg-gray-800/40 rounded-xl text-xs space-y-1.5"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-gray-900 dark:text-white">
+                              Sahne {idx + 1}: {s.scene_id}
+                            </span>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                              {s.duration_seconds}s
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-3">
+                            <span>Arka Plan: <strong>{s.background?.asset_id || 'Modern Kafe'}</strong></span>
+                            <span>Kamera: <strong>{s.camera?.angle || 'Two Shot'}</strong></span>
+                          </div>
+                          {s.dialogues && s.dialogues.length > 0 && (
+                            <div className="text-[11px] text-gray-600 dark:text-gray-300 italic border-l-2 border-[#7367F0] pl-2 mt-1">
+                              "{s.dialogues[0].text}"
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column (7 cols): Live Render Status, Playable Video & History */}
+              <div className="lg:col-span-7 space-y-6">
+                {/* Active Render Progress Card */}
+                {currentJob && (currentJob.status === 'running' || currentJob.status === 'pending') && (
+                  <div className="bg-white dark:bg-gray-900 border-2 border-[#7367F0]/40 rounded-2xl p-6 shadow-md space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Spinner className="w-5 h-5 text-[#7367F0]" />
+                        <h4 className="font-bold text-sm text-gray-900 dark:text-white">
+                          Render Devam Ediyor...
+                        </h4>
+                      </div>
+                      <span className="text-xs font-mono font-bold text-[#7367F0]">
+                        %{Math.round(currentJob.progress_percent)}
+                      </span>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="w-full bg-gray-100 dark:bg-gray-800 h-3 rounded-full overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-[#7367F0] to-[#9E95F5] h-full rounded-full transition-all duration-300"
+                        style={{ width: `${Math.max(5, currentJob.progress_percent)}%` }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                      <span className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5" />
+                        {currentJob.current_step}
+                      </span>
+                      <span className="font-mono text-[10px]">ID: {currentJob.id}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Render Failed Card */}
+                {currentJob && currentJob.status === 'failed' && (
+                  <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-2xl p-5 flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-sm text-red-700 dark:text-red-300">
+                        Render Başarısız Oldu
+                      </h4>
+                      <p className="text-xs text-red-600 dark:text-red-400 font-mono">
+                        {currentJob.error_message || 'Bilinmeyen hata'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Video Player Card (Completed) */}
+                {currentJob && currentJob.status === 'completed' && currentJob.output_video_path && (
+                  <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                        <h4 className="font-bold text-sm text-gray-900 dark:text-white">
+                          Render Edilen Animasyon Videosu
+                        </h4>
+                      </div>
+                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+                        Başarılı
+                      </span>
+                    </div>
+
+                    {/* HTML5 Video Player */}
+                    <div className="rounded-xl overflow-hidden bg-black shadow-lg border border-gray-800">
+                      <video
+                        key={currentJob.id}
+                        controls
+                        autoPlay
+                        className="w-full aspect-video"
+                        src={apiService.getRenderVideoUrl(currentJob.id)}
+                      >
+                        Tarayıcınız video oynatmayı desteklemiyor.
+                      </video>
+                    </div>
+
+                    {/* Technical Parameter Breakdown */}
+                    {currentJob.output_metadata && (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-gray-100 dark:border-gray-800 text-xs">
+                        <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60">
+                          <span className="text-gray-400 block text-[10px]">Çözünürlük</span>
+                          <span className="font-bold text-gray-900 dark:text-white">
+                            {currentJob.output_metadata.width}x{currentJob.output_metadata.height}
+                          </span>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60">
+                          <span className="text-gray-400 block text-[10px]">FPS / Süre</span>
+                          <span className="font-bold text-gray-900 dark:text-white">
+                            {currentJob.output_metadata.fps} FPS · {currentJob.output_metadata.duration_seconds.toFixed(1)}s
+                          </span>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60">
+                          <span className="text-gray-400 block text-[10px]">Codec / Format</span>
+                          <span className="font-bold text-gray-900 dark:text-white">
+                            {currentJob.output_metadata.video_codec.toUpperCase()} · {currentJob.output_metadata.pixel_format}
+                          </span>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/60">
+                          <span className="text-gray-400 block text-[10px]">Render Süresi</span>
+                          <span className="font-bold text-gray-900 dark:text-white">
+                            {currentJob.output_metadata.render_duration_seconds}s
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Render History Table */}
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 shadow-xs space-y-3">
+                  <h4 className="font-bold text-xs text-gray-400 uppercase tracking-wider">
+                    Render Geçmişi ({projectRenders.length})
+                  </h4>
+
+                  {projectRenders.length === 0 ? (
+                    <p className="text-xs text-gray-400 py-3 text-center">
+                      Bu proje için henüz render alınmamış.
+                    </p>
+                  ) : (
+                    <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                      {projectRenders.map((job) => (
+                        <div
+                          key={job.id}
+                          className="py-3 flex items-center justify-between gap-3 text-xs"
+                        >
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-bold text-gray-900 dark:text-white">
+                                {job.id}
+                              </span>
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  job.status === 'completed'
+                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+                                    : job.status === 'failed'
+                                    ? 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400'
+                                    : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+                                }`}
+                              >
+                                {job.status.toUpperCase()}
+                              </span>
+                            </div>
+                            <span className="text-[11px] text-gray-400">
+                              {new Date(job.created_at).toLocaleString('tr-TR')}
+                            </span>
+                          </div>
+
+                          {job.status === 'completed' && job.output_video_path && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setCurrentJob(job)}
+                              className="text-xs flex items-center gap-1.5"
+                            >
+                              <Play className="w-3.5 h-3.5" />
+                              İzle
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>

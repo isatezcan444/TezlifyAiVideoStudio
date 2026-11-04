@@ -69,10 +69,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         },
         {
           id: 'character-studio',
-          label: 'Karakter & Varlıklar',
+          label: 'Karakter & Animasyon',
           icon: Sparkles,
-          badge: 'Aşama 4.2',
-          badgeColor: 'bg-amber-500/15 text-amber-600 dark:bg-amber-500/25 dark:text-amber-400',
+          badge: 'Aşama 4.3',
+          badgeColor: 'bg-emerald-500/15 text-emerald-600 dark:bg-emerald-500/25 dark:text-emerald-400',
         },
       ],
     },

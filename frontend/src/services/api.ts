@@ -18,6 +18,10 @@ import {
   CharacterListResponse,
   StudioAsset,
   StudioAssetListResponse,
+  RenderJob,
+  RenderJobListResponse,
+  StudioProject,
+  StudioProjectListResponse,
 } from '../types/studio';
 
 const API_BASE = '/api/v1';
@@ -357,6 +361,75 @@ export const apiService = {
   async getAsset(id: string): Promise<StudioAsset> {
     const res = await fetch(`${API_BASE}/studio/assets/${id}`);
     if (!res.ok) throw new ApiError('Varlık bulunamadı.', res.status);
+    return res.json();
+  },
+
+  // --- Blender Headless Render Studio (Stage 4.3) ---
+  getRenderVideoUrl(jobId: string): string {
+    return `${API_BASE}/studio/renders/${jobId}/video`;
+  },
+
+  async startProjectRender(projectId: string, engineOverride?: string): Promise<RenderJob> {
+    const res = await fetch(`${API_BASE}/studio/projects/${projectId}/render`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(engineOverride ? { engine_override: engineOverride } : {}),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'Render işlemi başlatılamadı.', res.status, err.error_code);
+    }
+    return res.json();
+  },
+
+  async getRenderJob(jobId: string): Promise<RenderJob> {
+    const res = await fetch(`${API_BASE}/studio/renders/${jobId}`);
+    if (!res.ok) throw new ApiError('Render durumu alınamadı.', res.status);
+    return res.json();
+  },
+
+  async listProjectRenders(projectId: string): Promise<RenderJobListResponse> {
+    const res = await fetch(`${API_BASE}/studio/projects/${projectId}/renders`);
+    if (!res.ok) throw new ApiError('Render geçmişi alınamadı.', res.status);
+    return res.json();
+  },
+
+  // --- Studio Projects (Stage 4.1 & 4.3) ---
+  async listProjects(limit = 50, offset = 0): Promise<StudioProjectListResponse> {
+    const res = await fetch(`${API_BASE}/studio/projects?limit=${limit}&offset=${offset}`);
+    if (!res.ok) throw new ApiError('Projeler yüklenemedi.', res.status);
+    return res.json();
+  },
+
+  async getProject(id: string): Promise<StudioProject> {
+    const res = await fetch(`${API_BASE}/studio/projects/${id}`);
+    if (!res.ok) throw new ApiError('Proje bulunamadı.', res.status);
+    return res.json();
+  },
+
+  async createProject(data: { title: string; description?: string; scene_graph?: any }): Promise<StudioProject> {
+    const res = await fetch(`${API_BASE}/studio/projects`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'Proje oluşturulamadı.', res.status, err.error_code);
+    }
+    return res.json();
+  },
+
+  async generateStory(data: { prompt: string; target_duration_seconds?: number; aspect_ratio?: string }): Promise<any> {
+    const res = await fetch(`${API_BASE}/studio/story/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'Senaryo üretilemedi.', res.status, err.error_code);
+    }
     return res.json();
   },
 };

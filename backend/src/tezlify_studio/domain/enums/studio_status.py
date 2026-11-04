@@ -9,6 +9,13 @@ class StudioProjectStatus(str, Enum):
     FAILED = "failed"
     ARCHIVED = "archived"
 
+class RenderJobStatus(str, Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
 class CameraAngle(str, Enum):
     WIDE_SHOT = "wide_shot"
     MEDIUM_SHOT = "medium_shot"

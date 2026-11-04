@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Text, DateTime, Boolean
+from sqlalchemy import Column, String, Text, DateTime, Boolean, Float
 from tezlify_studio.infrastructure.persistence.models.media_models import Base
 
 class StudioProjectModel(Base):
@@ -64,3 +64,18 @@ class StudioAssetModel(Base):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+
+class RenderJobModel(Base):
+    __tablename__ = "render_jobs"
+
+    id = Column(String(64), primary_key=True, index=True)
+    project_id = Column(String(64), nullable=False, index=True)
+    status = Column(String(32), default="pending", nullable=False, index=True)
+    progress_percent = Column(Float, default=0.0, nullable=False)
+    current_step = Column(String(255), default="Pending", nullable=False)
+    output_video_path = Column(String(512), nullable=True)
+    output_metadata_json = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)

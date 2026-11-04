@@ -100,3 +100,23 @@ class BlenderRenderException(StudioDomainException):
         super().__init__(message, error_code="BLENDER_RENDER_FAILED")
         self.details = details
 
+class RenderJobNotFoundException(StudioDomainException):
+    def __init__(self, job_id: str):
+        super().__init__(
+            f"Render görevi bulunamadı: '{job_id}'",
+            error_code="RENDER_JOB_NOT_FOUND"
+        )
+        self.job_id = job_id
+
+class InvalidRenderStateException(StudioDomainException):
+    def __init__(self, message: str):
+        super().__init__(message, error_code="INVALID_RENDER_STATE")
+
+class AssetReferenceNotFoundException(StudioDomainException):
+    def __init__(self, asset_id: str, details: str = ""):
+        msg = f"SceneGraph tarafından referans verilen varlık bulunamadı: '{asset_id}'"
+        if details:
+            msg += f" ({details})"
+        super().__init__(msg, error_code="ASSET_REFERENCE_NOT_FOUND")
+        self.asset_id = asset_id
+
