@@ -451,9 +451,16 @@ def main():
                 arm_r.rotation_euler.z = 0.0
                 arm_r.keyframe_insert(data_path="rotation_euler", frame=min(scene_end_frame, abs_end + 8))
 
-            # 4. Listener head orientation
+            # 4. Listener behavior: strict mouth rest and attentive head orientation
             for other_id, other_map in character_maps.items():
                 if other_id != speaker_id:
+                    # Guarantee listener's mouth does not flap during partner's speech
+                    o_mouth = other_map.get("Mesh_Mouth")
+                    if o_mouth:
+                        o_mouth.scale.z = 1.0
+                        o_mouth.keyframe_insert(data_path="scale", frame=abs_start)
+                        o_mouth.keyframe_insert(data_path="scale", frame=abs_end)
+
                     o_head = other_map.get("Anchor_Head")
                     if o_head:
                         o_turn = -0.12 if "ayse" in other_id else 0.12

@@ -11,6 +11,8 @@ class RenderOutputMetadata(BaseModel):
     video_codec: str = "h264"
     pixel_format: str = "yuv420p"
     container: str = "mp4"
+    has_audio: bool = True
+    audio_codec: str = "aac"
     frame_count: int = Field(default=0, ge=0)
     render_duration_seconds: float = Field(default=0.0, ge=0.0)
     engine: str = "BLENDER_WORKBENCH"

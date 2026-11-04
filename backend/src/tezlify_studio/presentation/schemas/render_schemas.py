@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 
 class StartRenderRequest(BaseModel):
     engine_override: Optional[str] = Field(None, pattern="^(BLENDER_WORKBENCH|BLENDER_EEVEE|workbench|eevee)$")
+    synthesize_voices: Optional[bool] = Field(default=True)
 
 class RenderJobResponse(BaseModel):
     id: str

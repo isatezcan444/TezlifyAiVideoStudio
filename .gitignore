@@ -62,4 +62,10 @@ temp/
 *.blend1
 *.blend2
 
+# Studio Runtime & Cache Data
+data/audio_cache/
+data/studio_projects/
+data/studio_assets/characters/char_*/
+data/studio_assets/thumbnails/char_*.png
+
 

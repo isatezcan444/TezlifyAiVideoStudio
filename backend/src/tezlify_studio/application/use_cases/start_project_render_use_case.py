@@ -59,7 +59,7 @@ class StartProjectRenderUseCase:
         # Launch background render worker thread
         worker_thread = threading.Thread(
             target=self.execute_worker.execute,
-            args=(saved_job.id, request.project_id, request.engine_override),
+            args=(saved_job.id, request.project_id, request.engine_override, request.synthesize_voices),
             daemon=True,
             name=f"RenderWorker-{saved_job.id}",
         )

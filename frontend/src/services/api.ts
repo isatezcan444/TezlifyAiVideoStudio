@@ -22,6 +22,8 @@ import {
   RenderJobListResponse,
   StudioProject,
   StudioProjectListResponse,
+  VoiceListResponse,
+  VoiceStatusResponse,
 } from '../types/studio';
 
 const API_BASE = '/api/v1';
@@ -369,11 +371,19 @@ export const apiService = {
     return `${API_BASE}/studio/renders/${jobId}/video`;
   },
 
-  async startProjectRender(projectId: string, engineOverride?: string): Promise<RenderJob> {
+  async startProjectRender(
+    projectId: string,
+    engineOverride?: string,
+    synthesizeVoices?: boolean
+  ): Promise<RenderJob> {
+    const payload: Record<string, any> = {};
+    if (engineOverride) payload.engine_override = engineOverride;
+    if (synthesizeVoices !== undefined) payload.synthesize_voices = synthesizeVoices;
+
     const res = await fetch(`${API_BASE}/studio/projects/${projectId}/render`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(engineOverride ? { engine_override: engineOverride } : {}),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -430,6 +440,19 @@ export const apiService = {
       const err = await res.json().catch(() => ({}));
       throw new ApiError(err.detail || 'Senaryo üretilemedi.', res.status, err.error_code);
     }
+    return res.json();
+  },
+
+  // --- Voice Studio & ElevenLabs TTS (Stage 4.4) ---
+  async listVoices(): Promise<VoiceListResponse> {
+    const res = await fetch(`${API_BASE}/studio/voices`);
+    if (!res.ok) throw new ApiError('Ses listesi alınamadı.', res.status);
+    return res.json();
+  },
+
+  async getVoiceStatus(): Promise<VoiceStatusResponse> {
+    const res = await fetch(`${API_BASE}/studio/voices/status`);
+    if (!res.ok) throw new ApiError('Ses servis durumu alınamadı.', res.status);
     return res.json();
   },
 };

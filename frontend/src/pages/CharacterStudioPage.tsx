@@ -18,14 +18,29 @@ import {
   CheckCircle2,
   AlertCircle,
   Layers,
+  Mic,
+  Volume2,
 } from 'lucide-react';
-import { Character, StudioAsset, RenderJob, StudioProject } from '../types/studio';
+import {
+  Character,
+  StudioAsset,
+  RenderJob,
+  StudioProject,
+  VoiceProfile,
+  VoiceStatusResponse,
+} from '../types/studio';
 import { apiService } from '../services/api';
 import { Button } from '../components/ui/button';
 import { Spinner } from '../components/ui/Spinner';
 
 export const CharacterStudioPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'characters' | 'assets' | 'renders'>('characters');
+
+  // ElevenLabs Voice state (Stage 4.4)
+  const [voices, setVoices] = useState<VoiceProfile[]>([]);
+  const [voiceStatus, setVoiceStatus] = useState<VoiceStatusResponse | null>(null);
+  const [synthesizeVoices, setSynthesizeVoices] = useState<boolean>(true);
+  const [playingAudioUrl, setPlayingAudioUrl] = useState<string | null>(null);
 
   // Characters state
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -61,6 +76,7 @@ export const CharacterStudioPage: React.FC = () => {
     name: '',
     description: '',
     gender: 'male' as 'male' | 'female' | 'neutral',
+    voice_id: 'IKne3meq5aSn9XLyUdCD',
     skin_tone: '#F5D0A9',
     hair_color: '#2C1810',
     shirt_color: '#3B82F6',
@@ -70,6 +86,36 @@ export const CharacterStudioPage: React.FC = () => {
     default_expression: 'cheerful',
     default_pose: 'standing',
   });
+
+  const fetchVoiceStatusAndList = useCallback(async () => {
+    try {
+      const [statusRes, listRes] = await Promise.all([
+        apiService.getVoiceStatus().catch(() => null),
+        apiService.listVoices().catch(() => null),
+      ]);
+      if (statusRes) setVoiceStatus(statusRes);
+      if (listRes && listRes.items) setVoices(listRes.items);
+    } catch (err) {
+      console.error('Ses servisi yüklenemedi:', err);
+    }
+  }, []);
+
+  const handleTogglePreview = (previewUrl?: string | null) => {
+    if (!previewUrl) return;
+    if (playingAudioUrl === previewUrl) {
+      setPlayingAudioUrl(null);
+    } else {
+      setPlayingAudioUrl(previewUrl);
+      const audio = new Audio(previewUrl);
+      audio.onended = () => setPlayingAudioUrl(null);
+      audio.onerror = () => setPlayingAudioUrl(null);
+      audio.play().catch(() => setPlayingAudioUrl(null));
+    }
+  };
+
+  useEffect(() => {
+    fetchVoiceStatusAndList();
+  }, [fetchVoiceStatusAndList]);
 
   const fetchCharacters = useCallback(async () => {
     setIsLoadingChars(true);
@@ -189,7 +235,7 @@ export const CharacterStudioPage: React.FC = () => {
     setIsStartingRender(true);
     setRenderError(null);
     try {
-      const job = await apiService.startProjectRender(selectedProject.id, selectedEngine);
+      const job = await apiService.startProjectRender(selectedProject.id, selectedEngine, synthesizeVoices);
       setCurrentJob(job);
       await fetchProjectRenders(selectedProject.id);
     } catch (err: any) {
@@ -205,6 +251,7 @@ export const CharacterStudioPage: React.FC = () => {
       name: '',
       description: '',
       gender: 'male',
+      voice_id: 'IKne3meq5aSn9XLyUdCD',
       skin_tone: '#F5D0A9',
       hair_color: '#2C1810',
       shirt_color: '#3B82F6',
@@ -224,6 +271,7 @@ export const CharacterStudioPage: React.FC = () => {
       name: char.name,
       description: char.description || '',
       gender: char.gender,
+      voice_id: char.voice_id || (char.gender === 'female' ? 'cgSgspJ2msm6clMCkdW9' : 'IKne3meq5aSn9XLyUdCD'),
       skin_tone: char.palette.skin_tone,
       hair_color: char.palette.hair_color,
       shirt_color: char.palette.shirt_color,
@@ -251,6 +299,7 @@ export const CharacterStudioPage: React.FC = () => {
       name: formData.name.trim(),
       description: formData.description.trim(),
       gender: formData.gender,
+      voice_id: formData.voice_id,
       hair_style: formData.hair_style,
       default_expression: formData.default_expression,
       default_pose: formData.default_pose,
@@ -304,19 +353,39 @@ export const CharacterStudioPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Header / Navigation Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-4">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-[#7367F0]" />
-            Karakter ve Sahne Varlıkları Stüdyosu
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
+              <Sparkles className="w-6 h-6 text-[#7367F0]" />
+              Karakter ve Sahne Varlıkları Stüdyosu
+            </h1>
+            {/* ElevenLabs Status Badge */}
+            {voiceStatus?.is_configured ? (
+              <span
+                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                title={`ElevenLabs Bağlı - ${voiceStatus.default_model} (${voices.length} ses)`}
+              >
+                <Mic className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>ElevenLabs Bağlı ({voices.length} Ses)</span>
+              </span>
+            ) : (
+              <span
+                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                title="ELEVENLABS_API_KEY .env dosyasında henüz tanımlanmadı"
+              >
+                <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>ElevenLabs API Anahtarı Gerekli (.env)</span>
+              </span>
+            )}
+          </div>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Blender 5.2.3 ile tam uyumlu 2.5D cutout karakterler, yüz ifadeleri, pozlar ve sahne eşyaları kütüphanesi.
+            Blender 5.2.3 ile tam uyumlu 2.5D cutout karakterler, yüz ifadeleri, pozlar, sesler ve sahne eşyaları.
           </p>
         </div>
 
         {/* Tab Buttons */}
-        <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800/60 p-1 rounded-xl">
+        <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800/60 p-1 rounded-xl shrink-0">
           <button
             onClick={() => setActiveTab('characters')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -456,6 +525,19 @@ export const CharacterStudioPage: React.FC = () => {
                           style={{ backgroundColor: char.palette.pants_color }}
                           title={`Alt: ${char.palette.pants_color}`}
                         />
+                      </div>
+
+                      {/* Voice Badge */}
+                      <div className="flex items-center gap-1.5 mt-2">
+                        <span className="text-[11px] text-gray-400">Ses:</span>
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                          <Mic className="w-3 h-3 text-[#7367F0]" />
+                          {char.name === 'Ali'
+                            ? 'Charlie (Erkek)'
+                            : char.name === 'Ayşe'
+                            ? 'Jessica (Kadın)'
+                            : (voices.find((v) => v.voice_id === char.voice_id)?.name || char.voice_id || 'Varsayılan')}
+                        </span>
                       </div>
                     </div>
 
@@ -716,6 +798,39 @@ export const CharacterStudioPage: React.FC = () => {
                     <p className="text-[11px] text-gray-400 mt-1">
                       Workbench, 1080p 30 FPS kareleri saniyeler içinde render eder.
                     </p>
+                  </div>
+
+                  {/* ElevenLabs Voice Synthesis Toggle */}
+                  <div className="p-3 bg-purple-50/60 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/30 rounded-xl space-y-2">
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <Mic className="w-4 h-4 text-[#7367F0]" />
+                        <span className="text-xs font-semibold text-gray-900 dark:text-white">
+                          ElevenLabs AI Ses Sentezi
+                        </span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={synthesizeVoices}
+                        onChange={(e) => setSynthesizeVoices(e.target.checked)}
+                        className="w-4 h-4 text-[#7367F0] rounded border-gray-300 focus:ring-[#7367F0]"
+                      />
+                    </label>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                      Diyalog metinlerini karakterlerin ses profilleriyle MP3 olarak sentezler ve animasyon ağız hareketleriyle senkronize eder.
+                    </p>
+
+                    {synthesizeVoices && (
+                      <div className="pt-2 border-t border-purple-100/60 dark:border-purple-900/20 flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] text-gray-400 font-medium">Sahne Sesleri:</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-mono">
+                          Ali: Charlie (IKne3...)
+                        </span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-pink-100 dark:bg-pink-950/40 text-pink-700 dark:text-pink-300 font-mono">
+                          Ayşe: Jessica (cgSg...)
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <Button
@@ -1176,6 +1291,83 @@ export const CharacterStudioPage: React.FC = () => {
                     <option value="idle">Rahat / Bekleme (Idle)</option>
                   </select>
                 </div>
+              </div>
+
+              {/* ElevenLabs Voice Selection */}
+              <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                    <Mic className="w-3.5 h-3.5 text-[#7367F0]" />
+                    ElevenLabs AI Ses Profili
+                  </label>
+                  {voiceStatus?.is_configured ? (
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                      API Aktif
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                      .env API Anahtarı Gerekli
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <select
+                    value={formData.voice_id}
+                    onChange={(e) => setFormData({ ...formData, voice_id: e.target.value })}
+                    className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium focus:ring-2 focus:ring-[#7367F0] focus:outline-none"
+                  >
+                    <option value="IKne3meq5aSn9XLyUdCD">Charlie (Erkek - Dinamik / Doğal - Önerilen: Ali)</option>
+                    <option value="cgSgspJ2msm6clMCkdW9">Jessica (Kadın - Sıcak / Samimi - Önerilen: Ayşe)</option>
+                    <option value="pNInz6obpgDQGcFmaJgB">Adam (Erkek - Derin / Anlatıcı)</option>
+                    <option value="EXAVITQu4vr4xnSDxMaL">Sarah (Kadın - Yumuşak / Profesyonel)</option>
+                    <option value="bIHbv24MWmeRgasZH58o">Will (Erkek - Genç / Rahat)</option>
+                    <option value="Xb7hH8MSUJpSbSDYk0k2">Alice (Kadın - Canlı / Akıcı)</option>
+                    {voices
+                      .filter(
+                        (v) =>
+                          ![
+                            'IKne3meq5aSn9XLyUdCD',
+                            'cgSgspJ2msm6clMCkdW9',
+                            'pNInz6obpgDQGcFmaJgB',
+                            'EXAVITQu4vr4xnSDxMaL',
+                            'bIHbv24MWmeRgasZH58o',
+                            'Xb7hH8MSUJpSbSDYk0k2',
+                          ].includes(v.voice_id)
+                      )
+                      .map((v) => (
+                        <option key={v.voice_id} value={v.voice_id}>
+                          {v.name} ({v.gender || 'Genel'}) - {v.voice_id.slice(0, 8)}...
+                        </option>
+                      ))}
+                  </select>
+
+                  {/* Audio preview button if preview_url is available */}
+                  {(() => {
+                    const matchedVoice = voices.find((v) => v.voice_id === formData.voice_id);
+                    if (matchedVoice?.preview_url) {
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePreview(matchedVoice.preview_url)}
+                          className={`px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 border transition-colors ${
+                            playingAudioUrl === matchedVoice.preview_url
+                              ? 'bg-[#7367F0] text-white border-[#7367F0]'
+                              : 'bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800'
+                          }`}
+                          title="Ses Örneğini Dinle"
+                        >
+                          <Volume2 className="w-3.5 h-3.5" />
+                          <span>{playingAudioUrl === matchedVoice.preview_url ? 'Durdur' : 'Dinle'}</span>
+                        </button>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Karakterin diyalog satırları Blender render işlemi öncesinde ElevenLabs ile bu ses profili üzerinden sentezlenir.
+                </p>
               </div>
 
               {/* Form Action Buttons */}

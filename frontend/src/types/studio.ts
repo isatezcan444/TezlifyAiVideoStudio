@@ -115,4 +115,27 @@ export interface StudioProjectListResponse {
   offset: number;
 }
 
+export interface VoiceProfile {
+  voice_id: string;
+  name: string;
+  gender: string;
+  language: string;
+  category: string;
+  preview_url?: string | null;
+  description?: string | null;
+}
+
+export interface VoiceListResponse {
+  items: VoiceProfile[];
+  total: number;
+  is_configured: boolean;
+}
+
+export interface VoiceStatusResponse {
+  is_configured: boolean;
+  default_model: string;
+  provider: string;
+}
+
+
 

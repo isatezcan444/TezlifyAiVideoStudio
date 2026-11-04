@@ -4,15 +4,29 @@ from tezlify_studio.infrastructure.persistence.database import SessionLocal
 from tezlify_studio.infrastructure.persistence.repositories.render_job_repository_impl import RenderJobRepositoryImpl
 from tezlify_studio.infrastructure.persistence.repositories.studio_project_repository_impl import StudioProjectRepositoryImpl
 from tezlify_studio.application.ports.blender_animation_engine_port import BlenderAnimationEnginePort
+from tezlify_studio.application.ports.voice_synthesizer_port import VoiceSynthesizerPort
+from tezlify_studio.application.use_cases.synthesize_dialogue_audio_use_case import SynthesizeDialogueAudioUseCase
+from tezlify_studio.infrastructure.configuration.settings import settings
 from tezlify_studio.domain.enums.studio_status import StudioProjectStatus
 
 logger = logging.getLogger(__name__)
 
 class ExecuteRenderJobUseCase:
-    def __init__(self, animation_engine: BlenderAnimationEnginePort):
+    def __init__(
+        self,
+        animation_engine: BlenderAnimationEnginePort,
+        voice_synthesizer: Optional[VoiceSynthesizerPort] = None,
+    ):
         self.animation_engine = animation_engine
+        self.voice_synthesizer = voice_synthesizer
 
-    def execute(self, job_id: str, project_id: str, engine_override: Optional[str] = None) -> None:
+    def execute(
+        self,
+        job_id: str,
+        project_id: str,
+        engine_override: Optional[str] = None,
+        synthesize_voices: bool = True,
+    ) -> None:
         db = SessionLocal()
         try:
             job_repo = RenderJobRepositoryImpl(db)
@@ -34,6 +48,23 @@ class ExecuteRenderJobUseCase:
 
             project.transition_to(StudioProjectStatus.RENDERING)
             project_repo.save(project)
+
+            # Step: Synthesize dialogue speech with ElevenLabs if enabled and configured
+            if synthesize_voices and self.voice_synthesizer and self.voice_synthesizer.is_configured():
+                try:
+                    job.update_progress(8.0, "Synthesizing dialogue audio with ElevenLabs")
+                    job_repo.save(job)
+                    base_data_dir = getattr(self.animation_engine, "base_projects_dir", "data/studio_projects")
+                    synth_use_case = SynthesizeDialogueAudioUseCase(self.voice_synthesizer)
+                    updated_sg, _ = synth_use_case.execute(
+                        scene_graph=project.scene_graph,
+                        project_id=project_id,
+                        audio_base_dir=base_data_dir,
+                    )
+                    project.update_scene_graph(updated_sg)
+                    project_repo.save(project)
+                except Exception as ve:
+                    logger.warning(f"Voice synthesis error ({ve}). Proceeding with animation.")
 
             last_update_pct = [5.0]
 

@@ -24,6 +24,12 @@ from tezlify_studio.presentation.schemas.render_schemas import (
     RenderJobResponse,
     RenderJobListResponse,
 )
+from tezlify_studio.presentation.schemas.voice_schemas import (
+    VoiceResponse,
+    VoiceListResponse,
+    VoiceStatusResponse,
+    VoicePreviewRequest,
+)
 from tezlify_studio.application.dto.render_dto import (
     StartRenderRequestDTO,
 )
@@ -35,6 +41,12 @@ from tezlify_studio.application.use_cases.get_render_job_use_case import (
 )
 from tezlify_studio.application.use_cases.list_project_renders_use_case import (
     ListProjectRendersUseCase,
+)
+from tezlify_studio.application.use_cases.list_voices_use_case import (
+    ListVoicesUseCase,
+)
+from tezlify_studio.application.use_cases.synthesize_dialogue_audio_use_case import (
+    SynthesizeDialogueAudioUseCase,
 )
 from tezlify_studio.application.dto.studio_dto import (
     CreateStudioProjectRequestDTO,
@@ -101,6 +113,8 @@ from tezlify_studio.presentation.dependencies.container import (
     get_start_project_render_use_case,
     get_render_job_use_case,
     get_list_project_renders_use_case,
+    get_list_voices_use_case,
+    get_synthesize_dialogue_audio_use_case,
 )
 
 router = APIRouter(prefix="/studio", tags=["AI Studio"])
@@ -334,6 +348,7 @@ def start_render(
     dto = StartRenderRequestDTO(
         project_id=project_id,
         engine_override=req.engine_override if req else None,
+        synthesize_voices=req.synthesize_voices if (req and req.synthesize_voices is not None) else True,
     )
     res = use_case.execute(dto)
     return res.__dict__
@@ -383,5 +398,36 @@ def stream_render_video(
         media_type="video/mp4",
         filename=f"render_{job_id}.mp4",
     )
+
+# ==========================================
+# ElevenLabs AI Voice Endpoints (Stage 4.4)
+# ==========================================
+
+@router.get(
+    "/voices",
+    response_model=VoiceListResponse,
+    status_code=status.HTTP_200_OK,
+)
+def list_voices(
+    use_case: ListVoicesUseCase = Depends(get_list_voices_use_case),
+):
+    res = use_case.execute()
+    return res.model_dump()
+
+@router.get(
+    "/voices/status",
+    response_model=VoiceStatusResponse,
+    status_code=status.HTTP_200_OK,
+)
+def get_voice_status(
+    use_case: ListVoicesUseCase = Depends(get_list_voices_use_case),
+):
+    from tezlify_studio.infrastructure.configuration.settings import settings
+    return {
+        "is_configured": use_case.voice_synthesizer.is_configured(),
+        "default_model": settings.elevenlabs_default_model,
+        "provider": "ElevenLabs",
+    }
+
 
 

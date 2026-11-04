@@ -418,12 +418,22 @@ def get_seed_builtin_assets_use_case(
 # ==========================================
 from tezlify_studio.infrastructure.persistence.repositories.render_job_repository_impl import RenderJobRepositoryImpl
 from tezlify_studio.infrastructure.blender.blender_animation_engine_impl import BlenderAnimationEngineImpl
+from tezlify_studio.infrastructure.ai.elevenlabs_client_impl import ElevenLabsClientImpl
+from tezlify_studio.application.ports.voice_synthesizer_port import VoiceSynthesizerPort
 from tezlify_studio.application.use_cases.start_project_render_use_case import StartProjectRenderUseCase
 from tezlify_studio.application.use_cases.get_render_job_use_case import GetRenderJobUseCase
 from tezlify_studio.application.use_cases.list_project_renders_use_case import ListProjectRendersUseCase
 from tezlify_studio.application.use_cases.execute_render_job_use_case import ExecuteRenderJobUseCase
+from tezlify_studio.application.use_cases.list_voices_use_case import ListVoicesUseCase
+from tezlify_studio.application.use_cases.synthesize_dialogue_audio_use_case import SynthesizeDialogueAudioUseCase
 
 blender_animation_engine_singleton = BlenderAnimationEngineImpl()
+elevenlabs_client_singleton = ElevenLabsClientImpl(
+    api_key=settings.elevenlabs_api_key,
+    default_model=settings.elevenlabs_default_model,
+    api_base=settings.elevenlabs_api_base,
+    cache_dir=settings.audio_cache_dir,
+)
 
 def get_render_job_repository(db: Session = Depends(get_db)) -> RenderJobRepositoryImpl:
     return RenderJobRepositoryImpl(db)
@@ -431,10 +441,24 @@ def get_render_job_repository(db: Session = Depends(get_db)) -> RenderJobReposit
 def get_blender_animation_engine() -> BlenderAnimationEngineImpl:
     return blender_animation_engine_singleton
 
+def get_voice_synthesizer() -> VoiceSynthesizerPort:
+    return elevenlabs_client_singleton
+
+def get_list_voices_use_case(
+    synth: VoiceSynthesizerPort = Depends(get_voice_synthesizer),
+) -> ListVoicesUseCase:
+    return ListVoicesUseCase(synth)
+
+def get_synthesize_dialogue_audio_use_case(
+    synth: VoiceSynthesizerPort = Depends(get_voice_synthesizer),
+) -> SynthesizeDialogueAudioUseCase:
+    return SynthesizeDialogueAudioUseCase(synth)
+
 def get_execute_render_job_use_case(
     engine: BlenderAnimationEngineImpl = Depends(get_blender_animation_engine),
+    synth: VoiceSynthesizerPort = Depends(get_voice_synthesizer),
 ) -> ExecuteRenderJobUseCase:
-    return ExecuteRenderJobUseCase(engine)
+    return ExecuteRenderJobUseCase(engine, synth)
 
 def get_start_project_render_use_case(
     project_repo: StudioProjectRepositoryImpl = Depends(get_studio_project_repository),

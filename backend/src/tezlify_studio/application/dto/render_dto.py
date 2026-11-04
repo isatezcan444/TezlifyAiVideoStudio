@@ -5,6 +5,7 @@ from tezlify_studio.domain.entities.render_job import RenderJob
 class StartRenderRequestDTO(BaseModel):
     project_id: str
     engine_override: Optional[str] = None
+    synthesize_voices: bool = True
 
 class RenderJobDTO(BaseModel):
     id: str

@@ -120,3 +120,31 @@ class AssetReferenceNotFoundException(StudioDomainException):
         super().__init__(msg, error_code="ASSET_REFERENCE_NOT_FOUND")
         self.asset_id = asset_id
 
+# ==========================================
+# ElevenLabs & Voice Exceptions (Stage 4.4)
+# ==========================================
+
+class ElevenLabsException(StudioDomainException):
+    def __init__(self, message: str, error_code: str = "ELEVENLABS_ERROR"):
+        super().__init__(message, error_code=error_code)
+
+class ElevenLabsNotConfiguredException(ElevenLabsException):
+    def __init__(self, message: str = "ElevenLabs API anahtarı yapılandırılmamış. Lütfen .env dosyasına ELEVENLABS_API_KEY ekleyin."):
+        super().__init__(message, error_code="ELEVENLABS_NOT_CONFIGURED")
+
+class ElevenLabsApiException(ElevenLabsException):
+    def __init__(self, message: str, status_code: int = 500, details: str = ""):
+        super().__init__(f"ElevenLabs API hatası ({status_code}): {message}", error_code="ELEVENLABS_API_ERROR")
+        self.status_code = status_code
+        self.details = details
+
+class VoiceNotFoundException(ElevenLabsException):
+    def __init__(self, voice_id: str):
+        super().__init__(f"Ses profili (Voice ID) bulunamadı: '{voice_id}'", error_code="VOICE_NOT_FOUND")
+        self.voice_id = voice_id
+
+class AudioSynthesisException(ElevenLabsException):
+    def __init__(self, message: str):
+        super().__init__(message, error_code="AUDIO_SYNTHESIS_FAILED")
+
+

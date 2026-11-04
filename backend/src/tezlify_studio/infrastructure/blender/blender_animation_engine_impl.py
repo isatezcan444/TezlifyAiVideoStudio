@@ -156,23 +156,72 @@ class BlenderAnimationEngineImpl(BlenderAnimationEnginePort):
         width = worker_result.get("width", 1920)
         height = worker_result.get("height", 1080)
 
-        # 4. Encode MP4 via FFmpeg
+        # 4. Encode MP4 via FFmpeg (with synchronized audio tracks)
         report(88.0, "Encoding MP4 video with FFmpeg")
 
-        ffmpeg_cmd = [
-            "ffmpeg",
-            "-y",
-            "-framerate", str(fps),
-            "-i", os.path.join(frames_dir, "frame_%04d.png"),
-            "-f", "lavfi",
-            "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
-            "-c:v", "libx264",
-            "-pix_fmt", "yuv420p",
-            "-c:a", "aac",
-            "-shortest",
-            "-movflags", "+faststart",
-            output_mp4_path,
-        ]
+        # Collect dialogue audio files from the SceneGraph
+        dialogue_audios = []
+        cumulative_time = 0.0
+        for scene in scene_graph.scenes:
+            for dlg in scene.dialogues:
+                if dlg.audio_file and os.path.exists(dlg.audio_file) and os.path.getsize(dlg.audio_file) > 500:
+                    start_sec = cumulative_time + dlg.start_time
+                    dialogue_audios.append((dlg.audio_file, int(round(start_sec * 1000))))
+            cumulative_time += scene.duration_seconds
+
+        if dialogue_audios:
+            report(88.0, f"Mixing {len(dialogue_audios)} dialogue audio tracks with FFmpeg")
+            ffmpeg_cmd = [
+                "ffmpeg",
+                "-y",
+                "-framerate", str(fps),
+                "-i", os.path.join(frames_dir, "frame_%04d.png"),
+                "-f", "lavfi",
+                "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
+            ]
+            for aud_path, _ in dialogue_audios:
+                ffmpeg_cmd.extend(["-i", aud_path])
+
+            filter_parts = ["[1:a]aresample=44100[base_a];"]
+            mix_inputs = ["[base_a]"]
+
+            for idx, (_, delay_ms) in enumerate(dialogue_audios, start=2):
+                delay_ms = max(0, delay_ms)
+                filter_parts.append(f"[{idx}:a]adelay={delay_ms}|{delay_ms},aresample=44100[a{idx}];")
+                mix_inputs.append(f"[a{idx}]")
+
+            filter_parts.append(
+                f"{''.join(mix_inputs)}amix=inputs={len(mix_inputs)}:dropout_transition=0:normalize=0[aout]"
+            )
+            filter_complex = " ".join(filter_parts)
+
+            ffmpeg_cmd.extend([
+                "-filter_complex", filter_complex,
+                "-map", "0:v",
+                "-map", "[aout]",
+                "-c:v", "libx264",
+                "-pix_fmt", "yuv420p",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-shortest",
+                "-movflags", "+faststart",
+                output_mp4_path,
+            ])
+        else:
+            ffmpeg_cmd = [
+                "ffmpeg",
+                "-y",
+                "-framerate", str(fps),
+                "-i", os.path.join(frames_dir, "frame_%04d.png"),
+                "-f", "lavfi",
+                "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
+                "-c:v", "libx264",
+                "-pix_fmt", "yuv420p",
+                "-c:a", "aac",
+                "-shortest",
+                "-movflags", "+faststart",
+                output_mp4_path,
+            ]
 
         ff_res = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
         if ff_res.returncode != 0 or not os.path.exists(output_mp4_path):
@@ -214,6 +263,7 @@ class BlenderAnimationEngineImpl(BlenderAnimationEnginePort):
             streams = probe_data.get("streams", [])
 
             video_stream = next((s for s in streams if s.get("codec_type") == "video"), None)
+            audio_stream = next((s for s in streams if s.get("codec_type") == "audio"), None)
             if not video_stream:
                 raise BlenderRenderException("FFprobe: Output MP4 contains no video stream")
 
@@ -223,6 +273,7 @@ class BlenderAnimationEngineImpl(BlenderAnimationEnginePort):
             v_height = int(video_stream.get("height", 0))
             file_size = int(format_info.get("size", 0))
             duration = float(format_info.get("duration", 0.0))
+            a_codec = audio_stream.get("codec_name", "aac") if audio_stream else "none"
 
             if file_size <= 0:
                 raise BlenderRenderException(f"FFprobe: Generated MP4 file size is 0 bytes")
@@ -261,6 +312,8 @@ class BlenderAnimationEngineImpl(BlenderAnimationEnginePort):
             video_codec=v_codec,
             pixel_format=v_pix_fmt,
             container="mp4",
+            has_audio=bool(audio_stream),
+            audio_codec=a_codec,
             frame_count=total_frames,
             render_duration_seconds=render_duration,
             engine=worker_result.get("engine", "BLENDER_WORKBENCH"),

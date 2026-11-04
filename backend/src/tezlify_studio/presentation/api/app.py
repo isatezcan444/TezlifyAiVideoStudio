@@ -233,7 +233,15 @@ def create_app() -> FastAPI:
         DuplicateCharacterIdException,
         DuplicateAssetIdException,
         RenderJobNotFoundException,
+        VoiceNotFoundException,
     )
+
+    @app.exception_handler(VoiceNotFoundException)
+    async def voice_not_found_handler(request: Request, exc: VoiceNotFoundException):
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"detail": exc.message, "error_code": exc.error_code},
+        )
 
     @app.exception_handler(RenderJobNotFoundException)
     async def render_job_not_found_handler(request: Request, exc: RenderJobNotFoundException):

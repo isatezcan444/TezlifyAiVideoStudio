@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     scheduler_max_attempts: int = Field(default=3, alias="SCHEDULER_MAX_ATTEMPTS")
     scheduler_retry_delay_minutes: int = Field(default=5, alias="SCHEDULER_RETRY_DELAY_MINUTES")
 
+    # ElevenLabs AI Voice Integration (Aşama 4.4)
+    elevenlabs_api_key: Optional[str] = Field(default=None, alias="ELEVENLABS_API_KEY")
+    elevenlabs_default_model: str = Field(default="eleven_multilingual_v2", alias="ELEVENLABS_DEFAULT_MODEL")
+    elevenlabs_api_base: str = Field(default="https://api.elevenlabs.io/v1", alias="ELEVENLABS_API_BASE")
+
     model_config = SettingsConfigDict(
         env_file=os.path.join(PROJECT_ROOT, ".env"),
         env_file_encoding="utf-8",
@@ -78,5 +83,15 @@ class Settings(BaseSettings):
     @property
     def resolved_youtube_client_secret(self) -> Optional[str]:
         return self.youtube_client_secret or self.google_client_secret
+
+    @property
+    def is_elevenlabs_configured(self) -> bool:
+        return bool(self.elevenlabs_api_key and self.elevenlabs_api_key.strip())
+
+    @property
+    def audio_cache_dir(self) -> str:
+        path = os.path.join(self.resolved_data_dir, "audio_cache")
+        os.makedirs(os.path.abspath(path), exist_ok=True)
+        return os.path.abspath(path)
 
 settings = Settings()
