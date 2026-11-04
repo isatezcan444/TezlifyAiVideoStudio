@@ -1,0 +1,57 @@
+### PYTEST
+.venv/lib/python3.14/site-packages/fastapi/testclient.py:1
+  /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/.venv/lib/python3.14/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+223 passed, 1 warning in 80.67s (0:01:20)
+### DOCTOR
+============================================================
+  TEZLIFY AI VIDEO STUDIO - SISTEM VE ORTAM DENETIMI
+============================================================
+
+1. Isletim Sistemi: Darwin 27.0.0 (arm64)
+2. Python Surumu: 3.14.7 [92m[✓ OK][0m
+3. Node.js: v24.15.0 [92m[✓ OK][0m
+   npm:     11.12.1 [92m[✓ OK][0m
+4. FFmpeg:  /opt/homebrew/bin/ffmpeg [92m[✓ OK][0m
+   FFprobe: /opt/homebrew/bin/ffprobe [92m[✓ OK][0m
+5. Blender: Mevcut [92m[✓ OK][0m
+6. Medya Dizini: /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/media [92m[✓ OK][0m
+   SQLite DB:    /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/database/tezlify_studio.db [92m[✓ OK][0m
+
+============================================================
+  DENETIM TAMAMLANDI: Asama 1 (Local Studio Core) calismaya hazir.
+============================================================
+
+### E2E
+   [✓] SHA-256 Hash: 8c1b604b5cf4c2c0...
+
+4. Medya Kütüphanesinde Listeleme Doğrulanıyor...
+   [✓] Kütüphanede bulundu (Toplam 100 video).
+
+5. Video HTTP Range Streaming (İleri-Geri Sarma) Test Ediliyor...
+   [✓] HTTP 206 Partial Content (Bytes 0-1023) başarıyla iletildi.
+
+6. Mükerrer Video Tespiti (Duplicate Hash) Test Ediliyor...
+   [✓] HTTP 409 DUPLICATE_MEDIA başarıyla engellendi.
+
+7. Kalıcılık (Persistence) Doğrulanıyor...
+   [✓] SQLite veritabanında kayıt kalıcı olarak korundu.
+
+8. Güvenli Silme ve Dosya Temizliği Test Ediliyor...
+   [✓] Medya kaydı ve diskteki dosya güvenle silindi.
+
+9. YouTube Publisher Modülü Test Ediliyor...
+   [✓] YouTube Durum Endpoint'i OK (Bağlantı: True)
+   [✓] YouTube Yayın Geçmişi Endpoint'i OK (Kayıt sayısı: 130)
+
+10. Aşama 3 - Yayın Takvimi ve Otomatik Zamanlayıcı Test Ediliyor...
+   [✓] Scheduler Motor Durumu: False (Kontrol Aralığı: 30s)
+   [✓] Yayın Takvimi Listeleme OK (Toplam Plan: 0)
+   [✓] Yaklaşan Yayınlar Endpoint'i OK (Gelecek Planlar: 0)
+
+=================================================================
+  🎉 TÜM UÇTAN UCA TESTLER BAŞARIYLA TAMAMLANDI!
+=================================================================
+

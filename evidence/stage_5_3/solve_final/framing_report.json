@@ -1,0 +1,200 @@
+{
+  "16x9": {
+    "profile": "landscape",
+    "aspect_ratio": "16:9",
+    "safe_area": {
+      "top": 0.05,
+      "bottom": 0.1,
+      "left": 0.03,
+      "right": 0.03
+    },
+    "scenes": [
+      {
+        "scene_id": "scene_01",
+        "format": "16:9",
+        "profile": "landscape",
+        "camera_angle": "two_shot",
+        "shot": "two_shot",
+        "body_crop": 0.82,
+        "placed": [
+          "char_ali",
+          "char_ayse"
+        ],
+        "cast": [
+          "char_ali",
+          "char_ayse"
+        ],
+        "solve": {
+          "profile": "landscape",
+          "shot": "two_shot",
+          "lens_mm": 45.0,
+          "distance_m": 3.9516,
+          "camera": [
+            -0.0,
+            -3.9516,
+            1.1927
+          ],
+          "target": [
+            -0.0,
+            0.0,
+            0.9927
+          ],
+          "visible_width_m": 3.1613,
+          "visible_height_m": 1.7782,
+          "subject_width_m": 1.7187,
+          "subject_height_m": 1.4208,
+          "fill_width": 0.5784,
+          "fill_height": 0.94,
+          "fits_safe_area": true,
+          "limited_by": "height"
+        },
+        "screen_boxes": {
+          "char_ali": {
+            "x0": 0.2282,
+            "x1": 0.4241,
+            "y_top": 0.0823,
+            "y_bottom": 0.8722
+          },
+          "char_ayse": {
+            "x0": 0.5444,
+            "x1": 0.7718,
+            "y_top": 0.0755,
+            "y_bottom": 0.8745
+          }
+        }
+      }
+    ]
+  },
+  "9x16": {
+    "profile": "portrait",
+    "aspect_ratio": "9:16",
+    "safe_area": {
+      "top": 0.09,
+      "bottom": 0.2,
+      "left": 0.04,
+      "right": 0.04
+    },
+    "scenes": [
+      {
+        "scene_id": "scene_01",
+        "format": "9:16",
+        "profile": "portrait",
+        "camera_angle": "two_shot",
+        "shot": "two_shot",
+        "body_crop": 0.935,
+        "placed": [
+          "char_ali",
+          "char_ayse"
+        ],
+        "cast": [
+          "char_ali",
+          "char_ayse"
+        ],
+        "solve": {
+          "profile": "portrait",
+          "shot": "two_shot",
+          "lens_mm": 45.0,
+          "distance_m": 2.0763,
+          "camera": [
+            -0.0,
+            -2.0763,
+            0.9753
+          ],
+          "target": [
+            -0.0,
+            0.0,
+            0.7753
+          ],
+          "visible_width_m": 1.661,
+          "visible_height_m": 2.9529,
+          "subject_width_m": 1.3447,
+          "subject_height_m": 1.6197,
+          "fill_width": 0.88,
+          "fill_height": 0.7726,
+          "fits_safe_area": true,
+          "limited_by": "width"
+        },
+        "screen_boxes": {
+          "char_ali": {
+            "x0": 0.0952,
+            "x1": 0.4681,
+            "y_top": 0.1748,
+            "y_bottom": 0.7171
+          },
+          "char_ayse": {
+            "x0": 0.4718,
+            "x1": 0.9048,
+            "y_top": 0.1707,
+            "y_bottom": 0.7193
+          }
+        }
+      }
+    ]
+  },
+  "1x1": {
+    "profile": "square",
+    "aspect_ratio": "1:1",
+    "safe_area": {
+      "top": 0.07,
+      "bottom": 0.16,
+      "left": 0.04,
+      "right": 0.04
+    },
+    "scenes": [
+      {
+        "scene_id": "scene_01",
+        "format": "1:1",
+        "profile": "square",
+        "camera_angle": "two_shot",
+        "shot": "two_shot",
+        "body_crop": 0.861,
+        "placed": [
+          "char_ali",
+          "char_ayse"
+        ],
+        "cast": [
+          "char_ali",
+          "char_ayse"
+        ],
+        "solve": {
+          "profile": "square",
+          "shot": "two_shot",
+          "lens_mm": 45.0,
+          "distance_m": 2.6324,
+          "camera": [
+            -0.0,
+            -2.6324,
+            1.1068
+          ],
+          "target": [
+            -0.0,
+            0.0,
+            0.9068
+          ],
+          "visible_width_m": 2.1059,
+          "visible_height_m": 2.1059,
+          "subject_width_m": 1.5427,
+          "subject_height_m": 1.4918,
+          "fill_width": 0.7963,
+          "fill_height": 0.92,
+          "fits_safe_area": true,
+          "limited_by": "height"
+        },
+        "screen_boxes": {
+          "char_ali": {
+            "x0": 0.1337,
+            "x1": 0.4278,
+            "y_top": 0.1065,
+            "y_bottom": 0.8069
+          },
+          "char_ayse": {
+            "x0": 0.5248,
+            "x1": 0.8663,
+            "y_top": 0.1008,
+            "y_bottom": 0.8092
+          }
+        }
+      }
+    ]
+  }
+}

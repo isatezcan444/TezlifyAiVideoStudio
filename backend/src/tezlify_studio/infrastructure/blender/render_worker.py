@@ -9,6 +9,27 @@ import json
 import math
 import traceback
 import bpy
+import mathutils
+
+# Blender runs this file with its own interpreter, which has no pydantic, so only
+# standard-library modules may be pulled from the package. camera_framing is kept
+# dependency-free for exactly that reason: the framing maths below has to be the
+# same code the backend tests exercise.
+_BACKEND_SRC = os.path.abspath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..")
+)
+if _BACKEND_SRC not in sys.path:
+    sys.path.insert(0, _BACKEND_SRC)
+
+from tezlify_studio.domain.value_objects.camera_framing import (  # noqa: E402
+    SubjectBounds,
+    intent_for_angle,
+    profile_for_aspect,
+    profile_for_dimensions,
+    screen_box,
+    solve_camera,
+    visible_extents_at_plane,
+)
 
 def log(msg: str):
     print(f"[BLENDER_WORKER] {msg}", flush=True)
@@ -68,37 +89,151 @@ def setup_lighting():
     rim_obj.rotation_euler = (-0.8, 0.0, 3.14)
     bpy.context.collection.objects.link(rim_obj)
 
-def get_camera_positions(angle_str: str, aspect_ratio: str = "16:9"):
-    """Returns (cam_location, target_location, lens_mm) for camera angle.
+def object_world_bounds(obj):
+    """World-space AABB of an object's bounding box, or None when degenerate."""
+    bound_box = getattr(obj, "bound_box", None)
+    if not bound_box:
+        return None
+    corners = [obj.matrix_world @ mathutils.Vector(corner) for corner in bound_box]
+    xs = [c.x for c in corners]
+    ys = [c.y for c in corners]
+    zs = [c.z for c in corners]
+    if max(xs) - min(xs) <= 1e-6 and max(zs) - min(zs) <= 1e-6:
+        return None
+    return min(xs), max(xs), min(ys), max(ys), min(zs), max(zs)
 
-    Camera sensor fit is horizontal, so changing the output aspect ratio keeps
-    the same horizontal composition. Portrait/square frames add vertical
-    headroom instead of cropping characters out of frame; the backdrop is
-    extended separately so that headroom never turns into a black void.
+
+def merge_bounds(boxes):
+    boxes = [b for b in boxes if b]
+    if not boxes:
+        return None
+    return (
+        min(b[0] for b in boxes),
+        max(b[1] for b in boxes),
+        min(b[2] for b in boxes),
+        max(b[3] for b in boxes),
+        min(b[4] for b in boxes),
+        max(b[5] for b in boxes),
+    )
+
+
+def measure_subject_bounds(character_maps: dict, sample_frames):
+    """Real on-screen extents of the cast, measured from the animated rig.
+
+    Returns ``({character_id: extents}, union_extents)`` where extents is
+    ``(x_min, x_max, y_min, y_max, z_min, z_max)``.
+
+    Sampling start / middle / end of the shot is what makes the solve trustworthy:
+    a raised arm during a gesture widens the silhouette and a sitting pose lowers
+    the head, so a single frame would let the camera solve for a body that is not
+    actually on screen for the rest of the shot.
     """
-    angle_lower = (angle_str or "medium_shot").lower()
-    if "wide" in angle_lower:
-        base = ((0.0, -4.6, 1.4), (0.0, 0.0, 1.0), 38.0)
-    elif "close" in angle_lower:
-        base = ((0.0, -1.9, 1.35), (0.0, 0.0, 1.35), 65.0)
-    elif "two_shot" in angle_lower or "two" in angle_lower:
-        base = ((0.0, -3.2, 1.25), (0.0, 0.0, 1.05), 45.0)
-    elif "shoulder" in angle_lower:
-        base = ((-0.6, -2.1, 1.35), (0.5, 0.0, 1.25), 55.0)
-    else:  # medium_shot
-        base = ((0.0, -3.0, 1.3), (0.0, 0.0, 1.1), 48.0)
+    per_character = {}
+    for frame in sample_frames:
+        bpy.context.scene.frame_set(int(frame))
+        bpy.context.view_layer.update()
+        for char_id, char_map in character_maps.items():
+            box = merge_bounds(object_world_bounds(obj) for obj in char_map.values())
+            if box:
+                per_character.setdefault(char_id, []).append(box)
 
-    loc, target, lens = base
-    if str(aspect_ratio) == "9:16":
-        # A mild zoom gives portrait delivery some presence without cutting
-        # the two-shot cast out of frame.
-        loc = (loc[0], loc[1] * 1.04, loc[2] + 0.02)
-        target = (target[0], target[1], target[2] + 0.02)
-        lens *= 1.05
-    elif str(aspect_ratio) == "1:1":
-        loc = (loc[0], loc[1] * 1.01, loc[2])
-        lens *= 1.05
-    return loc, target, lens
+    collapsed = {
+        char_id: merge_bounds(boxes) for char_id, boxes in per_character.items()
+    }
+    collapsed = {k: v for k, v in collapsed.items() if v}
+    union = merge_bounds(collapsed.values()) if collapsed else None
+    return collapsed, union
+
+
+def subject_box_from_extents(extents, crop: float) -> SubjectBounds:
+    """Turn raw extents into the box the shot intends to keep inside the frame.
+
+    ``crop`` is the share of the head-to-feet span the angle keeps, counted from
+    the top of the head: 0.82 is a two-shot that stops mid-shin, 1.0 is a full
+    body. A tall frame is allowed to open the crop up so the extra height is spent
+    on the cast rather than on wall.
+    """
+    x_min, x_max, _y_min, _y_max, z_min, z_max = extents
+    crop = max(0.05, min(1.0, crop))
+    z_bottom = z_max - crop * (z_max - z_min)
+    return SubjectBounds(
+        x_min=x_min,
+        x_max=x_max,
+        z_top=z_max,
+        z_bottom=z_bottom,
+    )
+
+
+def scaled_placement_x(position, centroid_x: float, ratio: float):
+    """Pull a cast member towards the group centre for a narrower frame."""
+    if ratio == 1.0 or len(position) != 3:
+        return list(position)
+    return [centroid_x + (position[0] - centroid_x) * ratio, position[1], position[2]]
+
+
+WALL_MARKERS = ("BackWall", "_Wall", "SkyBackdrop", "Backdrop", "Wall_")
+FLOOR_MARKERS = ("Floor", "Grass", "Rug")
+
+
+def _is_axis_aligned_unparented(obj) -> bool:
+    if obj.parent is not None:
+        return False
+    rot = obj.rotation_euler
+    return abs(rot.x) < 1e-4 and abs(rot.y) < 1e-4 and abs(rot.z) < 1e-4
+
+
+def expand_backdrop_for_frame(background_objects: dict, coverage) -> list:
+    """Grow the set until it covers everything the camera can see.
+
+    Without this, the extra vertical field of view of a portrait frame runs past
+    the top of the wall and renders the black world background, which is exactly
+    the "black padding" a vertical export is supposed to avoid. ``coverage`` is the
+    union of the visible world rectangles measured at the set's own depth planes.
+    """
+    if not background_objects or not coverage:
+        return []
+
+    x_min, x_max, z_min, z_max, floor_y_min, floor_y_max = coverage
+    adjusted = []
+
+    for name, obj in background_objects.items():
+        if not _is_axis_aligned_unparented(obj):
+            continue
+        bounds = object_world_bounds(obj)
+        if not bounds:
+            continue
+        bx_min, bx_max, by_min, by_max, bz_min, bz_max = bounds
+
+        if any(marker in name for marker in WALL_MARKERS):
+            new_x_min = min(bx_min, x_min)
+            new_x_max = max(bx_max, x_max)
+            new_z_min = min(bz_min, z_min)
+            new_z_max = max(bz_max, z_max)
+            width = bx_max - bx_min
+            height = bz_max - bz_min
+            if width <= 1e-6 or height <= 1e-6:
+                continue
+            obj.scale.x *= (new_x_max - new_x_min) / width
+            obj.scale.z *= (new_z_max - new_z_min) / height
+            obj.location.x = (new_x_min + new_x_max) / 2.0
+            obj.location.z = (new_z_min + new_z_max) / 2.0
+            adjusted.append(name)
+        elif any(marker in name for marker in FLOOR_MARKERS):
+            new_x_min = min(bx_min, x_min)
+            new_x_max = max(bx_max, x_max)
+            new_y_min = min(by_min, floor_y_min)
+            new_y_max = max(by_max, floor_y_max)
+            width = bx_max - bx_min
+            depth = by_max - by_min
+            if width <= 1e-6 or depth <= 1e-6:
+                continue
+            obj.scale.x *= (new_x_max - new_x_min) / width
+            obj.scale.y *= (new_y_max - new_y_min) / depth
+            obj.location.x = (new_x_min + new_x_max) / 2.0
+            obj.location.y = (new_y_min + new_y_max) / 2.0
+            adjusted.append(name)
+
+    return adjusted
 
 def apply_pose(char_map: dict, pose_str: str):
     torso = char_map.get("Anchor_Torso")
@@ -202,10 +337,20 @@ def main():
     width = resolution.get("width", 1920)
     height = resolution.get("height", 1080)
     fps = resolution.get("fps", 30)
-    aspect_ratio = resolution.get(
-        "aspect_ratio",
-        "9:16" if height > width else ("1:1" if width == height else "16:9"),
+    aspect_ratio = resolution.get("aspect_ratio") or (
+        "9:16" if height > width else ("1:1" if width == height else "16:9")
     )
+    # The delivery format decides the camera, not only the pixel count. The
+    # rendered dimensions win when a legacy project recorded an aspect ratio that
+    # contradicts them, because the frame is what the audience sees.
+    framing_profile = profile_for_aspect(aspect_ratio)
+    if (framing_profile.width, framing_profile.height) != (width, height):
+        log(
+            f"WARNING: recorded aspect {aspect_ratio} does not match {width}x{height}; "
+            "framing from the pixel dimensions"
+        )
+        framing_profile = profile_for_dimensions(width, height)
+    sensor_width_mm = 36.0
 
     scenes = scene_graph.get("scenes", [])
     if not scenes:
@@ -214,8 +359,11 @@ def main():
     total_duration = sum(s.get("duration_seconds", 5.0) for s in scenes)
     total_frames = max(1, int(round(total_duration * fps)))
 
-    log(f"Starting render: {len(scenes)} scene(s), total {total_duration:.2f}s, {total_frames} frames @ {fps}fps")
-    report_progress(10.0, "Building 3D Scene")
+    log(
+        f"Starting render: {len(scenes)} scene(s), total {total_duration:.2f}s, "
+        f"{total_frames} frames @ {fps}fps, framing={framing_profile.label}"
+    )
+    report_progress(10.0, f"Building 3D Scene ({framing_profile.label})")
 
     clear_scene()
 
@@ -225,9 +373,11 @@ def main():
     bpy.context.collection.objects.link(cam_target)
 
     cam_data = bpy.data.cameras.new("MainStudioCamera")
-    # Horizontal sensor fit keeps the horizontal composition identical across
-    # 16:9, 9:16 and 1:1. Portrait adds vertical room instead of cropping.
+    # Horizontal sensor fit: the horizontal field of view is set by the lens, and
+    # the vertical one follows the frame. Every framing decision below is solved
+    # against that relationship, per delivery format.
     cam_data.sensor_fit = 'HORIZONTAL'
+    sensor_width_mm = float(cam_data.sensor_width)
     cam_obj = bpy.data.objects.new("MainStudioCamera", cam_data)
     cam_obj.location = (0.0, -3.2, 1.25)
     bpy.context.collection.objects.link(cam_obj)
@@ -257,16 +407,6 @@ def main():
             exclude_names=["AssetCamera", "WarmFill", "WarmKey", "DayKey", "DayFill", "NeonKey", "NeonFill"],
             prefix="env"
         )
-
-    if str(aspect_ratio) == "9:16":
-        # A portrait frame sees much further above the set than 16:9. Extend
-        # the back wall so that extra headroom stays a real café wall instead
-        # of default black world background.
-        back_wall = background_objects.get("Cafe_BackWall")
-        if back_wall:
-            back_wall.scale.z *= 2.4
-            back_wall.location.z = 2.5 * 2.4
-            log("Extended café back wall for 9:16 headroom")
 
     # 4. Import Props (cafe table & cups if in cafe)
     if "cafe" in bg_asset_id or "office" in bg_asset_id:
@@ -312,6 +452,13 @@ def main():
     bpy.context.scene.frame_start = 1
     bpy.context.scene.frame_end = total_frames
 
+    framing_reports = []
+    coverages = []
+    BACKDROP_PLANE_Y = 5.0
+    # The legacy landscape two-shot saw 2.56m of width; camera moves are kept at
+    # that same share of the frame so a pan does not sweep out of shot in portrait.
+    BASELINE_VISIBLE_WIDTH = 2.56
+
     for s_idx, scene_def in enumerate(scenes):
         scene_dur = scene_def.get("duration_seconds", 5.0)
         scene_frames = max(1, int(round(scene_dur * fps)))
@@ -320,44 +467,25 @@ def main():
 
         log(f"Keyframing Scene {s_idx + 1}/{len(scenes)}: frames {scene_start_frame} to {scene_end_frame}")
 
-        # A. Camera setup & movement for this scene
-        cam_setup = scene_def.get("camera", {})
-        cam_angle = cam_setup.get("angle", "two_shot")
-        cam_movement = cam_setup.get("movement", "static").lower()
-        base_loc, target_loc, lens = get_camera_positions(cam_angle, aspect_ratio)
-        cam_data.lens = lens
-        cam_target.location = target_loc
-
-        # Initial camera keyframe
-        cam_obj.location = base_loc
-        cam_obj.keyframe_insert(data_path="location", frame=scene_start_frame)
-
-        if "pan_right" in cam_movement:
-            cam_obj.location = (base_loc[0] - 0.25, base_loc[1], base_loc[2])
-            cam_obj.keyframe_insert(data_path="location", frame=scene_start_frame)
-            cam_obj.location = (base_loc[0] + 0.25, base_loc[1], base_loc[2])
-            cam_obj.keyframe_insert(data_path="location", frame=scene_end_frame)
-        elif "pan_left" in cam_movement:
-            cam_obj.location = (base_loc[0] + 0.25, base_loc[1], base_loc[2])
-            cam_obj.keyframe_insert(data_path="location", frame=scene_start_frame)
-            cam_obj.location = (base_loc[0] - 0.25, base_loc[1], base_loc[2])
-            cam_obj.keyframe_insert(data_path="location", frame=scene_end_frame)
-        elif "zoom_in" in cam_movement:
-            cam_obj.location = (base_loc[0], base_loc[1] - 0.6, base_loc[2])
-            cam_obj.keyframe_insert(data_path="location", frame=scene_start_frame)
-            cam_obj.location = (base_loc[0], base_loc[1] + 0.4, base_loc[2])
-            cam_obj.keyframe_insert(data_path="location", frame=scene_end_frame)
-        elif "zoom_out" in cam_movement:
-            cam_obj.location = (base_loc[0], base_loc[1] + 0.3, base_loc[2])
-            cam_obj.keyframe_insert(data_path="location", frame=scene_start_frame)
-            cam_obj.location = (base_loc[0], base_loc[1] - 0.5, base_loc[2])
-            cam_obj.keyframe_insert(data_path="location", frame=scene_end_frame)
-        else: # static
-            cam_obj.location = base_loc
-            cam_obj.keyframe_insert(data_path="location", frame=scene_end_frame)
-
-        # B. Placements & Poses
+        # A. Placements & Poses.
+        #
+        # These run before the camera is solved, because the solve has to answer
+        # "where is this cast, and how tall is it" rather than assume a fixed
+        # blocking that only ever worked for a landscape frame.
         placements = scene_def.get("character_placements", [])
+        placed_x = [
+            placement.get("position", [0.0, 0.0, 0.0])[0]
+            for placement in placements
+            if len(placement.get("position", [])) == 3
+        ]
+        centroid_x = sum(placed_x) / len(placed_x) if placed_x else 0.0
+        spacing_ratio = framing_profile.horizontal_spacing_ratio
+        if spacing_ratio != 1.0 and len(placed_x) > 1:
+            log(
+                f"Narrowing cast spacing to {spacing_ratio:.2f} for "
+                f"{framing_profile.aspect_ratio} delivery"
+            )
+
         for placement in placements:
             c_id = placement.get("character_id")
             c_map = character_maps.get(c_id)
@@ -370,7 +498,9 @@ def main():
                     root_obj = obj
                     break
 
-            pos = placement.get("position", [0.0, 0.0, 0.0])
+            pos = scaled_placement_x(
+                placement.get("position", [0.0, 0.0, 0.0]), centroid_x, spacing_ratio
+            )
             rot_y = placement.get("rotation_y", 0.0)
             pose_str = placement.get("pose", "standing")
             expr_str = placement.get("expression", "neutral")
@@ -381,11 +511,15 @@ def main():
                 root_obj.rotation_euler.z = math.radians(rot_y)
                 root_obj.keyframe_insert(data_path="location", frame=scene_start_frame)
                 root_obj.keyframe_insert(data_path="rotation_euler", frame=scene_start_frame)
+                # Hold the blocking until the cut. Without the closing keyframe the
+                # rig lerps towards the next scene's position across the shot, and
+                # the camera solve below would measure a drifting silhouette.
+                root_obj.keyframe_insert(data_path="location", frame=scene_end_frame)
 
             apply_pose(c_map, pose_str)
             apply_expression(c_map, expr_str, scene_start_frame)
 
-        # C. Idle Breathing, Subtle Sway, Eye Blinking across the scene
+        # B. Idle Breathing, Subtle Sway, Eye Blinking across the scene
         for c_id, c_map in character_maps.items():
             torso = c_map.get("Anchor_Torso")
             head = c_map.get("Anchor_Head")
@@ -438,7 +572,7 @@ def main():
                 mouth.keyframe_insert(data_path="scale", frame=scene_start_frame)
                 mouth.keyframe_insert(data_path="scale", frame=scene_end_frame)
 
-        # D. Dialogue Keyframing: Mouth Flap, Gestures, Head Orientation
+        # C. Dialogue Keyframing: Mouth Flap, Gestures, Head Orientation
         dialogues = scene_def.get("dialogues", [])
         for dlg in dialogues:
             speaker_id = dlg.get("character_id")
@@ -524,9 +658,143 @@ def main():
                         o_head.rotation_euler.x = 0.0
                         o_head.keyframe_insert(data_path="rotation_euler", frame=nod_f + 8)
 
+        # D. Solve the camera for this shot *and* this delivery format.
+        cam_setup = scene_def.get("camera", {})
+        cam_angle = cam_setup.get("angle", "two_shot")
+        cam_movement = cam_setup.get("movement", "static").lower()
+        intent = intent_for_angle(cam_angle)
+        crop = min(1.0, intent.body_crop * framing_profile.body_crop_adjust)
+
+        sample_frames = sorted(
+            {
+                scene_start_frame,
+                (scene_start_frame + scene_end_frame) // 2,
+                scene_end_frame,
+            }
+        )
+        cast_bounds, union_extents = measure_subject_bounds(character_maps, sample_frames)
+
+        if union_extents:
+            extents_by_id = cast_bounds
+            union_box = subject_box_from_extents(union_extents, crop)
+        else:
+            # Nothing measurable on stage (empty cast or a failed asset import):
+            # fall back to a neutral standing-person box so the shot still gets a
+            # sane camera instead of a divide-by-zero distance.
+            fallback = (0.0, 0.0, 0.0, 0.0, 0.0, 1.72)
+            extents_by_id = {}
+            union_box = subject_box_from_extents(fallback, crop)
+
+        solve = solve_camera(framing_profile, union_box, intent, sensor_width_mm)
+
+        cam_data.lens = solve.lens
+        cam_data.keyframe_insert(data_path="lens", frame=scene_start_frame)
+        cam_data.keyframe_insert(data_path="lens", frame=scene_end_frame)
+
+        cam_target.location = (solve.target_x, 0.0, solve.target_z)
+        cam_target.keyframe_insert(data_path="location", frame=scene_start_frame)
+        cam_target.keyframe_insert(data_path="location", frame=scene_end_frame)
+
+        base_loc = (solve.camera_x, solve.camera_y, solve.camera_z)
+        pan_amplitude = 0.25 * (solve.visible_width / BASELINE_VISIBLE_WIDTH)
+        dolly_scale = solve.distance / 3.2
+
+        if "pan_right" in cam_movement:
+            cam_obj.location = (base_loc[0] - pan_amplitude, base_loc[1], base_loc[2])
+            cam_obj.keyframe_insert(data_path="location", frame=scene_start_frame)
+            cam_obj.location = (base_loc[0] + pan_amplitude, base_loc[1], base_loc[2])
+            cam_obj.keyframe_insert(data_path="location", frame=scene_end_frame)
+        elif "pan_left" in cam_movement:
+            cam_obj.location = (base_loc[0] + pan_amplitude, base_loc[1], base_loc[2])
+            cam_obj.keyframe_insert(data_path="location", frame=scene_start_frame)
+            cam_obj.location = (base_loc[0] - pan_amplitude, base_loc[1], base_loc[2])
+            cam_obj.keyframe_insert(data_path="location", frame=scene_end_frame)
+        elif "zoom_in" in cam_movement:
+            cam_obj.location = (base_loc[0], base_loc[1] - 0.6 * dolly_scale, base_loc[2])
+            cam_obj.keyframe_insert(data_path="location", frame=scene_start_frame)
+            cam_obj.location = (base_loc[0], base_loc[1] + 0.4 * dolly_scale, base_loc[2])
+            cam_obj.keyframe_insert(data_path="location", frame=scene_end_frame)
+        elif "zoom_out" in cam_movement:
+            cam_obj.location = (base_loc[0], base_loc[1] + 0.3 * dolly_scale, base_loc[2])
+            cam_obj.keyframe_insert(data_path="location", frame=scene_start_frame)
+            cam_obj.location = (base_loc[0], base_loc[1] - 0.5 * dolly_scale, base_loc[2])
+            cam_obj.keyframe_insert(data_path="location", frame=scene_end_frame)
+        else:  # static
+            cam_obj.location = base_loc
+            cam_obj.keyframe_insert(data_path="location", frame=scene_start_frame)
+            cam_obj.keyframe_insert(data_path="location", frame=scene_end_frame)
+
+        wall_x0, wall_x1, wall_z0, wall_z1 = visible_extents_at_plane(
+            framing_profile, solve, BACKDROP_PLANE_Y, sensor_width_mm
+        )
+        coverages.append(
+            (
+                wall_x0,
+                wall_x1,
+                max(0.0, wall_z0),
+                wall_z1,
+                solve.camera_y - 0.5,
+                BACKDROP_PLANE_Y + 1.0,
+            )
+        )
+
+        framing_reports.append(
+            {
+                "scene_id": scene_def.get("scene_id", f"scene_{s_idx + 1:02d}"),
+                "format": framing_profile.aspect_ratio,
+                "profile": framing_profile.key,
+                "camera_angle": cam_angle,
+                "shot": intent.key,
+                "body_crop": round(crop, 3),
+                # Every rig imported into the shot is measured, including one this
+                # scene never re-placed: it is still on stage, so the camera must
+                # keep it in frame too. ``placed`` records the authored blocking.
+                "placed": sorted(
+                    str(p.get("character_id", "")) for p in placements
+                ),
+                "cast": sorted(extents_by_id),
+                "solve": solve.to_dict(),
+                "screen_boxes": {
+                    char_id: screen_box(
+                        framing_profile, solve, subject_box_from_extents(extents, crop)
+                    )
+                    for char_id, extents in sorted(extents_by_id.items())
+                },
+            }
+        )
+
+        log(
+            f"Framed {intent.key} for {framing_profile.aspect_ratio}: "
+            f"lens={solve.lens:.1f}mm distance={solve.distance:.2f}m "
+            f"limited_by={solve.limited_by} fits_safe_area={solve.fits} "
+            f"fill_w={solve.fill_width} fill_h={solve.fill_height}"
+        )
+        if not solve.fits:
+            log(
+                f"WARNING: scene '{scene_def.get('scene_id')}' cannot fill the "
+                f"{framing_profile.aspect_ratio} safe area from the rig limits; "
+                "the cast stays fully visible but the shot is looser than intended."
+            )
+
         current_frame = scene_end_frame + 1
 
-    # 7. Save populated Blender scene file for reproducibility
+    # 7. Grow the set so the solved camera never sees past it. A portrait frame
+    # has roughly three times the vertical field of view of the same lens in
+    # landscape, and whatever that extra field exposes has to be scenery, not the
+    # black world background.
+    required_coverage = merge_bounds(coverages)
+    if required_coverage:
+        bpy.context.view_layer.update()
+        adjusted = expand_backdrop_for_frame(background_objects, required_coverage)
+        if adjusted:
+            log(
+                f"Extended {framing_profile.aspect_ratio} set coverage: "
+                + ", ".join(sorted(adjusted))
+            )
+
+    bpy.context.scene.frame_set(1)
+
+    # 8. Save populated Blender scene file for reproducibility
     if scene_save_path:
         os.makedirs(os.path.dirname(scene_save_path), exist_ok=True)
         bpy.ops.wm.save_as_mainfile(filepath=scene_save_path)
@@ -534,7 +802,7 @@ def main():
 
     report_progress(40.0, "Configuring Render Engine")
 
-    # 8. Configure Render Engine
+    # 9. Configure Render Engine
     scene = bpy.context.scene
     scene.render.resolution_x = width
     scene.render.resolution_y = height
@@ -572,7 +840,7 @@ def main():
 
     bpy.app.handlers.render_post.append(frame_post_handler)
 
-    # 9. Render Animation
+    # 10. Render Animation
     bpy.ops.render.render(animation=True)
 
     log("Headless frame rendering complete!")
@@ -589,6 +857,17 @@ def main():
         "engine": scene.render.engine,
         "frames_dir": frames_dir,
         "scene_path": scene_save_path,
+        "framing": {
+            "profile": framing_profile.key,
+            "aspect_ratio": framing_profile.aspect_ratio,
+            "safe_area": {
+                "top": framing_profile.safe.top,
+                "bottom": framing_profile.safe.bottom,
+                "left": framing_profile.safe.left,
+                "right": framing_profile.safe.right,
+            },
+            "scenes": framing_reports,
+        },
     }
     with open(result_path, "w", encoding="utf-8") as f:
         json.dump(result_data, f, indent=2)

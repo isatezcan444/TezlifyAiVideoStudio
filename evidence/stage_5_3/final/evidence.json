@@ -1,0 +1,556 @@
+{
+  "stage": "5.3",
+  "generated_at": "2026-11-04T23:28:29+0300",
+  "project_id": "demo_stage_4_5",
+  "voice_source": {
+    "ali": {
+      "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/audio_cache/stage_4_5/ali_dialogue.mp3",
+      "duration_seconds": 4.478,
+      "source": "macos_say",
+      "detail": "macOS Yelda (tr_TR), rate=170"
+    },
+    "ayse": {
+      "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/audio_cache/stage_4_5/ayse_dialogue.mp3",
+      "duration_seconds": 4.932,
+      "source": "macos_say",
+      "detail": "macOS Yelda (tr_TR), rate=185"
+    },
+    "elevenlabs_configured": false
+  },
+  "formats": {
+    "16:9": {
+      "job_id": "job_20261104_232448_16x9",
+      "video_file_path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/studio_projects/demo_stage_4_5/renders/job_20261104_232448_16x9/job_20261104_232448_16x9.mp4",
+      "file_size_bytes": 2095539,
+      "duration_seconds": 17.067,
+      "ffprobe": {
+        "file": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/studio_projects/demo_stage_4_5/renders/job_20261104_232448_16x9/job_20261104_232448_16x9.mp4",
+        "width": 1920,
+        "height": 1080,
+        "display_aspect_ratio": "16:9",
+        "sample_aspect_ratio": "1:1",
+        "codec_name": "h264",
+        "pix_fmt": "yuv420p",
+        "avg_frame_rate": "30/1",
+        "duration": 17.067,
+        "size_bytes": 2095539,
+        "has_video_stream": true,
+        "has_audio_stream": true,
+        "audio_codec": "aac",
+        "audio_sample_rate": "44100",
+        "audio_channels": 2
+      },
+      "checks": {
+        "video_stream": true,
+        "audio_stream": true,
+        "h264": true,
+        "aac": true,
+        "width": true,
+        "height": true,
+        "duration": true,
+        "subtitles": true
+      },
+      "subtitle_file_path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/studio_projects/demo_stage_4_5/renders/job_20261104_232448_16x9/subtitles.srt",
+      "subtitle_cue_count": 2,
+      "text_layer_count": 3,
+      "transition_count": 2,
+      "scene_count": 3,
+      "frames": [
+        {
+          "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_3/final/16x9/scene_01_opening_t01.440s.png",
+          "width": 1920,
+          "height": 1080,
+          "top_black_band_px": 0,
+          "bottom_black_band_px": 0,
+          "left_black_band_px": 0,
+          "right_black_band_px": 0,
+          "top_black_band_ratio": 0.0,
+          "bottom_black_band_ratio": 0.0,
+          "left_black_band_ratio": 0.0,
+          "right_black_band_ratio": 0.0,
+          "max_edge_black_band_ratio": 0.0,
+          "global_black_pixel_ratio": 0.0,
+          "content_box": {
+            "top": 0,
+            "bottom": 1079,
+            "left": 0,
+            "right": 1919,
+            "coverage_ratio": 1.0
+          },
+          "scene_id": "scene_01_opening",
+          "timestamp_seconds": 1.44
+        },
+        {
+          "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_3/final/16x9/scene_02_dialogue_t07.940s.png",
+          "width": 1920,
+          "height": 1080,
+          "top_black_band_px": 0,
+          "bottom_black_band_px": 0,
+          "left_black_band_px": 0,
+          "right_black_band_px": 0,
+          "top_black_band_ratio": 0.0,
+          "bottom_black_band_ratio": 0.0,
+          "left_black_band_ratio": 0.0,
+          "right_black_band_ratio": 0.0,
+          "max_edge_black_band_ratio": 0.0,
+          "global_black_pixel_ratio": 0.0,
+          "content_box": {
+            "top": 0,
+            "bottom": 1079,
+            "left": 0,
+            "right": 1919,
+            "coverage_ratio": 1.0
+          },
+          "scene_id": "scene_02_dialogue",
+          "timestamp_seconds": 7.94
+        },
+        {
+          "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_3/final/16x9/scene_03_closing_t15.307s.png",
+          "width": 1920,
+          "height": 1080,
+          "top_black_band_px": 0,
+          "bottom_black_band_px": 0,
+          "left_black_band_px": 0,
+          "right_black_band_px": 0,
+          "top_black_band_ratio": 0.0,
+          "bottom_black_band_ratio": 0.0,
+          "left_black_band_ratio": 0.0,
+          "right_black_band_ratio": 0.0,
+          "max_edge_black_band_ratio": 0.0,
+          "global_black_pixel_ratio": 0.0,
+          "content_box": {
+            "top": 0,
+            "bottom": 1079,
+            "left": 0,
+            "right": 1919,
+            "coverage_ratio": 1.0
+          },
+          "scene_id": "scene_03_closing",
+          "timestamp_seconds": 15.307
+        }
+      ],
+      "camera_solve": {
+        "profile": "landscape",
+        "aspect_ratio": "16:9",
+        "safe_area": {
+          "top": 0.05,
+          "bottom": 0.1,
+          "left": 0.03,
+          "right": 0.03
+        },
+        "scenes": [
+          {
+            "scene_id": "scene_01",
+            "format": "16:9",
+            "profile": "landscape",
+            "camera_angle": "two_shot",
+            "shot": "two_shot",
+            "body_crop": 0.82,
+            "placed": [
+              "char_ali",
+              "char_ayse"
+            ],
+            "cast": [
+              "char_ali",
+              "char_ayse"
+            ],
+            "solve": {
+              "profile": "landscape",
+              "shot": "two_shot",
+              "lens_mm": 45.0,
+              "distance_m": 3.9516,
+              "camera": [
+                -0.0,
+                -3.9516,
+                1.1927
+              ],
+              "target": [
+                -0.0,
+                0.0,
+                0.9927
+              ],
+              "visible_width_m": 3.1613,
+              "visible_height_m": 1.7782,
+              "subject_width_m": 1.7187,
+              "subject_height_m": 1.4208,
+              "fill_width": 0.5784,
+              "fill_height": 0.94,
+              "fits_safe_area": true,
+              "limited_by": "height"
+            },
+            "screen_boxes": {
+              "char_ali": {
+                "x0": 0.2282,
+                "x1": 0.4241,
+                "y_top": 0.0823,
+                "y_bottom": 0.8722
+              },
+              "char_ayse": {
+                "x0": 0.5444,
+                "x1": 0.7718,
+                "y_top": 0.0755,
+                "y_bottom": 0.8745
+              }
+            }
+          }
+        ]
+      }
+    },
+    "9:16": {
+      "job_id": "job_20261104_232448_9x16",
+      "video_file_path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/studio_projects/demo_stage_4_5/renders/job_20261104_232448_9x16/job_20261104_232448_9x16.mp4",
+      "file_size_bytes": 1641224,
+      "duration_seconds": 17.067,
+      "ffprobe": {
+        "file": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/studio_projects/demo_stage_4_5/renders/job_20261104_232448_9x16/job_20261104_232448_9x16.mp4",
+        "width": 1080,
+        "height": 1920,
+        "display_aspect_ratio": "9:16",
+        "sample_aspect_ratio": "1:1",
+        "codec_name": "h264",
+        "pix_fmt": "yuv420p",
+        "avg_frame_rate": "30/1",
+        "duration": 17.067,
+        "size_bytes": 1641224,
+        "has_video_stream": true,
+        "has_audio_stream": true,
+        "audio_codec": "aac",
+        "audio_sample_rate": "44100",
+        "audio_channels": 2
+      },
+      "checks": {
+        "video_stream": true,
+        "audio_stream": true,
+        "h264": true,
+        "aac": true,
+        "width": true,
+        "height": true,
+        "duration": true,
+        "subtitles": true
+      },
+      "subtitle_file_path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/studio_projects/demo_stage_4_5/renders/job_20261104_232448_9x16/subtitles.srt",
+      "subtitle_cue_count": 2,
+      "text_layer_count": 3,
+      "transition_count": 2,
+      "scene_count": 3,
+      "frames": [
+        {
+          "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_3/final/9x16/scene_01_opening_t01.440s.png",
+          "width": 1080,
+          "height": 1920,
+          "top_black_band_px": 0,
+          "bottom_black_band_px": 0,
+          "left_black_band_px": 0,
+          "right_black_band_px": 0,
+          "top_black_band_ratio": 0.0,
+          "bottom_black_band_ratio": 0.0,
+          "left_black_band_ratio": 0.0,
+          "right_black_band_ratio": 0.0,
+          "max_edge_black_band_ratio": 0.0,
+          "global_black_pixel_ratio": 0.0,
+          "content_box": {
+            "top": 0,
+            "bottom": 1919,
+            "left": 0,
+            "right": 1079,
+            "coverage_ratio": 1.0
+          },
+          "scene_id": "scene_01_opening",
+          "timestamp_seconds": 1.44
+        },
+        {
+          "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_3/final/9x16/scene_02_dialogue_t07.940s.png",
+          "width": 1080,
+          "height": 1920,
+          "top_black_band_px": 0,
+          "bottom_black_band_px": 0,
+          "left_black_band_px": 0,
+          "right_black_band_px": 0,
+          "top_black_band_ratio": 0.0,
+          "bottom_black_band_ratio": 0.0,
+          "left_black_band_ratio": 0.0,
+          "right_black_band_ratio": 0.0,
+          "max_edge_black_band_ratio": 0.0,
+          "global_black_pixel_ratio": 0.0,
+          "content_box": {
+            "top": 0,
+            "bottom": 1919,
+            "left": 0,
+            "right": 1079,
+            "coverage_ratio": 1.0
+          },
+          "scene_id": "scene_02_dialogue",
+          "timestamp_seconds": 7.94
+        },
+        {
+          "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_3/final/9x16/scene_03_closing_t15.307s.png",
+          "width": 1080,
+          "height": 1920,
+          "top_black_band_px": 0,
+          "bottom_black_band_px": 0,
+          "left_black_band_px": 0,
+          "right_black_band_px": 0,
+          "top_black_band_ratio": 0.0,
+          "bottom_black_band_ratio": 0.0,
+          "left_black_band_ratio": 0.0,
+          "right_black_band_ratio": 0.0,
+          "max_edge_black_band_ratio": 0.0,
+          "global_black_pixel_ratio": 0.0,
+          "content_box": {
+            "top": 0,
+            "bottom": 1919,
+            "left": 0,
+            "right": 1079,
+            "coverage_ratio": 1.0
+          },
+          "scene_id": "scene_03_closing",
+          "timestamp_seconds": 15.307
+        }
+      ],
+      "camera_solve": {
+        "profile": "portrait",
+        "aspect_ratio": "9:16",
+        "safe_area": {
+          "top": 0.09,
+          "bottom": 0.2,
+          "left": 0.04,
+          "right": 0.04
+        },
+        "scenes": [
+          {
+            "scene_id": "scene_01",
+            "format": "9:16",
+            "profile": "portrait",
+            "camera_angle": "two_shot",
+            "shot": "two_shot",
+            "body_crop": 0.935,
+            "placed": [
+              "char_ali",
+              "char_ayse"
+            ],
+            "cast": [
+              "char_ali",
+              "char_ayse"
+            ],
+            "solve": {
+              "profile": "portrait",
+              "shot": "two_shot",
+              "lens_mm": 45.0,
+              "distance_m": 2.0763,
+              "camera": [
+                -0.0,
+                -2.0763,
+                0.9753
+              ],
+              "target": [
+                -0.0,
+                0.0,
+                0.7753
+              ],
+              "visible_width_m": 1.661,
+              "visible_height_m": 2.9529,
+              "subject_width_m": 1.3447,
+              "subject_height_m": 1.6197,
+              "fill_width": 0.88,
+              "fill_height": 0.7726,
+              "fits_safe_area": true,
+              "limited_by": "width"
+            },
+            "screen_boxes": {
+              "char_ali": {
+                "x0": 0.0952,
+                "x1": 0.4681,
+                "y_top": 0.1748,
+                "y_bottom": 0.7171
+              },
+              "char_ayse": {
+                "x0": 0.4718,
+                "x1": 0.9048,
+                "y_top": 0.1707,
+                "y_bottom": 0.7193
+              }
+            }
+          }
+        ]
+      }
+    },
+    "1:1": {
+      "job_id": "job_20261104_232448_1x1",
+      "video_file_path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/studio_projects/demo_stage_4_5/renders/job_20261104_232448_1x1/job_20261104_232448_1x1.mp4",
+      "file_size_bytes": 1349506,
+      "duration_seconds": 17.067,
+      "ffprobe": {
+        "file": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/studio_projects/demo_stage_4_5/renders/job_20261104_232448_1x1/job_20261104_232448_1x1.mp4",
+        "width": 1080,
+        "height": 1080,
+        "display_aspect_ratio": "1:1",
+        "sample_aspect_ratio": "1:1",
+        "codec_name": "h264",
+        "pix_fmt": "yuv420p",
+        "avg_frame_rate": "30/1",
+        "duration": 17.067,
+        "size_bytes": 1349506,
+        "has_video_stream": true,
+        "has_audio_stream": true,
+        "audio_codec": "aac",
+        "audio_sample_rate": "44100",
+        "audio_channels": 2
+      },
+      "checks": {
+        "video_stream": true,
+        "audio_stream": true,
+        "h264": true,
+        "aac": true,
+        "width": true,
+        "height": true,
+        "duration": true,
+        "subtitles": true
+      },
+      "subtitle_file_path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/studio_projects/demo_stage_4_5/renders/job_20261104_232448_1x1/subtitles.srt",
+      "subtitle_cue_count": 2,
+      "text_layer_count": 3,
+      "transition_count": 2,
+      "scene_count": 3,
+      "frames": [
+        {
+          "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_3/final/1x1/scene_01_opening_t01.440s.png",
+          "width": 1080,
+          "height": 1080,
+          "top_black_band_px": 0,
+          "bottom_black_band_px": 0,
+          "left_black_band_px": 0,
+          "right_black_band_px": 0,
+          "top_black_band_ratio": 0.0,
+          "bottom_black_band_ratio": 0.0,
+          "left_black_band_ratio": 0.0,
+          "right_black_band_ratio": 0.0,
+          "max_edge_black_band_ratio": 0.0,
+          "global_black_pixel_ratio": 0.0,
+          "content_box": {
+            "top": 0,
+            "bottom": 1079,
+            "left": 0,
+            "right": 1079,
+            "coverage_ratio": 1.0
+          },
+          "scene_id": "scene_01_opening",
+          "timestamp_seconds": 1.44
+        },
+        {
+          "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_3/final/1x1/scene_02_dialogue_t07.940s.png",
+          "width": 1080,
+          "height": 1080,
+          "top_black_band_px": 0,
+          "bottom_black_band_px": 0,
+          "left_black_band_px": 0,
+          "right_black_band_px": 0,
+          "top_black_band_ratio": 0.0,
+          "bottom_black_band_ratio": 0.0,
+          "left_black_band_ratio": 0.0,
+          "right_black_band_ratio": 0.0,
+          "max_edge_black_band_ratio": 0.0,
+          "global_black_pixel_ratio": 0.0,
+          "content_box": {
+            "top": 0,
+            "bottom": 1079,
+            "left": 0,
+            "right": 1079,
+            "coverage_ratio": 1.0
+          },
+          "scene_id": "scene_02_dialogue",
+          "timestamp_seconds": 7.94
+        },
+        {
+          "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_3/final/1x1/scene_03_closing_t15.307s.png",
+          "width": 1080,
+          "height": 1080,
+          "top_black_band_px": 0,
+          "bottom_black_band_px": 0,
+          "left_black_band_px": 0,
+          "right_black_band_px": 0,
+          "top_black_band_ratio": 0.0,
+          "bottom_black_band_ratio": 0.0,
+          "left_black_band_ratio": 0.0,
+          "right_black_band_ratio": 0.0,
+          "max_edge_black_band_ratio": 0.0,
+          "global_black_pixel_ratio": 0.0,
+          "content_box": {
+            "top": 0,
+            "bottom": 1079,
+            "left": 0,
+            "right": 1079,
+            "coverage_ratio": 1.0
+          },
+          "scene_id": "scene_03_closing",
+          "timestamp_seconds": 15.307
+        }
+      ],
+      "camera_solve": {
+        "profile": "square",
+        "aspect_ratio": "1:1",
+        "safe_area": {
+          "top": 0.07,
+          "bottom": 0.16,
+          "left": 0.04,
+          "right": 0.04
+        },
+        "scenes": [
+          {
+            "scene_id": "scene_01",
+            "format": "1:1",
+            "profile": "square",
+            "camera_angle": "two_shot",
+            "shot": "two_shot",
+            "body_crop": 0.861,
+            "placed": [
+              "char_ali",
+              "char_ayse"
+            ],
+            "cast": [
+              "char_ali",
+              "char_ayse"
+            ],
+            "solve": {
+              "profile": "square",
+              "shot": "two_shot",
+              "lens_mm": 45.0,
+              "distance_m": 2.6324,
+              "camera": [
+                -0.0,
+                -2.6324,
+                1.1068
+              ],
+              "target": [
+                -0.0,
+                0.0,
+                0.9068
+              ],
+              "visible_width_m": 2.1059,
+              "visible_height_m": 2.1059,
+              "subject_width_m": 1.5427,
+              "subject_height_m": 1.4918,
+              "fill_width": 0.7963,
+              "fill_height": 0.92,
+              "fits_safe_area": true,
+              "limited_by": "height"
+            },
+            "screen_boxes": {
+              "char_ali": {
+                "x0": 0.1337,
+                "x1": 0.4278,
+                "y_top": 0.1065,
+                "y_bottom": 0.8069
+              },
+              "char_ayse": {
+                "x0": 0.5248,
+                "x1": 0.8663,
+                "y_top": 0.1008,
+                "y_bottom": 0.8092
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

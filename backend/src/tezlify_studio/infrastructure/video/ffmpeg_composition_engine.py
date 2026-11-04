@@ -6,11 +6,17 @@ Pipeline:
 3. Composite Turkish text/subtitle PNG overlays (Pillow).
 4. Build one continuous AAC audio track from all dialogue files.
 5. Validate the final MP4 with FFprobe.
+
+Blender already renders each scene clip at the delivery format's own resolution
+and aspect-aware camera framing, so step 2 is normally a straight concat. When a
+clip does not match the target it is scaled to *fill* and cropped, never padded:
+a black letterbox is a framing failure, and the fix belongs in the camera.
 """
 
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import shutil
@@ -24,6 +30,7 @@ from tezlify_studio.application.ports.blender_animation_engine_port import (
 from tezlify_studio.domain.exceptions.studio_exceptions import (
     CompositionRenderException,
 )
+from tezlify_studio.domain.value_objects.camera_framing import profile_for_dimensions
 from tezlify_studio.domain.value_objects.render_metadata import RenderOutputMetadata
 from tezlify_studio.domain.value_objects.scene_graph import SceneGraph, SceneResolution
 from tezlify_studio.domain.value_objects.video_composition import (
@@ -48,6 +55,36 @@ from tezlify_studio.infrastructure.video.text_overlay_renderer import (
 
 def _safe_name(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", value)
+
+
+def build_cover_fit_filter(clip_width: int, clip_height: int, width: int, height: int) -> str:
+    """Scale-to-fill then crop a mismatched clip; empty string when it already fits.
+
+    The crop window is parked on the *source* format's safe centre instead of the
+    geometric middle, so converting a portrait clip to landscape keeps the faces
+    rather than the floor. This is the fallback path only: the real vertical
+    composition comes from the camera solve in the render worker.
+    """
+    if clip_width <= 0 or clip_height <= 0:
+        raise CompositionRenderException(
+            f"Sahne klibinin çözünürlüğü okunamadı: {clip_width}x{clip_height}"
+        )
+    if clip_width == width and clip_height == height:
+        return ""
+
+    scale = max(width / clip_width, height / clip_height)
+    scaled_width = math.ceil(clip_width * scale)
+    scaled_height = math.ceil(clip_height * scale)
+
+    excess_x = max(0, scaled_width - width)
+    excess_y = max(0, scaled_height - height)
+    left = int(round(excess_x * 0.5))
+    top = int(round(excess_y * profile_for_dimensions(clip_width, clip_height).safe.center_y))
+
+    return (
+        f"scale={scaled_width}:{scaled_height}:force_original_aspect_ratio=disable,"
+        f"crop={width}:{height}:{left}:{top}"
+    )
 
 
 class FFmpegCompositionEngine:
@@ -99,6 +136,7 @@ class FFmpegCompositionEngine:
         scene_lookup = {scene.scene_id: scene for scene in scene_graph.scenes}
         scene_clips: Dict[str, str] = {}
         clip_durations: Dict[str, float] = {}
+        clip_probe: Dict[str, dict] = {}
         rendered_scene_dirs: List[str] = []
 
         total_scenes = len(composition.scenes)
@@ -157,6 +195,8 @@ class FFmpegCompositionEngine:
                     scene_id=scene_id,
                 )
 
+            clip_probe[scene_id] = self._probe_clip_geometry(clip_path, scene_id)
+
             scene_clips[scene_id] = clip_path
             clip_durations[scene_id] = duration
             rendered_scene_dirs.append(os.path.dirname(clip_path))
@@ -177,6 +217,7 @@ class FFmpegCompositionEngine:
             composition=composition,
             timeline=timeline,
             scene_clips=scene_clips,
+            clip_probe=clip_probe,
             output_path=base_video_path,
         )
 
@@ -351,6 +392,7 @@ class FFmpegCompositionEngine:
                 ],
             },
             "scene_clip_durations": clip_durations,
+            "scene_clip_probe": clip_probe,
             "dialogue_audio": dialogue_audio,
             "subtitle_cues": [
                 {
@@ -412,6 +454,7 @@ class FFmpegCompositionEngine:
         composition: VideoComposition,
         timeline: CompositionTimeline,
         scene_clips: Dict[str, str],
+        clip_probe: Dict[str, dict],
         output_path: str,
     ) -> None:
         durations = [timeline.entry_for(item.scene_id).duration_seconds for item in composition.scenes]
@@ -427,12 +470,17 @@ class FFmpegCompositionEngine:
         filters: List[str] = []
         for index, item in enumerate(composition.scenes):
             duration = durations[index]
-            chain = (
-                f"[{index}:v]fps={fps},"
-                f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
-                f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black,"
-                f"setsar=1,format=yuv420p,setpts=PTS-STARTPTS"
+            geometry = clip_probe.get(item.scene_id, {})
+            fit = build_cover_fit_filter(
+                int(geometry.get("width", 0)),
+                int(geometry.get("height", 0)),
+                width,
+                height,
             )
+            chain = f"[{index}:v]fps={fps},"
+            if fit:
+                chain += fit + ","
+            chain += "setsar=1,format=yuv420p,setpts=PTS-STARTPTS"
             if item.transition == CompositionTransition.FADE_IN:
                 chain += f",fade=t=in:st=0:d={item.transition_duration_seconds}"
             elif item.transition == CompositionTransition.FADE_OUT:
@@ -676,3 +724,22 @@ class FFmpegCompositionEngine:
             return json.loads(result.stdout)
         except Exception as exc:
             raise CompositionRenderException(f"FFprobe çıktısı okunamadı: {exc}") from exc
+
+    def _probe_clip_geometry(self, path: str, scene_id: str) -> dict:
+        """Read a scene clip's real geometry so the fit decision is measured, not assumed."""
+        probe = self._probe(path)
+        stream = next(
+            (s for s in probe.get("streams", []) if s.get("codec_type") == "video"), None
+        )
+        if not stream:
+            raise CompositionRenderException(
+                f"Sahne '{scene_id}' klibinde video akışı bulunamadı.", scene_id=scene_id
+            )
+        return {
+            "width": int(stream.get("width", 0)),
+            "height": int(stream.get("height", 0)),
+            "pix_fmt": str(stream.get("pix_fmt", "")),
+            "codec": str(stream.get("codec_name", "")),
+            "display_aspect_ratio": str(stream.get("display_aspect_ratio", "")),
+            "sample_aspect_ratio": str(stream.get("sample_aspect_ratio", "")),
+        }

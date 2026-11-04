@@ -1,0 +1,242 @@
+[
+  {
+    "format": "16x9",
+    "resolution": "1920x1080",
+    "video_file_path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/studio_projects/stage53_probe_baseline/renders/probe_16x9/probe_16x9.mp4",
+    "frames_dir": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/studio_projects/stage53_probe_baseline/frames/probe_16x9",
+    "samples": [
+      {
+        "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_3/baseline/16x9_t00.05s.png",
+        "width": 1920,
+        "height": 1080,
+        "top_black_band_px": 0,
+        "bottom_black_band_px": 0,
+        "left_black_band_px": 0,
+        "right_black_band_px": 0,
+        "top_black_band_ratio": 0.0,
+        "bottom_black_band_ratio": 0.0,
+        "left_black_band_ratio": 0.0,
+        "right_black_band_ratio": 0.0,
+        "max_edge_black_band_ratio": 0.0,
+        "global_black_pixel_ratio": 0.0,
+        "content_box": {
+          "top": 0,
+          "bottom": 1079,
+          "left": 0,
+          "right": 1919,
+          "coverage_ratio": 1.0
+        },
+        "format": "16x9",
+        "timestamp_seconds": 0.05
+      },
+      {
+        "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_3/baseline/16x9_t00.55s.png",
+        "width": 1920,
+        "height": 1080,
+        "top_black_band_px": 0,
+        "bottom_black_band_px": 0,
+        "left_black_band_px": 0,
+        "right_black_band_px": 0,
+        "top_black_band_ratio": 0.0,
+        "bottom_black_band_ratio": 0.0,
+        "left_black_band_ratio": 0.0,
+        "right_black_band_ratio": 0.0,
+        "max_edge_black_band_ratio": 0.0,
+        "global_black_pixel_ratio": 0.0,
+        "content_box": {
+          "top": 0,
+          "bottom": 1079,
+          "left": 0,
+          "right": 1919,
+          "coverage_ratio": 1.0
+        },
+        "format": "16x9",
+        "timestamp_seconds": 0.55
+      },
+      {
+        "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_3/baseline/16x9_t00.95s.png",
+        "width": 1920,
+        "height": 1080,
+        "top_black_band_px": 0,
+        "bottom_black_band_px": 0,
+        "left_black_band_px": 0,
+        "right_black_band_px": 0,
+        "top_black_band_ratio": 0.0,
+        "bottom_black_band_ratio": 0.0,
+        "left_black_band_ratio": 0.0,
+        "right_black_band_ratio": 0.0,
+        "max_edge_black_band_ratio": 0.0,
+        "global_black_pixel_ratio": 0.0,
+        "content_box": {
+          "top": 0,
+          "bottom": 1079,
+          "left": 0,
+          "right": 1919,
+          "coverage_ratio": 1.0
+        },
+        "format": "16x9",
+        "timestamp_seconds": 0.95
+      }
+    ]
+  },
+  {
+    "format": "9x16",
+    "resolution": "1080x1920",
+    "video_file_path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/studio_projects/stage53_probe_baseline/renders/probe_9x16/probe_9x16.mp4",
+    "frames_dir": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/studio_projects/stage53_probe_baseline/frames/probe_9x16",
+    "samples": [
+      {
+        "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_3/baseline/9x16_t00.05s.png",
+        "width": 1080,
+        "height": 1920,
+        "top_black_band_px": 0,
+        "bottom_black_band_px": 0,
+        "left_black_band_px": 0,
+        "right_black_band_px": 0,
+        "top_black_band_ratio": 0.0,
+        "bottom_black_band_ratio": 0.0,
+        "left_black_band_ratio": 0.0,
+        "right_black_band_ratio": 0.0,
+        "max_edge_black_band_ratio": 0.0,
+        "global_black_pixel_ratio": 0.0,
+        "content_box": {
+          "top": 0,
+          "bottom": 1919,
+          "left": 0,
+          "right": 1079,
+          "coverage_ratio": 1.0
+        },
+        "format": "9x16",
+        "timestamp_seconds": 0.05
+      },
+      {
+        "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_3/baseline/9x16_t00.55s.png",
+        "width": 1080,
+        "height": 1920,
+        "top_black_band_px": 0,
+        "bottom_black_band_px": 0,
+        "left_black_band_px": 0,
+        "right_black_band_px": 0,
+        "top_black_band_ratio": 0.0,
+        "bottom_black_band_ratio": 0.0,
+        "left_black_band_ratio": 0.0,
+        "right_black_band_ratio": 0.0,
+        "max_edge_black_band_ratio": 0.0,
+        "global_black_pixel_ratio": 0.0,
+        "content_box": {
+          "top": 0,
+          "bottom": 1919,
+          "left": 0,
+          "right": 1079,
+          "coverage_ratio": 1.0
+        },
+        "format": "9x16",
+        "timestamp_seconds": 0.55
+      },
+      {
+        "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_3/baseline/9x16_t00.95s.png",
+        "width": 1080,
+        "height": 1920,
+        "top_black_band_px": 0,
+        "bottom_black_band_px": 0,
+        "left_black_band_px": 0,
+        "right_black_band_px": 0,
+        "top_black_band_ratio": 0.0,
+        "bottom_black_band_ratio": 0.0,
+        "left_black_band_ratio": 0.0,
+        "right_black_band_ratio": 0.0,
+        "max_edge_black_band_ratio": 0.0,
+        "global_black_pixel_ratio": 0.0,
+        "content_box": {
+          "top": 0,
+          "bottom": 1919,
+          "left": 0,
+          "right": 1079,
+          "coverage_ratio": 1.0
+        },
+        "format": "9x16",
+        "timestamp_seconds": 0.95
+      }
+    ]
+  },
+  {
+    "format": "1x1",
+    "resolution": "1080x1080",
+    "video_file_path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/studio_projects/stage53_probe_baseline/renders/probe_1x1/probe_1x1.mp4",
+    "frames_dir": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/studio_projects/stage53_probe_baseline/frames/probe_1x1",
+    "samples": [
+      {
+        "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_3/baseline/1x1_t00.05s.png",
+        "width": 1080,
+        "height": 1080,
+        "top_black_band_px": 0,
+        "bottom_black_band_px": 0,
+        "left_black_band_px": 0,
+        "right_black_band_px": 0,
+        "top_black_band_ratio": 0.0,
+        "bottom_black_band_ratio": 0.0,
+        "left_black_band_ratio": 0.0,
+        "right_black_band_ratio": 0.0,
+        "max_edge_black_band_ratio": 0.0,
+        "global_black_pixel_ratio": 0.0,
+        "content_box": {
+          "top": 0,
+          "bottom": 1079,
+          "left": 0,
+          "right": 1079,
+          "coverage_ratio": 1.0
+        },
+        "format": "1x1",
+        "timestamp_seconds": 0.05
+      },
+      {
+        "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_3/baseline/1x1_t00.55s.png",
+        "width": 1080,
+        "height": 1080,
+        "top_black_band_px": 0,
+        "bottom_black_band_px": 0,
+        "left_black_band_px": 0,
+        "right_black_band_px": 0,
+        "top_black_band_ratio": 0.0,
+        "bottom_black_band_ratio": 0.0,
+        "left_black_band_ratio": 0.0,
+        "right_black_band_ratio": 0.0,
+        "max_edge_black_band_ratio": 0.0,
+        "global_black_pixel_ratio": 0.0,
+        "content_box": {
+          "top": 0,
+          "bottom": 1079,
+          "left": 0,
+          "right": 1079,
+          "coverage_ratio": 1.0
+        },
+        "format": "1x1",
+        "timestamp_seconds": 0.55
+      },
+      {
+        "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_3/baseline/1x1_t00.95s.png",
+        "width": 1080,
+        "height": 1080,
+        "top_black_band_px": 0,
+        "bottom_black_band_px": 0,
+        "left_black_band_px": 0,
+        "right_black_band_px": 0,
+        "top_black_band_ratio": 0.0,
+        "bottom_black_band_ratio": 0.0,
+        "left_black_band_ratio": 0.0,
+        "right_black_band_ratio": 0.0,
+        "max_edge_black_band_ratio": 0.0,
+        "global_black_pixel_ratio": 0.0,
+        "content_box": {
+          "top": 0,
+          "bottom": 1079,
+          "left": 0,
+          "right": 1079,
+          "coverage_ratio": 1.0
+        },
+        "format": "1x1",
+        "timestamp_seconds": 0.95
+      }
+    ]
+  }
+]

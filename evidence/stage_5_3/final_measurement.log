@@ -1,0 +1,60 @@
+### BEFORE/AFTER
+
+== 16:9 ==
+      legacy: lens 45.00mm d 3.20m  subject occupies 0.980 of frame height (1.152 of the safe band), dead space below body -0.014, inside safe area False
+   stage_5_3: lens 45.00mm d 3.92m  subject occupies 0.799 of frame height (0.940 of the safe band), dead space below body 0.126, inside safe area True
+
+== 9:16 ==
+      legacy: lens 47.25mm d 3.33m  subject occupies 0.313 of frame height (0.441 of the safe band), dead space below body 0.331, inside safe area True
+   stage_5_3: lens 45.00mm d 1.81m  subject occupies 0.625 of frame height (0.880 of the safe band), dead space below body 0.243, inside safe area True
+
+== 1:1 ==
+      legacy: lens 47.25mm d 3.23m  subject occupies 0.573 of frame height (0.744 of the safe band), dead space below body 0.199, inside safe area True
+   stage_5_3: lens 45.00mm d 2.61m  subject occupies 0.708 of frame height (0.920 of the safe band), dead space below body 0.191, inside safe area True
+
+Wrote /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_3/before_after_framing.json
+### PROBE FINAL
+   16x9 t=0.55s black bands top=0.000 bottom=0.000 left=0.000 right=0.000 black_px=0.000 content=1.000
+   16x9 t=0.95s black bands top=0.000 bottom=0.000 left=0.000 right=0.000 black_px=0.000 content=1.000
+== rendering 9x16 1080x1920 (9:16) ==
+   9x16 t=0.05s black bands top=0.000 bottom=0.000 left=0.000 right=0.000 black_px=0.000 content=1.000
+   9x16 t=0.55s black bands top=0.000 bottom=0.000 left=0.000 right=0.000 black_px=0.000 content=1.000
+   9x16 t=0.95s black bands top=0.000 bottom=0.000 left=0.000 right=0.000 black_px=0.000 content=1.000
+== rendering 1x1 1080x1080 (1:1) ==
+   1x1 t=0.05s black bands top=0.000 bottom=0.000 left=0.000 right=0.000 black_px=0.000 content=1.000
+   1x1 t=0.55s black bands top=0.000 bottom=0.000 left=0.000 right=0.000 black_px=0.000 content=1.000
+   1x1 t=0.95s black bands top=0.000 bottom=0.000 left=0.000 right=0.000 black_px=0.000 content=1.000
+
+Wrote /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_3/solve_final/probe_report.json
+### RENDER FINAL
+
+============================================================================
+  DEMO TAMAMLANDI
+  Özet: /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/studio_projects/demo_stage_4_5/demo_stage_4_5_summary.json
+  Türkçe SRT altyazıları üretildi.
+  Ses kaynağı: macos_say
+  NOT: Bu demo gerçek ElevenLabs sesi içermiyor; ses kaynağı yukarıda açıkça belirtilmiştir.
+============================================================================
+### COLLECT
+   /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/studio_projects/demo_stage_4_5/renders/job_20261104_232448_16x9/job_20261104_232448_16x9.mp4
+   ffprobe 1920x1080 h264/yuv420p 30/1 17.067s audio=aac
+   scene_01_opening t=1.44s bands T/B/L/R = 0.000/0.000/0.000/0.000 black_px=0.000
+   scene_02_dialogue t=7.94s bands T/B/L/R = 0.000/0.000/0.000/0.000 black_px=0.000
+   scene_03_closing t=15.31s bands T/B/L/R = 0.000/0.000/0.000/0.000 black_px=0.000
+
+== 9:16 ==
+   /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/studio_projects/demo_stage_4_5/renders/job_20261104_232448_9x16/job_20261104_232448_9x16.mp4
+   ffprobe 1080x1920 h264/yuv420p 30/1 17.067s audio=aac
+   scene_01_opening t=1.44s bands T/B/L/R = 0.000/0.000/0.000/0.000 black_px=0.000
+   scene_02_dialogue t=7.94s bands T/B/L/R = 0.000/0.000/0.000/0.000 black_px=0.000
+   scene_03_closing t=15.31s bands T/B/L/R = 0.000/0.000/0.000/0.000 black_px=0.000
+
+== 1:1 ==
+   /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/studio_projects/demo_stage_4_5/renders/job_20261104_232448_1x1/job_20261104_232448_1x1.mp4
+   ffprobe 1080x1080 h264/yuv420p 30/1 17.067s audio=aac
+   scene_01_opening t=1.44s bands T/B/L/R = 0.000/0.000/0.000/0.000 black_px=0.000
+   scene_02_dialogue t=7.94s bands T/B/L/R = 0.000/0.000/0.000/0.000 black_px=0.000
+   scene_03_closing t=15.31s bands T/B/L/R = 0.000/0.000/0.000/0.000 black_px=0.000
+
+Worst black edge band across all formats: 0.000 (9:16 scene_03_closing)
+Wrote /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_3/final/evidence.json

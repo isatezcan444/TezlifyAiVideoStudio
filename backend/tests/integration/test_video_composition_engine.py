@@ -32,6 +32,7 @@ from tezlify_studio.domain.value_objects.video_composition import (
 )
 from tezlify_studio.infrastructure.video.ffmpeg_composition_engine import (
     FFmpegCompositionEngine,
+    build_cover_fit_filter,
 )
 from tezlify_studio.infrastructure.video.subtitle_builder import (
     build_subtitle_cues,
@@ -419,3 +420,208 @@ def test_text_overlay_supports_turkish_glyphs_and_transparency():
             assert alpha.getbbox() is not None
             assert image.width <= 1080
             assert image.height < 1920
+
+
+# ----------------------------------------------------------------------
+# Stage 5.3 — a mismatched clip must be cropped, never letterboxed
+# ----------------------------------------------------------------------
+
+def _edge_black_band_ratios(path: str) -> dict:
+    """Share of the frame taken by a fully black band touching each edge."""
+    with Image.open(path) as image:
+        rgb = image.convert("RGB")
+        width, height = rgb.size
+        data = rgb.tobytes()
+    stride = width * 3
+
+    def row_black(y: int) -> bool:
+        offset = y * stride
+        return max(data[offset:offset + stride]) < 14
+
+    def col_black(x: int) -> bool:
+        offset = x * 3
+        return max(
+            max(data[offset::stride]),
+            max(data[offset + 1::stride]),
+            max(data[offset + 2::stride]),
+        ) < 14
+
+    def run(start: int, stop: int, step: int, is_black) -> int:
+        count = 0
+        index = start
+        while (step > 0 and index < stop) or (step < 0 and index > stop):
+            if not is_black(index):
+                break
+            count += 1
+            index += step
+        return count
+
+    return {
+        "top": run(0, height, 1, row_black) / height,
+        "bottom": run(height - 1, -1, -1, row_black) / height,
+        "left": run(0, width, 1, col_black) / width,
+        "right": run(width - 1, -1, -1, col_black) / width,
+    }
+
+
+class LegacyLandscapeClipEngine:
+    """Emits 16:9 clips no matter what delivery format was asked for.
+
+    This is the shape of the old bug: a scene rendered once and then letterboxed
+    into a 9:16 file. The engine must fill the frame instead.
+    """
+
+    def __init__(self, work_dir: str, clip_width: int = 1920, clip_height: int = 1080):
+        self.work_dir = work_dir
+        self.clip_width = clip_width
+        self.clip_height = clip_height
+
+    def render_animation(
+        self,
+        scene_graph,
+        project_id,
+        job_id,
+        progress_callback=None,
+        engine_override=None,
+        include_audio=True,
+    ):
+        scene = scene_graph.scenes[0]
+        duration = scene.duration_seconds
+        output = os.path.join(self.work_dir, f"{job_id}.mp4")
+        # Colour-coded per scene so a crop of the wrong clip is visible in the result.
+        colors = {"s1": "0x1e3a8a", "s2": "0x7c2d12", "s3": "0x14532d"}
+        color = colors.get(scene.scene_id, "0x334155")
+        subprocess.run(
+            [
+                "ffmpeg", "-y",
+                "-f", "lavfi",
+                "-i", f"color=c={color}:s={self.clip_width}x{self.clip_height}:r=30:d={duration}",
+                "-c:v", "libx264",
+                "-pix_fmt", "yuv420p",
+                "-an",
+                output,
+            ],
+            check=True,
+            capture_output=True,
+        )
+        return RenderOutputMetadata(
+            video_file_path=output,
+            file_size_bytes=os.path.getsize(output),
+            duration_seconds=duration,
+            width=self.clip_width,
+            height=self.clip_height,
+            fps=30,
+            has_audio=False,
+            audio_codec="none",
+        )
+
+
+def test_cover_fit_filter_passes_through_a_matching_clip():
+    assert build_cover_fit_filter(1080, 1920, 1080, 1920) == ""
+    assert build_cover_fit_filter(1920, 1080, 1920, 1080) == ""
+
+
+def test_cover_fit_filter_crops_rather_than_pads():
+    chain = build_cover_fit_filter(1920, 1080, 1080, 1920)
+    assert chain
+    assert "pad=" not in chain, "black padding is the defect this stage removes"
+    assert "color=black" not in chain
+    assert "crop=1080:1920:" in chain
+    # The scaled source must be at least as large as the crop window on both axes.
+    scaled = re.search(r"scale=(\d+):(\d+)", chain)
+    assert int(scaled.group(1)) >= 1080 and int(scaled.group(2)) >= 1920
+
+
+def test_cover_fit_filter_offsets_the_crop_by_the_source_safe_area():
+    """A portrait clip flattened to landscape keeps faces, not the floor."""
+    portrait_to_landscape = build_cover_fit_filter(1080, 1920, 1920, 1080)
+    landscape_to_portrait = build_cover_fit_filter(1920, 1080, 1080, 1920)
+
+    top_portrait = int(re.search(r"crop=\d+:\d+:\d+:(\d+)", portrait_to_landscape).group(1))
+    excess = 1920 * (1920 / 1080) - 1080  # vertical room left after filling 1920 wide
+    assert 0 < top_portrait < excess, "crop window must sit inside the scaled source"
+    assert top_portrait < excess / 2, "portrait safe centre is above the middle row"
+
+    # Cropping a landscape clip to portrait only removes width, so it stays centred.
+    left = int(re.search(r"crop=\d+:\d+:(\d+):(\d+)", landscape_to_portrait).groups()[0])
+    top = int(re.search(r"crop=\d+:\d+:(\d+):(\d+)", landscape_to_portrait).groups()[1])
+    assert top == 0
+    assert left > 0
+
+
+def test_cover_fit_filter_rejects_an_unreadable_clip():
+    with pytest.raises(CompositionRenderException):
+        build_cover_fit_filter(0, 0, 1080, 1920)
+
+
+@pytest.mark.parametrize(
+    "video_format,expected_size",
+    [
+        (VideoFormat.PORTRAIT_9_16, (1080, 1920)),
+        (VideoFormat.LANDSCAPE_16_9, (1920, 1080)),
+        (VideoFormat.SQUARE_1_1, (1080, 1080)),
+    ],
+)
+def test_mismatched_scene_clips_are_filled_not_letterboxed(video_format, expected_size):
+    with tempfile.TemporaryDirectory() as tmp:
+        graph = make_scene_graph(tmp)
+        composition = make_composition(video_format)
+        engine = FFmpegCompositionEngine(
+            LegacyLandscapeClipEngine(tmp),
+            base_projects_dir=tmp,
+            keep_scene_clips=True,
+        )
+
+        metadata = engine.render_composition(
+            scene_graph=graph,
+            composition=composition,
+            project_id="proj_cover_fit",
+            job_id=f"job_cover_{video_format.value.replace(':', 'x')}",
+        )
+
+        assert (metadata.width, metadata.height) == expected_size
+
+        probe = probe_streams(metadata.video_file_path)
+        video = next(s for s in probe["streams"] if s["codec_type"] == "video")
+        assert (video["width"], video["height"]) == expected_size
+        assert video["pix_fmt"] == "yuv420p"
+
+        frame = os.path.join(tmp, "sample.png")
+        subprocess.run(
+            ["ffmpeg", "-y", "-ss", "0.6", "-i", metadata.video_file_path,
+             "-frames:v", "1", frame],
+            check=True,
+            capture_output=True,
+        )
+        bands = _edge_black_band_ratios(frame)
+        assert bands == {"top": 0.0, "bottom": 0.0, "left": 0.0, "right": 0.0}, (
+            f"{video_format.value} output carries a black letterbox band: {bands}"
+        )
+
+
+def test_composition_manifest_records_the_measured_clip_geometry():
+    with tempfile.TemporaryDirectory() as tmp:
+        graph = make_scene_graph(tmp)
+        composition = make_composition(VideoFormat.PORTRAIT_9_16)
+        engine = FFmpegCompositionEngine(
+            LegacyLandscapeClipEngine(tmp),
+            base_projects_dir=tmp,
+            keep_scene_clips=True,
+        )
+        metadata = engine.render_composition(
+            scene_graph=graph,
+            composition=composition,
+            project_id="proj_probe_record",
+            job_id="job_probe_record",
+        )
+
+        manifest_path = os.path.join(
+            tmp, "proj_probe_record", "compositions", "job_probe_record",
+            "composition_manifest.json",
+        )
+        manifest = json.load(open(manifest_path, encoding="utf-8"))
+        assert manifest["composition"]["format"] == "9:16"
+        assert manifest["scene_clip_probe"]["s1"]["width"] == 1920
+        assert manifest["scene_clip_probe"]["s1"]["height"] == 1080
+        assert manifest["scene_clip_probe"]["s1"]["pix_fmt"] == "yuv420p"
+        assert os.path.getsize(metadata.video_file_path) > 10_000
