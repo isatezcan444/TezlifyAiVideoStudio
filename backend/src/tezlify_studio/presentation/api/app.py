@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from tezlify_studio.infrastructure.configuration.settings import settings
 from tezlify_studio.infrastructure.persistence.database import init_db
-from tezlify_studio.presentation.api.routes import health, media, publish, scheduler
+from tezlify_studio.presentation.api.routes import health, media, publish, scheduler, studio
 from tezlify_studio.domain.exceptions.media_exceptions import (
     EntityNotFoundException,
     DuplicateMediaException,
@@ -27,6 +27,12 @@ from tezlify_studio.domain.exceptions.schedule_exceptions import (
     InvalidScheduleTimeException,
     InvalidScheduleStateTransitionException,
     ScheduleAlreadyClaimedException,
+)
+from tezlify_studio.domain.exceptions.studio_exceptions import (
+    StudioProjectNotFoundException,
+    InvalidSceneGraphException,
+    UnsupportedSchemaVersionException,
+    StudioDomainException,
 )
 
 @asynccontextmanager
@@ -204,6 +210,34 @@ def create_app() -> FastAPI:
             content={"detail": str(exc), "error_code": "SCHEDULE_ALREADY_CLAIMED"},
         )
 
+    @app.exception_handler(StudioProjectNotFoundException)
+    async def studio_project_not_found_handler(request: Request, exc: StudioProjectNotFoundException):
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"detail": exc.message, "error_code": exc.error_code},
+        )
+
+    @app.exception_handler(InvalidSceneGraphException)
+    async def invalid_scene_graph_handler(request: Request, exc: InvalidSceneGraphException):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": exc.message, "error_code": exc.error_code},
+        )
+
+    @app.exception_handler(UnsupportedSchemaVersionException)
+    async def unsupported_schema_version_handler(request: Request, exc: UnsupportedSchemaVersionException):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": exc.message, "error_code": exc.error_code},
+        )
+
+    @app.exception_handler(StudioDomainException)
+    async def studio_domain_handler(request: Request, exc: StudioDomainException):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": exc.message, "error_code": exc.error_code},
+        )
+
     @app.exception_handler(DomainException)
     async def general_domain_handler(request: Request, exc: DomainException):
         return JSONResponse(
@@ -216,6 +250,7 @@ def create_app() -> FastAPI:
     app.include_router(media.router, prefix="/api/v1")
     app.include_router(publish.router, prefix="/api/v1")
     app.include_router(scheduler.router, prefix="/api/v1")
+    app.include_router(studio.router, prefix="/api/v1")
 
     return app
 

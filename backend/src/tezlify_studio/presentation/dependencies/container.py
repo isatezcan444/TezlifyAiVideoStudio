@@ -252,3 +252,74 @@ def get_retry_scheduled_publish_use_case(
     sched_repo: ScheduledPublishRepositoryImpl = Depends(get_scheduled_publish_repository),
 ) -> RetryFailedScheduledPublishUseCase:
     return RetryFailedScheduledPublishUseCase(sched_repo)
+
+# ---------------------------------------------------------------------------
+# Stage 4: AI Animation Studio Dependencies
+# ---------------------------------------------------------------------------
+from tezlify_studio.infrastructure.persistence.repositories.studio_project_repository_impl import (
+    StudioProjectRepositoryImpl,
+)
+from tezlify_studio.infrastructure.ai.template_story_planner_impl import TemplateStoryPlannerImpl
+from tezlify_studio.infrastructure.ai.ollama_story_planner_impl import OllamaStoryPlannerImpl
+from tezlify_studio.application.use_cases.create_studio_project_use_case import (
+    CreateStudioProjectUseCase,
+)
+from tezlify_studio.application.use_cases.generate_story_scene_graph_use_case import (
+    GenerateStorySceneGraphUseCase,
+)
+from tezlify_studio.application.use_cases.get_studio_project_use_case import (
+    GetStudioProjectUseCase,
+)
+from tezlify_studio.application.use_cases.list_studio_projects_use_case import (
+    ListStudioProjectsUseCase,
+)
+from tezlify_studio.application.use_cases.update_studio_project_use_case import (
+    UpdateStudioProjectUseCase,
+)
+from tezlify_studio.application.use_cases.delete_studio_project_use_case import (
+    DeleteStudioProjectUseCase,
+)
+
+template_story_planner_singleton = TemplateStoryPlannerImpl()
+ollama_story_planner_singleton = OllamaStoryPlannerImpl(fallback_planner=template_story_planner_singleton)
+
+def get_studio_project_repository(db: Session = Depends(get_db)) -> StudioProjectRepositoryImpl:
+    return StudioProjectRepositoryImpl(db)
+
+def get_template_story_planner() -> TemplateStoryPlannerImpl:
+    return template_story_planner_singleton
+
+def get_ollama_story_planner() -> OllamaStoryPlannerImpl:
+    return ollama_story_planner_singleton
+
+def get_create_studio_project_use_case(
+    repo: StudioProjectRepositoryImpl = Depends(get_studio_project_repository),
+) -> CreateStudioProjectUseCase:
+    return CreateStudioProjectUseCase(repo)
+
+def get_generate_story_use_case(
+    template_planner: TemplateStoryPlannerImpl = Depends(get_template_story_planner),
+    ollama_planner: OllamaStoryPlannerImpl = Depends(get_ollama_story_planner),
+) -> GenerateStorySceneGraphUseCase:
+    return GenerateStorySceneGraphUseCase(template_planner, ollama_planner)
+
+def get_studio_project_use_case(
+    repo: StudioProjectRepositoryImpl = Depends(get_studio_project_repository),
+) -> GetStudioProjectUseCase:
+    return GetStudioProjectUseCase(repo)
+
+def get_list_studio_projects_use_case(
+    repo: StudioProjectRepositoryImpl = Depends(get_studio_project_repository),
+) -> ListStudioProjectsUseCase:
+    return ListStudioProjectsUseCase(repo)
+
+def get_update_studio_project_use_case(
+    repo: StudioProjectRepositoryImpl = Depends(get_studio_project_repository),
+) -> UpdateStudioProjectUseCase:
+    return UpdateStudioProjectUseCase(repo)
+
+def get_delete_studio_project_use_case(
+    repo: StudioProjectRepositoryImpl = Depends(get_studio_project_repository),
+) -> DeleteStudioProjectUseCase:
+    return DeleteStudioProjectUseCase(repo)
+

@@ -2,10 +2,12 @@ from tezlify_studio.domain.entities.media_asset import MediaAsset
 from tezlify_studio.domain.entities.social_account import SocialAccount
 from tezlify_studio.domain.entities.publish_record import PublishRecord
 from tezlify_studio.domain.entities.scheduled_publish import ScheduledPublish
+from tezlify_studio.domain.entities.studio_project import StudioProject
 from tezlify_studio.domain.value_objects.video_metadata import VideoMetadata
 from tezlify_studio.application.dto.media_dto import MediaAssetDTO, VideoMetadataDTO
 from tezlify_studio.application.dto.publish_dto import SocialAccountDTO, PublishRecordDTO
 from tezlify_studio.application.dto.schedule_dto import ScheduledPublishDTO
+from tezlify_studio.application.dto.studio_dto import StudioProjectDTO
 
 def metadata_to_dto(meta: VideoMetadata | None) -> VideoMetadataDTO | None:
     if not meta:
@@ -98,4 +100,24 @@ def scheduled_publish_to_dto(schedule: ScheduledPublish) -> ScheduledPublishDTO:
         updated_at=schedule.updated_at.isoformat(),
         version=schedule.version,
     )
+
+def studio_project_to_dto(project: StudioProject) -> StudioProjectDTO:
+    sg_dict = project.scene_graph.model_dump() if project.scene_graph else None
+    dur = project.scene_graph.total_duration_seconds if project.scene_graph else 0.0
+    scene_count = len(project.scene_graph.scenes) if project.scene_graph else 0
+    char_count = len(project.scene_graph.characters) if project.scene_graph else 0
+
+    return StudioProjectDTO(
+        id=project.id,
+        title=project.title,
+        description=project.description,
+        status=project.status.value,
+        scene_graph=sg_dict,
+        total_duration_seconds=dur,
+        scene_count=scene_count,
+        character_count=char_count,
+        created_at=project.created_at.isoformat(),
+        updated_at=project.updated_at.isoformat(),
+    )
+
 
