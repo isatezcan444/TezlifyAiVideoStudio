@@ -48,7 +48,8 @@ FFprobe ile ölçüldü.
 |---|---|
 | Başlangıç (Stage 5.2.1 HEAD) | `b25aaeafe6e3fab1d9f53578bfcd3d321d58b391` |
 | Branch | `main` (doğrulandı: `git branch --show-current`) |
-| Bitiş | Bu rapor yazıldığı anda çalışma ağacında; commit bölümüne bakınız (Bölüm 12) |
+| Stage 5.3 implementasyon commit'i | `e9f4c78` — `feat(studio): implement true vertical video composition` (18 dosya, +4787 / −94) |
+| Bitiş (bu commit) | `docs(studio): record Stage 5.3 commit SHA` — rapor, SHA'sı bilinen tek dosyadır; bu satır o yüzden ayrı bir docs commit'i olarak güncellenmiştir |
 
 ---
 
@@ -507,10 +508,14 @@ deploy yapılmadı.
 ### Commit
 
 ```
-feat(studio): implement true vertical video composition
+e9f4c78  feat(studio): implement true vertical video composition
 ```
 
-Commit bu raporun sonunda, yukarıdaki Stage 5.3 kod, test ve kanıt artefaktlarıyla oluşturuldu.
+Kod, testler ve hafif kanıt artefaktları bu tek commit'te yer aldı; brief'in istediği commit
+mesajı budur. Ardından yalnızca bu raporun SHA alanını doldurmak için küçük bir docs commit'i
+daha yapıldı (`docs(studio): record Stage 5.3 commit SHA`) — bir commit'in kendi SHA'sını
+içermesi mümkün olmadığından bu ayrılmaz bir sıralı düzeltmedir.
+
 `.env`, `data/` ve `*.mp4` ignore altında; commit'a girmediler. Önceki aşamalara ait
 `STAGE_5_1_*`, `STAGE_5_2_*` raporları ve `evidence/stage_5_2_1/` bu aşamanın kapsamı dışında
 olduğu için stage edilmedi.
