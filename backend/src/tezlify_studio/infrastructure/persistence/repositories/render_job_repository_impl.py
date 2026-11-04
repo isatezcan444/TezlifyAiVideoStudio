@@ -113,6 +113,15 @@ class RenderJobRepositoryImpl(RenderJobRepositoryPort):
         models = query.order_by(desc(RenderJobModel.created_at)).offset(offset).limit(limit).all()
         return [self._to_domain(m) for m in models]
 
+    def count_jobs(
+        self,
+        status: Optional[RenderJobStatus] = None,
+    ) -> int:
+        query = self.db.query(RenderJobModel)
+        if status:
+            query = query.filter(RenderJobModel.status == status.value)
+        return int(query.count())
+
     def delete(self, job_id: str) -> bool:
         model = self.db.query(RenderJobModel).filter(RenderJobModel.id == job_id).first()
         if not model:

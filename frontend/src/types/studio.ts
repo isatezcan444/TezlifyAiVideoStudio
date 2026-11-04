@@ -104,12 +104,84 @@ export interface RenderJobListResponse {
   total: number;
 }
 
+export interface SceneGraphCharacterStyle {
+  hair_color: string;
+  skin_tone: string;
+  shirt_color: string;
+  pants_color: string;
+}
+
+export interface SceneGraphCharacter {
+  id: string;
+  name: string;
+  voice_id: string;
+  style: SceneGraphCharacterStyle;
+}
+
+export interface SceneGraphPlacement {
+  character_id: string;
+  position: [number, number, number];
+  rotation_y: number;
+  pose: string;
+  expression: string;
+}
+
+export interface SceneGraphDialogue {
+  character_id: string;
+  start_time: number;
+  end_time: number;
+  text: string;
+  audio_file?: string | null;
+  visemes?: Array<{ time: number; shape: string }>;
+}
+
+export interface SceneGraphScene {
+  scene_id: string;
+  sequence_order: number;
+  duration_seconds: number;
+  background: {
+    type: 'preset' | 'color' | 'custom';
+    asset_id: string;
+    lighting: string;
+  };
+  camera: {
+    angle: string;
+    fov: number;
+    movement: string;
+  };
+  character_placements: SceneGraphPlacement[];
+  dialogues: SceneGraphDialogue[];
+  transition?: { type: string; duration_seconds: number } | null;
+}
+
+export interface SceneGraph {
+  schema_version: string;
+  project_id: string;
+  title: string;
+  description: string;
+  resolution: {
+    width: number;
+    height: number;
+    aspect_ratio: '16:9' | '9:16' | '1:1';
+    fps: number;
+  };
+  characters: SceneGraphCharacter[];
+  scenes: SceneGraphScene[];
+}
+
+export interface GenerateStoryResponse {
+  scene_graph: SceneGraph;
+  total_duration_seconds: number;
+  scene_count: number;
+  character_count: number;
+}
+
 export interface StudioProject {
   id: string;
   title: string;
   description: string;
   status: string;
-  scene_graph?: any;
+  scene_graph?: SceneGraph | null;
   total_duration_seconds: number;
   scene_count: number;
   character_count: number;

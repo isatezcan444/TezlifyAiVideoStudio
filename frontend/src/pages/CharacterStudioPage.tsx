@@ -216,10 +216,11 @@ export const CharacterStudioPage: React.FC = () => {
         prompt: newStoryPrompt.trim(),
         target_duration_seconds: 15.0,
       });
+      const sceneGraph = res.scene_graph;
       const createdProj = await apiService.createProject({
-        title: res.title || 'Yeni AI Animasyon Sahnesi',
-        description: res.description || newStoryPrompt.trim(),
-        scene_graph: res,
+        title: sceneGraph.title || 'Yeni AI Animasyon Sahnesi',
+        description: sceneGraph.description || newStoryPrompt.trim(),
+        scene_graph: sceneGraph,
       });
       setSelectedProject(createdProj);
       await fetchProjects();

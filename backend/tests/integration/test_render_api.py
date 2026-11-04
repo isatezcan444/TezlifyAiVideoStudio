@@ -84,6 +84,12 @@ def test_start_render_valid_project():
     job_ids = [j["id"] for j in list_res.json()["items"]]
     assert job_id in job_ids
 
+    # Global render history used by the unified Studio workspace.
+    global_res = client.get("/api/v1/studio/renders?limit=200")
+    assert global_res.status_code == 200
+    assert global_res.json()["total"] >= 1
+    assert job_id in [j["id"] for j in global_res.json()["items"]]
+
 def test_get_render_job_not_found():
     res = client.get("/api/v1/studio/renders/job_does_not_exist")
     assert res.status_code == 404

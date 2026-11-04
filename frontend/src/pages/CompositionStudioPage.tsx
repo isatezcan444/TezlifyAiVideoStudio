@@ -76,9 +76,21 @@ function isActiveJob(job: RenderJob | null): boolean {
   return Boolean(job && (job.status === 'pending' || job.status === 'running'));
 }
 
-export const CompositionStudioPage: React.FC = () => {
+interface CompositionStudioPageProps {
+  projectId?: string;
+  embedded?: boolean;
+  onSummaryChange?: (summary: CompositionSummary | null) => void;
+  onRendered?: () => void | Promise<void>;
+}
+
+export const CompositionStudioPage: React.FC<CompositionStudioPageProps> = ({
+  projectId,
+  embedded = false,
+  onSummaryChange,
+  onRendered,
+}) => {
   const [projects, setProjects] = useState<StudioProject[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(projectId || '');
   const [summary, setSummary] = useState<CompositionSummary | null>(null);
   const [composition, setComposition] = useState<VideoComposition | null>(null);
   const [sceneDurations, setSceneDurations] = useState<Record<string, number>>({});
@@ -127,17 +139,23 @@ export const CompositionStudioPage: React.FC = () => {
       ]);
       setProjects(projectResponse.items);
       setVoiceStatus(voiceResponse);
-      setSelectedProjectId((previous) => previous || projectResponse.items[0]?.id || '');
+      setSelectedProjectId(
+        (previous) => previous || projectId || projectResponse.items[0]?.id || ''
+      );
     } catch (err: any) {
       setErrorMessage(err.message || 'Projeler yüklenemedi.');
     } finally {
       setIsLoadingProjects(false);
     }
-  }, []);
+  }, [projectId]);
 
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
+
+  useEffect(() => {
+    if (projectId) setSelectedProjectId(projectId);
+  }, [projectId]);
 
   useEffect(() => {
     if (!selectedProjectId) {
@@ -146,6 +164,7 @@ export const CompositionStudioPage: React.FC = () => {
       setSceneDurations({});
       setRenders([]);
       setCurrentJob(null);
+      onSummaryChange?.(null);
       return;
     }
 
@@ -169,11 +188,13 @@ export const CompositionStudioPage: React.FC = () => {
         );
         setRenders(renderResponse.items);
         setCurrentJob(renderResponse.items[0] || null);
+        onSummaryChange?.(compositionResponse);
       } catch (err: any) {
         if (!active) return;
         setSummary(null);
         setComposition(null);
         setErrorMessage(err.message || 'Kompozisyon yüklenemedi.');
+        onSummaryChange?.(null);
       } finally {
         if (active) setIsLoadingComposition(false);
       }
@@ -182,7 +203,7 @@ export const CompositionStudioPage: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [selectedProjectId]);
+  }, [selectedProjectId, onSummaryChange]);
 
   useEffect(() => {
     if (!isActiveJob(currentJob) || !selectedProjectId) return;
@@ -196,6 +217,7 @@ export const CompositionStudioPage: React.FC = () => {
         if (updated.status === 'completed' || updated.status === 'failed') {
           const renderResponse = await apiService.listProjectRenders(selectedProjectId).catch(() => null);
           if (active && renderResponse) setRenders(renderResponse.items);
+          if (active) await onRendered?.();
         }
       } catch (err: any) {
         if (active) setErrorMessage(err.message || 'Render durumu alınamadı.');
@@ -206,7 +228,7 @@ export const CompositionStudioPage: React.FC = () => {
       active = false;
       clearInterval(interval);
     };
-  }, [currentJob, selectedProjectId]);
+  }, [currentJob, selectedProjectId, onRendered]);
 
   const mutateComposition = (mutator: (draft: VideoComposition) => void) => {
     setComposition((previous) => {
@@ -308,6 +330,7 @@ export const CompositionStudioPage: React.FC = () => {
       );
       setIsDirty(false);
       setSuccessMessage('Kompozisyon kaydedildi.');
+      onSummaryChange?.(saved);
       return saved;
     } catch (err: any) {
       setErrorMessage(err.message || 'Kompozisyon kaydedilemedi.');
@@ -334,6 +357,7 @@ export const CompositionStudioPage: React.FC = () => {
       const renderResponse = await apiService.listProjectRenders(selectedProjectId).catch(() => null);
       if (renderResponse) setRenders(renderResponse.items);
       setSuccessMessage('Kompozisyon render kuyruğuna alındı.');
+      await onRendered?.();
     } catch (err: any) {
       setErrorMessage(err.message || 'Render başlatılamadı.');
     } finally {
@@ -365,46 +389,69 @@ export const CompositionStudioPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 border-b border-slate-200 dark:border-white/[0.08] pb-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-              <Clapperboard className="w-6 h-6 text-[#7367F0]" />
-              Video Kompozisyon Stüdyosu
-            </h1>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#7367F0]/10 text-[#7367F0] border border-[#7367F0]/20">
-              Aşama 4.5
+        {!embedded ? (
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+                <Clapperboard className="w-6 h-6 text-[#7367F0]" />
+                Video Kompozisyon Stüdyosu
+              </h1>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#7367F0]/10 text-[#7367F0] border border-[#7367F0]/20">
+                Aşama 4.5
+              </span>
+              {summary && (
+                <span
+                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                    isDirty
+                      ? 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800'
+                      : 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800'
+                  }`}
+                >
+                  {isDirty ? <RefreshCw className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
+                  {isDirty ? 'Kaydedilmemiş değişiklikler' : 'Kayıtlı kompozisyon'}
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Sahneleri sıralayın, geçişleri seçin, Türkçe metin ve altyazıları yönetin; tek bir MP4 olarak render edin.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-800 dark:text-white">
+              <Clapperboard className="h-4 w-4 text-[#7367F0]" />
+              Kompozisyon ayarları
             </span>
             {summary && (
               <span
-                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${
                   isDirty
-                    ? 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800'
-                    : 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800'
+                    ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
+                    : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
                 }`}
               >
-                {isDirty ? <RefreshCw className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
+                {isDirty ? <RefreshCw className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
                 {isDirty ? 'Kaydedilmemiş değişiklikler' : 'Kayıtlı kompozisyon'}
               </span>
             )}
           </div>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Sahneleri sıralayın, geçişleri seçin, Türkçe metin ve altyazıları yönetin; tek bir MP4 olarak render edin.
-          </p>
-        </div>
+        )}
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full xl:w-auto">
-          <select
-            aria-label="Proje seçimi"
-            value={selectedProjectId}
-            onChange={(event) => setSelectedProjectId(event.target.value)}
-            className="h-9.5 rounded-lg border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#2F3349] px-3 text-xs font-semibold text-slate-700 dark:text-slate-200 min-w-[220px]"
-          >
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.title}
-              </option>
-            ))}
-          </select>
+          {!embedded && (
+            <select
+              aria-label="Proje seçimi"
+              value={selectedProjectId}
+              onChange={(event) => setSelectedProjectId(event.target.value)}
+              className="h-9.5 rounded-lg border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#2F3349] px-3 text-xs font-semibold text-slate-700 dark:text-slate-200 min-w-[220px]"
+            >
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.title}
+                </option>
+              ))}
+            </select>
+          )}
           <Button
             variant="outline"
             size="md"

@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { MediaAsset } from '../types/media';
+import { RenderJob, StudioProject } from '../types/studio';
 import { formatBytes, formatDuration, formatDate } from '../lib/utils';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { EmptyState } from '../components/ui/EmptyState';
+import { StudioMediaLibrary } from '../components/studio/StudioMediaLibrary';
 import {
   Film,
   Search,
@@ -16,11 +18,16 @@ import {
   Clock,
   HardDrive,
   Calendar,
+  Clapperboard,
+  UploadCloud,
 } from 'lucide-react';
 
 interface VideoLibraryPageProps {
   videos: MediaAsset[];
   isLoading: boolean;
+  studioRenders?: RenderJob[];
+  studioProjects?: StudioProject[];
+  onOpenProject?: (projectId: string) => void;
   onSelectVideo: (asset: MediaAsset) => void;
   onRequestDelete: (asset: MediaAsset) => void;
   onNavigateImport: () => void;
@@ -31,6 +38,9 @@ interface VideoLibraryPageProps {
 export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
   videos,
   isLoading,
+  studioRenders = [],
+  studioProjects = [],
+  onOpenProject,
   onSelectVideo,
   onRequestDelete,
   onNavigateImport,
@@ -39,6 +49,7 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [libraryTab, setLibraryTab] = useState<'uploads' | 'studio'>('uploads');
 
   const filteredVideos = videos.filter((v) => {
     const q = searchQuery.toLowerCase();
@@ -51,6 +62,66 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 dark:border-white/[0.08] dark:bg-[#2F3349]">
+          <button
+            type="button"
+            onClick={() => setLibraryTab('uploads')}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition ${
+              libraryTab === 'uploads'
+                ? 'bg-[#7367F0] text-white shadow-sm'
+                : 'text-slate-500 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.05]'
+            }`}
+          >
+            <UploadCloud className="h-3.5 w-3.5" />
+            Yüklenen medya
+          </button>
+          <button
+            type="button"
+            onClick={() => setLibraryTab('studio')}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition ${
+              libraryTab === 'studio'
+                ? 'bg-[#7367F0] text-white shadow-sm'
+                : 'text-slate-500 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.05]'
+            }`}
+          >
+            <Clapperboard className="h-3.5 w-3.5" />
+            Studio çıktıları
+            {studioRenders.length > 0 && (
+              <span
+                className={`rounded-full px-1.5 py-0.5 text-[9px] ${
+                  libraryTab === 'studio' ? 'bg-white/20' : 'bg-slate-100 dark:bg-white/[0.08]'
+                }`}
+              >
+                {studioRenders.length}
+              </span>
+            )}
+          </button>
+        </div>
+        {libraryTab === 'studio' && (
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Proje, format veya codec ara..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Studio çıktısı ara"
+              className="vuexy-input h-9 w-full pl-9 pr-3 text-xs"
+            />
+          </div>
+        )}
+      </div>
+
+      {libraryTab === 'studio' ? (
+        <StudioMediaLibrary
+          renders={studioRenders}
+          projects={studioProjects}
+          searchQuery={searchQuery}
+          onOpenProject={(projectId) => onOpenProject?.(projectId)}
+        />
+      ) : (
+        <>
       {/* Search and Toolbar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 rounded-xl bg-white dark:bg-[#2F3349] border border-slate-200/80 dark:border-white/[0.08] shadow-xs">
         <div className="relative flex-1 max-w-md">
@@ -321,6 +392,8 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
             </table>
           </div>
         </Card>
+      )}
+        </>
       )}
     </div>
   );

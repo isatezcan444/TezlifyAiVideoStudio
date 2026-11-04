@@ -32,17 +32,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const sections = [
     {
-      title: 'VİDEO STÜDYOSU',
+      title: 'AI STUDIO',
       items: [
         {
-          id: 'dashboard',
-          label: 'Dashboard',
+          id: 'studio',
+          label: 'AI Video Studio',
           icon: LayoutDashboard,
-          badge: null,
+          badge: '4.6',
+          badgeColor: 'bg-[#7367F0]/15 text-[#7367F0] dark:bg-[#7367F0]/25 dark:text-[#A59DF8]',
         },
         {
           id: 'media-library',
-          label: 'Video Kütüphanesi',
+          label: 'Medya Kütüphanesi',
           icon: Film,
           badge: totalVideosCount > 0 ? `${totalVideosCount}` : null,
           badgeColor: 'bg-[#7367F0]/15 text-[#7367F0] dark:bg-[#7367F0]/25 dark:text-[#A59DF8]',
@@ -51,42 +52,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
           id: 'import-video',
           label: 'Video İçe Aktar',
           icon: UploadCloud,
-          badge: 'Yeni',
-          badgeColor: 'bg-[#28C76F]/15 text-[#28C76F] dark:bg-[#28C76F]/25 dark:text-[#5CE698]',
+          badge: null,
         },
+      ],
+    },
+    {
+      title: 'YAYIN',
+      items: [
         {
           id: 'youtube-publisher',
           label: 'YouTube Publisher',
           icon: Youtube,
-          badge: 'Aşama 2',
-          badgeColor: 'bg-red-500/15 text-red-600 dark:bg-red-500/25 dark:text-red-400',
+          badge: null,
         },
         {
           id: 'scheduler',
           label: 'Yayın Takvimi',
           icon: Calendar,
-          badge: 'Aşama 3',
-          badgeColor: 'bg-indigo-500/15 text-indigo-600 dark:bg-indigo-500/25 dark:text-indigo-400',
+          badge: null,
         },
+      ],
+    },
+    {
+      title: 'GELİŞMİŞ ARAÇLAR',
+      items: [
         {
           id: 'character-studio',
           label: 'Karakter & Animasyon',
           icon: Sparkles,
-          badge: 'Aşama 4.3',
+          badge: '4.3',
           badgeColor: 'bg-emerald-500/15 text-emerald-600 dark:bg-emerald-500/25 dark:text-emerald-400',
         },
         {
           id: 'composition-studio',
           label: 'Video Kompozisyon',
           icon: Clapperboard,
-          badge: 'Aşama 4.5',
+          badge: '4.5',
           badgeColor: 'bg-purple-500/15 text-purple-600 dark:bg-purple-500/25 dark:text-purple-400',
         },
-      ],
-    },
-    {
-      title: 'SİSTEM & ÇEKİRDEK',
-      items: [
         {
           id: 'settings',
           label: 'Sistem Durumu',

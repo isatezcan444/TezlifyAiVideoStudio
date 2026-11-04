@@ -26,6 +26,8 @@ import {
   VoiceStatusResponse,
   CompositionSummary,
   VideoComposition,
+  GenerateStoryResponse,
+  SceneGraph,
 } from '../types/studio';
 
 const API_BASE = '/api/v1';
@@ -406,6 +408,21 @@ export const apiService = {
     return res.json();
   },
 
+  async listRenderJobs(
+    limit = 100,
+    offset = 0,
+    status?: RenderJob['status']
+  ): Promise<RenderJobListResponse> {
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+    });
+    if (status) params.set('status', status);
+    const res = await fetch(`${API_BASE}/studio/renders?${params.toString()}`);
+    if (!res.ok) throw new ApiError('Studio render geçmişi alınamadı.', res.status);
+    return res.json();
+  },
+
   // --- Studio Projects (Stage 4.1 & 4.3) ---
   async listProjects(limit = 50, offset = 0): Promise<StudioProjectListResponse> {
     const res = await fetch(`${API_BASE}/studio/projects?limit=${limit}&offset=${offset}`);
@@ -432,8 +449,46 @@ export const apiService = {
     return res.json();
   },
 
-  async generateStory(data: { prompt: string; target_duration_seconds?: number; aspect_ratio?: string }): Promise<any> {
-    const res = await fetch(`${API_BASE}/studio/story/generate`, {
+  async updateProject(
+    id: string,
+    data: {
+      title?: string;
+      description?: string;
+      status?: string;
+      scene_graph?: SceneGraph;
+    }
+  ): Promise<StudioProject> {
+    const res = await fetch(`${API_BASE}/studio/projects/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'Proje güncellenemedi.', res.status, err.error_code);
+    }
+    return res.json();
+  },
+
+  async deleteProject(id: string): Promise<{ id: string; deleted: boolean; archived: boolean }> {
+    const res = await fetch(`${API_BASE}/studio/projects/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'Proje silinemedi.', res.status, err.error_code);
+    }
+    return res.json();
+  },
+
+  async generateStory(data: {
+    prompt: string;
+    target_duration_seconds?: number;
+    aspect_ratio?: string;
+    genre?: string;
+    provider?: string;
+  }): Promise<GenerateStoryResponse> {
+    const res = await fetch(`${API_BASE}/studio/generate-story`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),

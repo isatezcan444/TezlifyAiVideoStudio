@@ -423,6 +423,7 @@ from tezlify_studio.application.ports.voice_synthesizer_port import VoiceSynthes
 from tezlify_studio.application.use_cases.start_project_render_use_case import StartProjectRenderUseCase
 from tezlify_studio.application.use_cases.get_render_job_use_case import GetRenderJobUseCase
 from tezlify_studio.application.use_cases.list_project_renders_use_case import ListProjectRendersUseCase
+from tezlify_studio.application.use_cases.list_render_jobs_use_case import ListRenderJobsUseCase
 from tezlify_studio.application.use_cases.execute_render_job_use_case import ExecuteRenderJobUseCase
 from tezlify_studio.application.use_cases.list_voices_use_case import ListVoicesUseCase
 from tezlify_studio.application.use_cases.synthesize_dialogue_audio_use_case import SynthesizeDialogueAudioUseCase
@@ -499,6 +500,12 @@ def get_list_project_renders_use_case(
     repo: RenderJobRepositoryImpl = Depends(get_render_job_repository),
 ) -> ListProjectRendersUseCase:
     return ListProjectRendersUseCase(repo)
+
+
+def get_list_render_jobs_use_case(
+    repo: RenderJobRepositoryImpl = Depends(get_render_job_repository),
+) -> ListRenderJobsUseCase:
+    return ListRenderJobsUseCase(repo)
 
 # ==========================================
 # Video Composition Studio (Stage 4.5)

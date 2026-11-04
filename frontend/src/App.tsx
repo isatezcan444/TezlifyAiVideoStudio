@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Layout/Sidebar';
 import { TopHeader } from './components/Layout/TopHeader';
-import { DashboardPage } from './pages/DashboardPage';
+import { StudioWorkspacePage } from './pages/StudioWorkspacePage';
 import { VideoLibraryPage } from './pages/VideoLibraryPage';
 import { ImportVideoPage } from './pages/ImportVideoPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -15,16 +15,19 @@ import { ConfirmDialog } from './components/ui/ConfirmDialog';
 import { useTheme } from './hooks/useTheme';
 import { apiService } from './services/api';
 import { MediaAsset, SystemStatus } from './types/media';
+import { RenderJob, StudioProject } from './types/studio';
 
 export const App: React.FC = () => {
   const { isDark, toggleTheme } = useTheme();
 
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'media-library' | 'import-video' | 'youtube-publisher' | 'scheduler' | 'character-studio' | 'composition-studio' | 'settings'
-  >('dashboard');
+    'studio' | 'media-library' | 'import-video' | 'youtube-publisher' | 'scheduler' | 'character-studio' | 'composition-studio' | 'settings'
+  >('studio');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [videos, setVideos] = useState<MediaAsset[]>([]);
+  const [studioRenders, setStudioRenders] = useState<RenderJob[]>([]);
+  const [studioProjects, setStudioProjects] = useState<StudioProject[]>([]);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [isBackendConnected, setIsBackendConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -39,12 +42,21 @@ export const App: React.FC = () => {
   const fetchAllData = async () => {
     setIsLoading(true);
     try {
-      const [mediaRes, statusRes] = await Promise.all([
+      const [mediaRes, statusRes, renderRes, projectRes] = await Promise.all([
         apiService.listMedia(),
         apiService.getSystemStatus(),
+        apiService.listRenderJobs(200, 0).catch(() => ({ items: [] as RenderJob[], total: 0 })),
+        apiService.listProjects(100, 0).catch(() => ({
+          items: [] as StudioProject[],
+          total: 0,
+          limit: 100,
+          offset: 0,
+        })),
       ]);
       setVideos(mediaRes.items);
       setSystemStatus(statusRes);
+      setStudioRenders(renderRes.items);
+      setStudioProjects(projectRes.items);
       setIsBackendConnected(true);
     } catch (err) {
       console.error('Veri yükleme hatası:', err);
@@ -57,6 +69,24 @@ export const App: React.FC = () => {
   useEffect(() => {
     fetchAllData();
   }, []);
+
+  // Studio outputs are created while the user is in the AI Studio tab. Refresh
+  // the render history when the media library is opened so cards never go stale.
+  useEffect(() => {
+    if (activeTab !== 'media-library') return;
+    let active = true;
+    Promise.all([
+      apiService.listRenderJobs(200, 0).catch(() => null),
+      apiService.listProjects(100, 0).catch(() => null),
+    ]).then(([renderRes, projectRes]) => {
+      if (!active) return;
+      if (renderRes) setStudioRenders(renderRes.items);
+      if (projectRes) setStudioProjects(projectRes.items);
+    });
+    return () => {
+      active = false;
+    };
+  }, [activeTab]);
 
   const handleDeleteConfirm = async () => {
     if (!videoToDelete) return;
@@ -77,15 +107,15 @@ export const App: React.FC = () => {
 
   const getHeaderInfo = () => {
     switch (activeTab) {
-      case 'dashboard':
+      case 'studio':
         return {
-          title: 'Kontrol Paneli (Dashboard)',
-          subtitle: 'Video üretim ve medya yönetimi genel görünümü',
+          title: 'AI Video Studio',
+          subtitle: 'Proje, hikâye, karakter, sahne, animasyon ve dışa aktarma akışı',
         };
       case 'media-library':
         return {
           title: 'Medya Kütüphanesi',
-          subtitle: `${videos.length} adet doğrulanmış video kaydı`,
+          subtitle: `${videos.length} yüklenen medya · ${studioRenders.length} Studio çıktısı`,
         };
       case 'import-video':
         return {
@@ -102,10 +132,15 @@ export const App: React.FC = () => {
           title: 'YouTube Yayın Takvimi',
           subtitle: 'Arka plan zamanlayıcısı ile otomatik ileri tarihli video yayını',
         };
+      case 'character-studio':
+        return {
+          title: 'Karakter & Animasyon Stüdyosu',
+          subtitle: 'Gelişmiş karakter, asset ve Blender render araçları',
+        };
       case 'composition-studio':
         return {
           title: 'Video Kompozisyon Stüdyosu',
-          subtitle: 'Sahne birleştirme, geçişler, Türkçe metin/altyazı ve çok formatlı MP4 çıktısı',
+          subtitle: 'Gelişmiş sahne birleştirme, geçişler, Türkçe metin/altyazı ve çok formatlı MP4 çıktısı',
         };
       case 'settings':
         return {
@@ -143,13 +178,10 @@ export const App: React.FC = () => {
         />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
-          {activeTab === 'dashboard' && (
-            <DashboardPage
-              videos={videos}
-              systemStatus={systemStatus}
-              isLoading={isLoading}
-              onNavigateTab={(tab) => setActiveTab(tab as any)}
-              onSelectVideo={(asset) => setSelectedVideo(asset)}
+          {activeTab === 'studio' && (
+            <StudioWorkspacePage
+              onOpenMediaLibrary={() => setActiveTab('media-library')}
+              onOpenCharacterStudio={() => setActiveTab('character-studio')}
             />
           )}
 
@@ -157,6 +189,13 @@ export const App: React.FC = () => {
             <VideoLibraryPage
               videos={videos}
               isLoading={isLoading}
+              studioRenders={studioRenders}
+              studioProjects={studioProjects}
+              onOpenProject={(projectId) => {
+                localStorage.setItem('tezlify.studio.project', projectId);
+                localStorage.setItem('tezlify.studio.view', 'workflow');
+                setActiveTab('studio');
+              }}
               onSelectVideo={(asset) => setSelectedVideo(asset)}
               onRequestDelete={(asset) => setVideoToDelete(asset)}
               onNavigateImport={() => setActiveTab('import-video')}

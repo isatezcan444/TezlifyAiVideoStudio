@@ -35,6 +35,14 @@ class RenderJobRepositoryPort(ABC):
         pass
 
     @abstractmethod
+    def count_jobs(
+        self,
+        status: Optional[RenderJobStatus] = None,
+    ) -> int:
+        """Counts RenderJobs with an optional status filter."""
+        pass
+
+    @abstractmethod
     def delete(self, job_id: str) -> bool:
         """Deletes a RenderJob entity by ID. Returns True if deleted, False otherwise."""
         pass

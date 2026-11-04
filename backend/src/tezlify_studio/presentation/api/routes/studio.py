@@ -47,6 +47,10 @@ from tezlify_studio.application.use_cases.get_render_job_use_case import (
 from tezlify_studio.application.use_cases.list_project_renders_use_case import (
     ListProjectRendersUseCase,
 )
+from tezlify_studio.application.use_cases.list_render_jobs_use_case import (
+    ListRenderJobsUseCase,
+)
+from tezlify_studio.domain.enums.studio_status import RenderJobStatus
 from tezlify_studio.application.use_cases.list_voices_use_case import (
     ListVoicesUseCase,
 )
@@ -130,6 +134,7 @@ from tezlify_studio.presentation.dependencies.container import (
     get_start_project_render_use_case,
     get_render_job_use_case,
     get_list_project_renders_use_case,
+    get_list_render_jobs_use_case,
     get_list_voices_use_case,
     get_synthesize_dialogue_audio_use_case,
     get_project_composition_use_case,
@@ -389,6 +394,29 @@ def list_project_renders(
         "items": [j.__dict__ for j in jobs],
         "total": len(jobs),
     }
+
+@router.get(
+    "/renders",
+    response_model=RenderJobListResponse,
+    status_code=status.HTTP_200_OK,
+)
+def list_render_jobs(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    job_status: Optional[str] = Query(
+        None,
+        alias="status",
+        pattern="^(pending|running|completed|failed|cancelled)$",
+    ),
+    use_case: ListRenderJobsUseCase = Depends(get_list_render_jobs_use_case),
+):
+    status_filter = RenderJobStatus(job_status) if job_status else None
+    jobs, total = use_case.execute(limit=limit, offset=offset, status=status_filter)
+    return {
+        "items": [job.__dict__ for job in jobs],
+        "total": total,
+    }
+
 
 @router.get(
     "/renders/{job_id}",
