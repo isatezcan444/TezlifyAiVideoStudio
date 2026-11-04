@@ -37,6 +37,20 @@ interface ExportStepProps {
   onRefresh: () => Promise<void>;
 }
 
+/**
+ * Lip-sync status must tell the truth about provenance: real alignment, local
+ * alignment, provider alignment, pending, failed, or the legacy mouth animation.
+ * A render that fell back may never read as "Gerçek Lip-Sync".
+ */
+export function lipSyncLabel(metadata?: RenderJob['output_metadata']): string {
+  const lipSync = metadata?.lip_sync;
+  if (!lipSync) return 'Eski render (lip-sync bilgisi yok)';
+  if (lipSync.speakers_aligned > 0) {
+    return `Gerçek lip-sync · ${lipSync.speakers_aligned}/${lipSync.speakers_total} konuşmacı`;
+  }
+  return 'Basit ağız animasyonu (alignment yok)';
+}
+
 function metadataRows(job: RenderJob) {
   const metadata = job.output_metadata;
   return [
@@ -49,6 +63,7 @@ function metadataRows(job: RenderJob) {
     { label: 'Video codec', value: metadata?.video_codec || '—' },
     { label: 'Süre', value: metadata?.duration_seconds ? formatDuration(metadata.duration_seconds) : '—' },
     { label: 'Dosya boyutu', value: metadata?.file_size_bytes ? formatBytes(metadata.file_size_bytes) : '—' },
+    { label: 'Lip-sync', value: lipSyncLabel(metadata) },
   ];
 }
 

@@ -1,0 +1,62 @@
+1. Real Turkish dialogue audio (macOS say / Yelda tr_TR)
+   line 1 char_ali: 2.19s  Merhaba Ayşe, bugün nasılsın?
+   line 2 char_ayse: 2.38s  Çocuklar dışarıda oyun oynuyor.
+   line 3 char_ali: 2.34s  Üç küçük kuş ağaçta ötüyor.
+   line 4 char_ayse: 2.68s  Bugün birlikte güzel bir kahve içelim.
+
+2. Local CTC forced alignment of that exact audio
+   {"engine": "local CTC forced alignment (Baybars/wav2vec2-xls-r-300m-cv8-turkish)", "enabled": true, "dialogues_total": 4, "dialogues_with_audio": 4, "dialogues_aligned": 4, "dialogues_fallback": 0, "segments_total": 102, "mean_confidence": 0.2775, "uses_real_alignment": true, "reasons": {}}
+
+3. Real Blender render (9:16, 30 fps, frames kept)
+   /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/studio_projects/stage54_lipsync/renders/lipsync_scene01/lipsync_scene01.mp4
+   1080x1920 30fps 6.766667s
+
+4. Frames sampled at phoneme boundaries
+   CLOSED         'm' t=0.02s f=0014  dark=0.0955  luma=85.4
+   OPEN           'e' t=0.10s f=0016  dark=0.3086  luma=115.9
+   DENTAL         'r' t=0.18s f=0018  dark=0.2215  luma=66.7
+   VELAR          'h' t=0.24s f=0020  dark=0.1313  luma=83.1
+   OPEN           'a' t=0.30s f=0022  dark=0.4030  luma=98.7
+   CLOSED         'b' t=0.40s f=0025  dark=0.0863  luma=80.7
+   OPEN           'a' t=0.46s f=0027  dark=0.2675  luma=107.9
+   OPEN           'a' t=0.58s f=0030  dark=0.3892  luma=78.7
+   NARROW_ROUND   'y' t=0.68s f=0033  dark=0.1206  luma=80.1
+   SIBILANT       'ş' t=0.76s f=0036  dark=0.1131  luma=80.0
+   OPEN           'e' t=0.84s f=0038  dark=0.3599  luma=103.2
+   CLOSED         'b' t=0.96s f=0042  dark=0.0845  luma=81.0
+   NARROW_ROUND   'u' t=1.02s f=0044  dark=0.1553  luma=88.8
+   VELAR          'g' t=1.10s f=0046  dark=0.1442  luma=78.4
+   NARROW_ROUND   'ü' t=1.16s f=0048  dark=0.1690  luma=78.9
+   DENTAL         'n' t=1.22s f=0050  dark=0.1151  luma=75.0
+   DENTAL         'n' t=1.30s f=0052  dark=0.1538  luma=77.7
+   OPEN           'a' t=1.36s f=0054  dark=0.4058  luma=96.7
+   SIBILANT       's' t=1.48s f=0057  dark=0.1164  luma=79.2
+   WIDE           'ı' t=1.56s f=0060  dark=0.1685  luma=78.7
+   DENTAL         'l' t=1.64s f=0062  dark=0.1769  luma=79.1
+   SIBILANT       's' t=1.76s f=0066  dark=0.1217  luma=78.5
+   WIDE           'ı' t=1.84s f=0068  dark=0.1277  luma=80.3
+   DENTAL         'n' t=1.90s f=0070  dark=0.1756  luma=79.0
+
+5. OPEN-family vs CLOSED mouth-region pixel difference
+   OPEN           f0016 vs CLOSED         f0014 70.30%
+   OPEN           f0016 vs CLOSED         f0025 64.61%
+   OPEN           f0016 vs CLOSED         f0042 66.29%
+   OPEN           f0022 vs CLOSED         f0014 59.85%
+   OPEN           f0022 vs CLOSED         f0025 50.09%
+   OPEN           f0022 vs CLOSED         f0042 53.68%
+   OPEN           f0027 vs CLOSED         f0014 64.80%
+   OPEN           f0027 vs CLOSED         f0025 56.96%
+   OPEN           f0027 vs CLOSED         f0042 56.23%
+   OPEN           f0030 vs CLOSED         f0014 57.61%
+   OPEN           f0030 vs CLOSED         f0025 40.41%
+   OPEN           f0030 vs CLOSED         f0042 37.15%
+   mean dark ratio  open=0.2865 closed=0.0888
+
+6. ffprobe: 1080x1920 h264/yuv420p 30/1 6.767s
+
+7. Audio vs animation synchronisation
+   scene_01 char_ali   audio=2.191s span=2.191s first_viseme=0.02 last_end=1.92 tail_gap=0.2712s
+   scene_01 char_ayse  audio=2.384s span=2.384s first_viseme=0.02 last_end=2.06 tail_gap=0.3237s
+   scene_02 char_ali   audio=2.343s span=2.343s first_viseme=0.02 last_end=2.02 tail_gap=0.3226s
+   scene_02 char_ayse  audio=2.676s span=2.676s first_viseme=0.02 last_end=2.4 tail_gap=0.2759s
+   mouth height during speech max=0.08115m, after=0.04209m, closed_after_speech=True

@@ -12,6 +12,7 @@ from tezlify_studio.infrastructure.persistence.repositories.studio_project_repos
 )
 from tezlify_studio.application.ports.blender_animation_engine_port import BlenderAnimationEnginePort
 from tezlify_studio.application.ports.voice_synthesizer_port import VoiceSynthesizerPort
+from tezlify_studio.application.services.lip_sync_resolver import LipSyncResolver
 from tezlify_studio.application.use_cases.synthesize_dialogue_audio_use_case import (
     SynthesizeDialogueAudioUseCase,
 )
@@ -91,9 +92,11 @@ class ExecuteRenderJobUseCase:
         self,
         animation_engine: BlenderAnimationEnginePort,
         voice_synthesizer: Optional[VoiceSynthesizerPort] = None,
+        lip_sync_resolver: Optional[LipSyncResolver] = None,
     ):
         self.animation_engine = animation_engine
         self.voice_synthesizer = voice_synthesizer
+        self.lip_sync_resolver = lip_sync_resolver
 
     def execute(
         self,
@@ -147,6 +150,22 @@ class ExecuteRenderJobUseCase:
                 except Exception as ve:
                     logger.warning(f"Voice synthesis error ({ve}). Proceeding with animation.")
 
+            # Stage 5.4: measure mouth timings from the dialogue audio. This runs
+            # after synthesis so it aligns the audio that will actually be heard,
+            # and a failure here must never stop a render.
+            scene_graph = project.scene_graph
+            if self.lip_sync_resolver is not None:
+                try:
+                    job.update_progress(11.0, "Aligning dialogue audio for lip sync")
+                    job_repo.save(job)
+                    scene_graph, lip_sync_report = self.lip_sync_resolver.resolve(project.scene_graph)
+                    if lip_sync_report.dialogues_aligned:
+                        project.update_scene_graph(scene_graph)
+                        project_repo.save(project)
+                    logger.info(f"Lip sync report: {lip_sync_report.to_dict()}")
+                except Exception as exc:
+                    logger.warning(f"Lip sync alignment failed ({exc}). Using legacy mouth animation.")
+
             last_update_pct = [5.0]
 
             def on_progress(pct: float, step: str):
@@ -167,7 +186,7 @@ class ExecuteRenderJobUseCase:
 
             try:
                 metadata = self.animation_engine.render_animation(
-                    scene_graph=project.scene_graph,
+                    scene_graph=scene_graph,
                     project_id=project_id,
                     job_id=job_id,
                     progress_callback=on_progress,

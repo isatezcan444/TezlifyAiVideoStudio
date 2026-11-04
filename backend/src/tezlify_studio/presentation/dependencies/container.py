@@ -446,6 +446,11 @@ from tezlify_studio.application.use_cases.execute_composition_render_use_case im
 from tezlify_studio.application.use_cases.start_composition_render_use_case import (
     StartCompositionRenderUseCase,
 )
+from tezlify_studio.application.ports.speech_alignment_port import SpeechAlignmentPort
+from tezlify_studio.application.services.lip_sync_resolver import LipSyncResolver
+from tezlify_studio.infrastructure.alignment.ctc_forced_alignment_impl import (
+    CTCForcedAlignmentImpl,
+)
 
 blender_animation_engine_singleton = BlenderAnimationEngineImpl()
 composition_engine_singleton = FFmpegCompositionEngine(
@@ -458,6 +463,19 @@ elevenlabs_client_singleton = ElevenLabsClientImpl(
     default_model=settings.elevenlabs_default_model,
     api_base=settings.elevenlabs_api_base,
     cache_dir=settings.audio_cache_dir,
+)
+
+# Stage 5.4 — local phoneme/viseme lip sync. The engine lives in an isolated
+# virtualenv and is reached by subprocess, so nothing here imports torch.
+ctc_alignment_singleton = CTCForcedAlignmentImpl(
+    python_executable=settings.alignment_python_executable,
+    model_id=settings.alignment_model_id,
+    cache_dir=settings.alignment_cache_dir,
+    model_cache_dir=settings.alignment_model_cache_dir,
+    timeout_seconds=settings.alignment_timeout_seconds,
+)
+lip_sync_resolver_singleton = LipSyncResolver(
+    ctc_alignment_singleton if settings.lip_sync_enabled else None
 )
 
 def get_render_job_repository(db: Session = Depends(get_db)) -> RenderJobRepositoryImpl:
@@ -479,11 +497,20 @@ def get_synthesize_dialogue_audio_use_case(
 ) -> SynthesizeDialogueAudioUseCase:
     return SynthesizeDialogueAudioUseCase(synth)
 
+def get_lip_sync_resolver() -> LipSyncResolver:
+    return lip_sync_resolver_singleton
+
+
+def get_alignment_engine() -> SpeechAlignmentPort:
+    return ctc_alignment_singleton
+
+
 def get_execute_render_job_use_case(
     engine: BlenderAnimationEngineImpl = Depends(get_blender_animation_engine),
     synth: VoiceSynthesizerPort = Depends(get_voice_synthesizer),
+    lip_sync: LipSyncResolver = Depends(get_lip_sync_resolver),
 ) -> ExecuteRenderJobUseCase:
-    return ExecuteRenderJobUseCase(engine, synth)
+    return ExecuteRenderJobUseCase(engine, synth, lip_sync)
 
 def get_start_project_render_use_case(
     project_repo: StudioProjectRepositoryImpl = Depends(get_studio_project_repository),
@@ -548,8 +575,9 @@ def get_save_project_composition_use_case(
 def get_execute_composition_render_use_case(
     engine: FFmpegCompositionEngine = Depends(get_composition_engine),
     synth: VoiceSynthesizerPort = Depends(get_voice_synthesizer),
+    lip_sync: LipSyncResolver = Depends(get_lip_sync_resolver),
 ) -> ExecuteCompositionRenderUseCase:
-    return ExecuteCompositionRenderUseCase(engine, synth)
+    return ExecuteCompositionRenderUseCase(engine, synth, lip_sync)
 
 
 def get_start_composition_render_use_case(

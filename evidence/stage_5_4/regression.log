@@ -1,0 +1,47 @@
+### PYTEST
+........................................................................ [ 23%]
+........................................................................ [ 46%]
+........................................................................ [ 69%]
+........................................................................ [ 93%]
+.....................                                                    [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.14/site-packages/fastapi/testclient.py:1
+  /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/.venv/lib/python3.14/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+309 passed, 1 warning in 407.20s (0:06:47)
+### DOCTOR
+============================================================
+  TEZLIFY AI VIDEO STUDIO - SISTEM VE ORTAM DENETIMI
+============================================================
+
+1. Isletim Sistemi: Darwin 27.0.0 (arm64)
+2. Python Surumu: 3.14.7 [92m[✓ OK][0m
+3. Node.js: v24.15.0 [92m[✓ OK][0m
+   npm:     11.12.1 [92m[✓ OK][0m
+4. FFmpeg:  /opt/homebrew/bin/ffmpeg [92m[✓ OK][0m
+   FFprobe: /opt/homebrew/bin/ffprobe [92m[✓ OK][0m
+5. Blender: Mevcut [92m[✓ OK][0m
+6. Medya Dizini: /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/media [92m[✓ OK][0m
+   SQLite DB:    /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/database/tezlify_studio.db [92m[✓ OK][0m
+
+============================================================
+  DENETIM TAMAMLANDI: Asama 1 (Local Studio Core) calismaya hazir.
+============================================================
+
+### E2E
+
+9. YouTube Publisher Modülü Test Ediliyor...
+   [✓] YouTube Durum Endpoint'i OK (Bağlantı: True)
+   [✓] YouTube Yayın Geçmişi Endpoint'i OK (Kayıt sayısı: 135)
+
+10. Aşama 3 - Yayın Takvimi ve Otomatik Zamanlayıcı Test Ediliyor...
+   [✓] Scheduler Motor Durumu: False (Kontrol Aralığı: 30s)
+   [✓] Yayın Takvimi Listeleme OK (Toplam Plan: 0)
+   [✓] Yaklaşan Yayınlar Endpoint'i OK (Gelecek Planlar: 0)
+
+=================================================================
+  🎉 TÜM UÇTAN UCA TESTLER BAŞARIYLA TAMAMLANDI!
+=================================================================
+

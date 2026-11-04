@@ -92,6 +92,16 @@ export interface RenderJob {
     text_layer_count?: number;
     transition_count?: number;
     scene_count?: number;
+    lip_sync?: {
+      real_lip_sync: boolean;
+      speakers_total: number;
+      speakers_aligned: number;
+      scenes: Array<{
+        scene_id: string;
+        speakers: Record<string, string>;
+        real_lip_sync: boolean;
+      }>;
+    } | null;
   } | null;
   error_message?: string | null;
   created_at: string;

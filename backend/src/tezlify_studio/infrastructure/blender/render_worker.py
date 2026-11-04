@@ -21,6 +21,8 @@ _BACKEND_SRC = os.path.abspath(
 if _BACKEND_SRC not in sys.path:
     sys.path.insert(0, _BACKEND_SRC)
 
+from tezlify_studio.domain.enums.studio_status import MouthViseme
+from tezlify_studio.domain.services.mouth_poses import pose_for as mouth_pose_for
 from tezlify_studio.domain.value_objects.camera_framing import (  # noqa: E402
     SubjectBounds,
     intent_for_angle,
@@ -235,6 +237,152 @@ def expand_backdrop_for_frame(background_objects: dict, coverage) -> list:
 
     return adjusted
 
+# ---------------------------------------------------------------------------
+# Lip sync (Stage 5.4)
+# ---------------------------------------------------------------------------
+
+MEASURED_SOURCES = ("ctc_forced", "elevenlabs_timing")
+
+
+def measured_visemes(dlg: dict) -> list:
+    """Viseme segments whose timing came from the dialogue audio.
+
+    Segments written before this stage, or by the story planner's placeholder
+    generator, carry no measured source and are ignored so the renderer can fall
+    back to the legacy flap instead of animating to invented timings.
+    """
+    segments = []
+    for item in dlg.get("visemes") or []:
+        if str(item.get("source", "")) not in MEASURED_SOURCES:
+            continue
+        start = item.get("time")
+        end = item.get("end_time")
+        viseme = item.get("viseme")
+        if start is None or end is None or not viseme:
+            continue
+        segments.append((str(viseme), float(start), float(end)))
+    segments.sort(key=lambda s: s[1])
+    return segments
+
+
+def set_mouth_pose(mouth, pose, rest_scale, rest_location, frame: int):
+    """Keyframe one viseme pose at one frame.
+
+    Everything is relative to the character's own rest transform, which differs by
+    gender and expression, so Ali and Ayşe keep their distinct mouths.
+    """
+    mouth.scale = (
+        rest_scale[0] * pose.width_scale,
+        rest_scale[1] * pose.open_scale,
+        rest_scale[2],
+    )
+    mouth.location = (
+        rest_location[0],
+        rest_location[1],
+        rest_location[2] + pose.jaw_offset,
+    )
+    mouth.keyframe_insert(data_path="scale", frame=frame)
+    mouth.keyframe_insert(data_path="location", frame=frame)
+
+
+def use_linear_mouth_interpolation(mouth) -> None:
+    """Linear easing between visemes.
+
+    Bezier overshoot would push the mouth past both neighbouring poses, which can
+    carry the mesh outside the face and makes a short vowel look like a pop.
+    """
+    try:
+        action = mouth.animation_data.action if mouth.animation_data else None
+        if not action:
+            return
+        for curve in action.fcurves:
+            if curve.data_path in ("scale", "location"):
+                for key in curve.keyframe_points:
+                    key.interpolation = "LINEAR"
+    except Exception:
+        # Interpolation is cosmetic; never fail a render over it.
+        pass
+
+
+def animate_dialogue_mouth(mouth, rest_scale, rest_location, segments, fps: int,
+                           abs_start: int, abs_end: int,
+                           scene_start_frame: int, scene_end_frame: int) -> list:
+    """Keyframe measured viseme segments across one dialogue.
+
+    Returns the frames that were keyed, empty when there is nothing measured.
+    Those frames are also what the evidence samples, so the inspected frames are
+    the ones where the mouth is guaranteed to change rather than arbitrary ones.
+
+    Segment times are seconds relative to the dialogue start, the same reference
+    the aligner produced them in, so the only offset applied here is the dialogue's
+    own position in the scene. Applying a scene offset as well would push the mouth
+    ahead of the voice by everything that came before it.
+    """
+    if not segments:
+        return []
+
+    keyed = []
+
+    # Mouth closed just before speech begins, so the first viseme reads as an
+    # opening movement rather than an instant pop.
+    frame = max(scene_start_frame, abs_start - 1)
+    set_mouth_pose(mouth, mouth_pose_for(MouthViseme.REST), rest_scale, rest_location, frame)
+    keyed.append(frame)
+
+    for viseme_name, start, end in segments:
+        if end <= start:
+            continue
+        frame = abs_start + int(round(start * fps))
+        if frame < abs_start or frame > scene_end_frame:
+            continue
+        set_mouth_pose(mouth, mouth_pose_for(viseme_name), rest_scale, rest_location, frame)
+        keyed.append(frame)
+
+    # Close the mouth as soon as the audio ends: a held-open vowel after the last
+    # phoneme is the clearest sign that animation is not following speech.
+    frame = min(scene_end_frame, abs_end)
+    set_mouth_pose(mouth, mouth_pose_for(MouthViseme.REST), rest_scale, rest_location, frame)
+    keyed.append(frame)
+
+    use_linear_mouth_interpolation(mouth)
+    return keyed
+
+
+def mouth_screen_boxes(character_maps: dict, frames, profile, solve,
+                       sensor_width_mm: float) -> dict:
+    """Project each speaker's mouth into frame coordinates at the given frames.
+
+    Evidence has to crop the mouth, not a guessed rectangle: in a 9:16 two-shot a
+    hand-picked box misses the face entirely and measures nothing. This reuses the
+    same projection the camera solve is reported with, so the box is the one the
+    renderer actually produced.
+    """
+    sampled = {}
+    for frame in frames:
+        bpy.context.scene.frame_set(int(frame))
+        bpy.context.view_layer.update()
+        per_character = {}
+        for char_id, char_map in character_maps.items():
+            mouth = char_map.get("Mesh_Mouth")
+            if mouth is None:
+                continue
+            box = object_world_bounds(mouth)
+            if not box:
+                continue
+            bounds = SubjectBounds(
+                x_min=box[0], x_max=box[1], z_top=box[5], z_bottom=box[4]
+            )
+            per_character[char_id] = {
+                "frame": int(frame),
+                "screen": screen_box(profile, solve, bounds),
+                "world_height_m": round(box[5] - box[4], 5),
+                "world_width_m": round(box[1] - box[0], 5),
+            }
+        if per_character:
+            sampled[str(int(frame))] = per_character
+    return sampled
+
+
 def apply_pose(char_map: dict, pose_str: str):
     torso = char_map.get("Anchor_Torso")
     leg_l = char_map.get("Anchor_Leg_L")
@@ -447,12 +595,26 @@ def main():
 
     report_progress(25.0, "Generating Animation Keyframes")
 
+    # 6. Capture each rig's authentic rest mouth transform before anything
+    # keyframes it. The built mouth differs per gender and expression (cheerful is
+    # wider than neutral), and viseme poses are multipliers on this rest, so
+    # capturing it late would key every character to the same invented face.
+    rest_mouth = {}
+    for char_id, char_map in character_maps.items():
+        mouth_obj = char_map.get("Mesh_Mouth")
+        if mouth_obj is not None:
+            rest_mouth[char_id] = (
+                tuple(mouth_obj.scale),
+                tuple(mouth_obj.location),
+            )
+
     # 6. Timeline and Keyframing
     current_frame = 1
     bpy.context.scene.frame_start = 1
     bpy.context.scene.frame_end = total_frames
 
     framing_reports = []
+    lip_sync_reports = []
     coverages = []
     BACKDROP_PLANE_Y = 5.0
     # The legacy landscape two-shot saw 2.56m of width; camera moves are kept at
@@ -466,6 +628,7 @@ def main():
         scene_end_frame = current_frame + scene_frames - 1
 
         log(f"Keyframing Scene {s_idx + 1}/{len(scenes)}: frames {scene_start_frame} to {scene_end_frame}")
+        lip_sync_modes = {}
 
         # A. Placements & Poses.
         #
@@ -564,13 +727,17 @@ def main():
                         eye_obj.scale.z = 1.0
                         eye_obj.keyframe_insert(data_path="scale", frame=min(scene_end_frame, blink_frame + 3))
 
-            # Resting mouth shape
+            # Resting mouth shape: hold the character's own built rest, not a
+            # flattened (1,1,1) that would erase the per-expression mouth.
             if mouth:
-                mouth.scale.x = 1.0
-                mouth.scale.y = 1.0
-                mouth.scale.z = 1.0
+                rest = rest_mouth.get(c_id)
+                if rest:
+                    mouth.scale = rest[0]
+                    mouth.location = rest[1]
                 mouth.keyframe_insert(data_path="scale", frame=scene_start_frame)
                 mouth.keyframe_insert(data_path="scale", frame=scene_end_frame)
+                mouth.keyframe_insert(data_path="location", frame=scene_start_frame)
+                mouth.keyframe_insert(data_path="location", frame=scene_end_frame)
 
         # C. Dialogue Keyframing: Mouth Flap, Gestures, Head Orientation
         dialogues = scene_def.get("dialogues", [])
@@ -600,20 +767,44 @@ def main():
             # Alternate which arm gestures so speakers do not move in sync.
             gesture_arm = "r" if (spk_hash % 2 == 0) else "l"
 
-            # 1. Mouth flapping during speech
+            # 1. Mouth. Measured visemes drive it when the dialogue audio was
+            # aligned; otherwise the pre-5.4 flap cycle is kept so a render never
+            # fails because an aligner was unavailable.
             if mouth:
-                mouth.scale.z = 1.0
-                mouth.keyframe_insert(data_path="scale", frame=max(scene_start_frame, abs_start - 1))
-                # Flap cycle every 4 frames
-                for f in range(abs_start, abs_end, 4):
-                    cycle = (f - abs_start) // 4
-                    # Alternate between open and medium open
-                    mouth_z = mouth_open_amp if (cycle % 2 == 0) else mouth_mid_amp
-                    mouth.scale.z = mouth_z
-                    mouth.keyframe_insert(data_path="scale", frame=f)
+                rest = rest_mouth.get(speaker_id, (tuple(mouth.scale), tuple(mouth.location)))
+                segments = measured_visemes(dlg)
+                keyed = animate_dialogue_mouth(
+                    mouth, rest[0], rest[1], segments, fps,
+                    abs_start, abs_end, scene_start_frame, scene_end_frame,
+                )
+                if keyed:
+                    lip_sync_modes[speaker_id] = {
+                        "mode": "viseme",
+                        "segments": len(segments),
+                        "keyframes": len(keyed),
+                        "frames": keyed,
+                        "source": str((dlg.get("visemes") or [{}])[0].get("source", "")),
+                    }
+                else:
+                    lip_sync_modes[speaker_id] = {
+                        "mode": "legacy_flap",
+                        "segments": len(segments),
+                        "keyframes": 0,
+                        "frames": [],
+                        "source": "estimated",
+                    }
+                    mouth.scale.z = rest[0][2]
+                    mouth.keyframe_insert(data_path="scale", frame=max(scene_start_frame, abs_start - 1))
+                    # Flap cycle every 4 frames
+                    for f in range(abs_start, abs_end, 4):
+                        cycle = (f - abs_start) // 4
+                        # Alternate between open and medium open
+                        mouth_z = mouth_open_amp if (cycle % 2 == 0) else mouth_mid_amp
+                        mouth.scale.z = mouth_z
+                        mouth.keyframe_insert(data_path="scale", frame=f)
 
-                mouth.scale.z = 1.0
-                mouth.keyframe_insert(data_path="scale", frame=min(scene_end_frame, abs_end + 1))
+                    mouth.scale.z = rest[0][2]
+                    mouth.keyframe_insert(data_path="scale", frame=min(scene_end_frame, abs_end + 1))
 
             # 2. Head turning toward partner when speaking
             if head:
@@ -638,12 +829,18 @@ def main():
             # 4. Listener behavior: strict mouth rest and attentive head orientation
             for other_id, other_map in character_maps.items():
                 if other_id != speaker_id:
-                    # Guarantee listener's mouth does not flap during partner's speech
+                    # The listener's mouth must not move during the partner's
+                    # speech, on every channel the speaker animation uses.
                     o_mouth = other_map.get("Mesh_Mouth")
                     if o_mouth:
-                        o_mouth.scale.z = 1.0
+                        o_rest = rest_mouth.get(other_id)
+                        if o_rest:
+                            o_mouth.scale = o_rest[0]
+                            o_mouth.location = o_rest[1]
                         o_mouth.keyframe_insert(data_path="scale", frame=abs_start)
                         o_mouth.keyframe_insert(data_path="scale", frame=abs_end)
+                        o_mouth.keyframe_insert(data_path="location", frame=abs_start)
+                        o_mouth.keyframe_insert(data_path="location", frame=abs_end)
 
                     o_head = other_map.get("Anchor_Head")
                     if o_head:
@@ -763,6 +960,24 @@ def main():
             }
         )
 
+        # Where the mouth actually lands on screen, at the frames where a viseme
+        # was keyed, so the evidence crops the mouth rather than a guess.
+        evidence_frames = sorted({
+            frame
+            for mode in lip_sync_modes.values()
+            for frame in mode.get("frames", [])
+        })
+        lip_sync_reports.append({
+            "scene_id": scene_def.get("scene_id", f"scene_{s_idx + 1:02d}"),
+            "speakers": lip_sync_modes,
+            "real_lip_sync": any(
+                mode.get("mode") == "viseme" for mode in lip_sync_modes.values()
+            ),
+            "mouth_boxes": mouth_screen_boxes(
+                character_maps, evidence_frames, framing_profile, solve, sensor_width_mm
+            ),
+        })
+
         log(
             f"Framed {intent.key} for {framing_profile.aspect_ratio}: "
             f"lens={solve.lens:.1f}mm distance={solve.distance:.2f}m "
@@ -867,6 +1082,10 @@ def main():
                 "right": framing_profile.safe.right,
             },
             "scenes": framing_reports,
+        },
+        "lip_sync": {
+            "scenes": lip_sync_reports,
+            "real_lip_sync": any(r["real_lip_sync"] for r in lip_sync_reports),
         },
     }
     with open(result_path, "w", encoding="utf-8") as f:

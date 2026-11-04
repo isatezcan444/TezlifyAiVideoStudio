@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "text": "Merhaba Ayşe, bugün nasılsın?",
+    "wav": "tools/alignment_probe/s1.wav",
+    "duration": 2.191
+  },
+  {
+    "id": 2,
+    "text": "Bugün birlikte güzel bir kahve içelim.",
+    "wav": "tools/alignment_probe/s2.wav",
+    "duration": 2.676
+  },
+  {
+    "id": 3,
+    "text": "Çocuklar dışarıda oyun oynuyor.",
+    "wav": "tools/alignment_probe/s3.wav",
+    "duration": 2.384
+  },
+  {
+    "id": 4,
+    "text": "Üç küçük kuş ağaçta ötüyor.",
+    "wav": "tools/alignment_probe/s4.wav",
+    "duration": 2.343
+  }
+]

@@ -1,0 +1,578 @@
+[
+  {
+    "viseme": "CLOSED",
+    "phoneme": "m",
+    "dialogue_time": 0.02,
+    "frame": 14,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_closed_t00.02s_f0014.png",
+    "mouth_screen_box": {
+      "x0": 0.2734,
+      "x1": 0.3242,
+      "y_top": 0.281,
+      "y_bottom": 0.2955
+    },
+    "mouth_crop": [
+      285,
+      530,
+      359,
+      576
+    ],
+    "signature": {
+      "mean_luma": 85.355,
+      "dark_pixel_ratio": 0.0955,
+      "pixels": 3404
+    }
+  },
+  {
+    "viseme": "OPEN",
+    "phoneme": "e",
+    "dialogue_time": 0.1,
+    "frame": 16,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_open_t00.10s_f0016.png",
+    "mouth_screen_box": {
+      "x0": 0.2711,
+      "x1": 0.3195,
+      "y_top": 0.285,
+      "y_bottom": 0.294
+    },
+    "mouth_crop": [
+      283,
+      532,
+      354,
+      578
+    ],
+    "signature": {
+      "mean_luma": 115.88,
+      "dark_pixel_ratio": 0.3086,
+      "pixels": 3266
+    }
+  },
+  {
+    "viseme": "DENTAL",
+    "phoneme": "r",
+    "dialogue_time": 0.18,
+    "frame": 18,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_dental_t00.18s_f0018.png",
+    "mouth_screen_box": {
+      "x0": 0.2804,
+      "x1": 0.3309,
+      "y_top": 0.2874,
+      "y_bottom": 0.3146
+    },
+    "mouth_crop": [
+      293,
+      542,
+      366,
+      613
+    ],
+    "signature": {
+      "mean_luma": 66.669,
+      "dark_pixel_ratio": 0.2215,
+      "pixels": 5183
+    }
+  },
+  {
+    "viseme": "VELAR",
+    "phoneme": "h",
+    "dialogue_time": 0.24,
+    "frame": 20,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_velar_t00.24s_f0020.png",
+    "mouth_screen_box": {
+      "x0": 0.2788,
+      "x1": 0.3321,
+      "y_top": 0.2862,
+      "y_bottom": 0.3024
+    },
+    "mouth_crop": [
+      291,
+      542,
+      368,
+      588
+    ],
+    "signature": {
+      "mean_luma": 83.068,
+      "dark_pixel_ratio": 0.1313,
+      "pixels": 3542
+    }
+  },
+  {
+    "viseme": "OPEN",
+    "phoneme": "a",
+    "dialogue_time": 0.3,
+    "frame": 22,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_open_t00.30s_f0022.png",
+    "mouth_screen_box": {
+      "x0": 0.2814,
+      "x1": 0.3294,
+      "y_top": 0.2874,
+      "y_bottom": 0.3055
+    },
+    "mouth_crop": [
+      294,
+      545,
+      364,
+      592
+    ],
+    "signature": {
+      "mean_luma": 98.654,
+      "dark_pixel_ratio": 0.403,
+      "pixels": 3290
+    }
+  },
+  {
+    "viseme": "CLOSED",
+    "phoneme": "b",
+    "dialogue_time": 0.4,
+    "frame": 25,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_closed_t00.40s_f0025.png",
+    "mouth_screen_box": {
+      "x0": 0.281,
+      "x1": 0.329,
+      "y_top": 0.2892,
+      "y_bottom": 0.2983
+    },
+    "mouth_crop": [
+      294,
+      540,
+      364,
+      587
+    ],
+    "signature": {
+      "mean_luma": 80.685,
+      "dark_pixel_ratio": 0.0863,
+      "pixels": 3290
+    }
+  },
+  {
+    "viseme": "OPEN",
+    "phoneme": "a",
+    "dialogue_time": 0.46,
+    "frame": 27,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_open_t00.46s_f0027.png",
+    "mouth_screen_box": {
+      "x0": 0.281,
+      "x1": 0.329,
+      "y_top": 0.2892,
+      "y_bottom": 0.2983
+    },
+    "mouth_crop": [
+      294,
+      540,
+      364,
+      587
+    ],
+    "signature": {
+      "mean_luma": 107.915,
+      "dark_pixel_ratio": 0.2675,
+      "pixels": 3290
+    }
+  },
+  {
+    "viseme": "OPEN",
+    "phoneme": "a",
+    "dialogue_time": 0.58,
+    "frame": 30,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_open_t00.58s_f0030.png",
+    "mouth_screen_box": {
+      "x0": 0.2795,
+      "x1": 0.3304,
+      "y_top": 0.2927,
+      "y_bottom": 0.3201
+    },
+    "mouth_crop": [
+      292,
+      552,
+      366,
+      623
+    ],
+    "signature": {
+      "mean_luma": 78.749,
+      "dark_pixel_ratio": 0.3892,
+      "pixels": 5254
+    }
+  },
+  {
+    "viseme": "NARROW_ROUND",
+    "phoneme": "y",
+    "dialogue_time": 0.68,
+    "frame": 33,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_narrow_round_t00.68s_f0033.png",
+    "mouth_screen_box": {
+      "x0": 0.2872,
+      "x1": 0.3222,
+      "y_top": 0.293,
+      "y_bottom": 0.3106
+    },
+    "mouth_crop": [
+      303,
+      556,
+      354,
+      602
+    ],
+    "signature": {
+      "mean_luma": 80.132,
+      "dark_pixel_ratio": 0.1206,
+      "pixels": 2346
+    }
+  },
+  {
+    "viseme": "SIBILANT",
+    "phoneme": "ş",
+    "dialogue_time": 0.76,
+    "frame": 36,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_sibilant_t00.76s_f0036.png",
+    "mouth_screen_box": {
+      "x0": 0.2742,
+      "x1": 0.3346,
+      "y_top": 0.2911,
+      "y_bottom": 0.3039
+    },
+    "mouth_crop": [
+      284,
+      548,
+      372,
+      594
+    ],
+    "signature": {
+      "mean_luma": 79.994,
+      "dark_pixel_ratio": 0.1131,
+      "pixels": 4048
+    }
+  },
+  {
+    "viseme": "OPEN",
+    "phoneme": "e",
+    "dialogue_time": 0.84,
+    "frame": 38,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_open_t00.84s_f0038.png",
+    "mouth_screen_box": {
+      "x0": 0.2742,
+      "x1": 0.3346,
+      "y_top": 0.2911,
+      "y_bottom": 0.3039
+    },
+    "mouth_crop": [
+      284,
+      548,
+      372,
+      594
+    ],
+    "signature": {
+      "mean_luma": 103.236,
+      "dark_pixel_ratio": 0.3599,
+      "pixels": 4048
+    }
+  },
+  {
+    "viseme": "CLOSED",
+    "phoneme": "b",
+    "dialogue_time": 0.96,
+    "frame": 42,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_closed_t00.96s_f0042.png",
+    "mouth_screen_box": {
+      "x0": 0.2801,
+      "x1": 0.3281,
+      "y_top": 0.2922,
+      "y_bottom": 0.3014
+    },
+    "mouth_crop": [
+      293,
+      546,
+      363,
+      592
+    ],
+    "signature": {
+      "mean_luma": 81.036,
+      "dark_pixel_ratio": 0.0845,
+      "pixels": 3220
+    }
+  },
+  {
+    "viseme": "NARROW_ROUND",
+    "phoneme": "u",
+    "dialogue_time": 1.02,
+    "frame": 44,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_narrow_round_t01.02s_f0044.png",
+    "mouth_screen_box": {
+      "x0": 0.2801,
+      "x1": 0.3281,
+      "y_top": 0.2922,
+      "y_bottom": 0.3014
+    },
+    "mouth_crop": [
+      293,
+      546,
+      363,
+      592
+    ],
+    "signature": {
+      "mean_luma": 88.794,
+      "dark_pixel_ratio": 0.1553,
+      "pixels": 3220
+    }
+  },
+  {
+    "viseme": "VELAR",
+    "phoneme": "g",
+    "dialogue_time": 1.1,
+    "frame": 46,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_velar_t01.10s_f0046.png",
+    "mouth_screen_box": {
+      "x0": 0.2866,
+      "x1": 0.3217,
+      "y_top": 0.2931,
+      "y_bottom": 0.3107
+    },
+    "mouth_crop": [
+      302,
+      556,
+      354,
+      602
+    ],
+    "signature": {
+      "mean_luma": 78.4,
+      "dark_pixel_ratio": 0.1442,
+      "pixels": 2392
+    }
+  },
+  {
+    "viseme": "NARROW_ROUND",
+    "phoneme": "ü",
+    "dialogue_time": 1.16,
+    "frame": 48,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_narrow_round_t01.16s_f0048.png",
+    "mouth_screen_box": {
+      "x0": 0.2799,
+      "x1": 0.3282,
+      "y_top": 0.2916,
+      "y_bottom": 0.3098
+    },
+    "mouth_crop": [
+      293,
+      553,
+      363,
+      600
+    ],
+    "signature": {
+      "mean_luma": 78.94,
+      "dark_pixel_ratio": 0.169,
+      "pixels": 3290
+    }
+  },
+  {
+    "viseme": "DENTAL",
+    "phoneme": "n",
+    "dialogue_time": 1.22,
+    "frame": 50,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_dental_t01.22s_f0050.png",
+    "mouth_screen_box": {
+      "x0": 0.2865,
+      "x1": 0.3215,
+      "y_top": 0.2919,
+      "y_bottom": 0.3096
+    },
+    "mouth_crop": [
+      302,
+      554,
+      353,
+      600
+    ],
+    "signature": {
+      "mean_luma": 74.981,
+      "dark_pixel_ratio": 0.1151,
+      "pixels": 2346
+    }
+  },
+  {
+    "viseme": "DENTAL",
+    "phoneme": "n",
+    "dialogue_time": 1.3,
+    "frame": 52,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_dental_t01.30s_f0052.png",
+    "mouth_screen_box": {
+      "x0": 0.2771,
+      "x1": 0.3307,
+      "y_top": 0.2899,
+      "y_bottom": 0.3063
+    },
+    "mouth_crop": [
+      289,
+      549,
+      367,
+      595
+    ],
+    "signature": {
+      "mean_luma": 77.665,
+      "dark_pixel_ratio": 0.1538,
+      "pixels": 3588
+    }
+  },
+  {
+    "viseme": "OPEN",
+    "phoneme": "a",
+    "dialogue_time": 1.36,
+    "frame": 54,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_open_t01.36s_f0054.png",
+    "mouth_screen_box": {
+      "x0": 0.277,
+      "x1": 0.3306,
+      "y_top": 0.2891,
+      "y_bottom": 0.3055
+    },
+    "mouth_crop": [
+      289,
+      547,
+      367,
+      593
+    ],
+    "signature": {
+      "mean_luma": 96.675,
+      "dark_pixel_ratio": 0.4058,
+      "pixels": 3588
+    }
+  },
+  {
+    "viseme": "SIBILANT",
+    "phoneme": "s",
+    "dialogue_time": 1.48,
+    "frame": 57,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_sibilant_t01.48s_f0057.png",
+    "mouth_screen_box": {
+      "x0": 0.2735,
+      "x1": 0.3338,
+      "y_top": 0.2862,
+      "y_bottom": 0.2989
+    },
+    "mouth_crop": [
+      283,
+      538,
+      371,
+      584
+    ],
+    "signature": {
+      "mean_luma": 79.203,
+      "dark_pixel_ratio": 0.1164,
+      "pixels": 4048
+    }
+  },
+  {
+    "viseme": "WIDE",
+    "phoneme": "ı",
+    "dialogue_time": 1.56,
+    "frame": 60,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_wide_t01.56s_f0060.png",
+    "mouth_screen_box": {
+      "x0": 0.269,
+      "x1": 0.3383,
+      "y_top": 0.2838,
+      "y_bottom": 0.3002
+    },
+    "mouth_crop": [
+      277,
+      537,
+      378,
+      583
+    ],
+    "signature": {
+      "mean_luma": 78.691,
+      "dark_pixel_ratio": 0.1685,
+      "pixels": 4646
+    }
+  },
+  {
+    "viseme": "DENTAL",
+    "phoneme": "l",
+    "dialogue_time": 1.64,
+    "frame": 62,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_dental_t01.64s_f0062.png",
+    "mouth_screen_box": {
+      "x0": 0.269,
+      "x1": 0.3383,
+      "y_top": 0.2838,
+      "y_bottom": 0.3002
+    },
+    "mouth_crop": [
+      277,
+      537,
+      378,
+      583
+    ],
+    "signature": {
+      "mean_luma": 79.07,
+      "dark_pixel_ratio": 0.1769,
+      "pixels": 4646
+    }
+  },
+  {
+    "viseme": "SIBILANT",
+    "phoneme": "s",
+    "dialogue_time": 1.76,
+    "frame": 66,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_sibilant_t01.76s_f0066.png",
+    "mouth_screen_box": {
+      "x0": 0.2736,
+      "x1": 0.3338,
+      "y_top": 0.2832,
+      "y_bottom": 0.2957
+    },
+    "mouth_crop": [
+      284,
+      532,
+      371,
+      578
+    ],
+    "signature": {
+      "mean_luma": 78.476,
+      "dark_pixel_ratio": 0.1217,
+      "pixels": 4002
+    }
+  },
+  {
+    "viseme": "WIDE",
+    "phoneme": "ı",
+    "dialogue_time": 1.84,
+    "frame": 68,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_wide_t01.84s_f0068.png",
+    "mouth_screen_box": {
+      "x0": 0.2736,
+      "x1": 0.3338,
+      "y_top": 0.2832,
+      "y_bottom": 0.2957
+    },
+    "mouth_crop": [
+      284,
+      532,
+      371,
+      578
+    ],
+    "signature": {
+      "mean_luma": 80.264,
+      "dark_pixel_ratio": 0.1277,
+      "pixels": 4002
+    }
+  },
+  {
+    "viseme": "DENTAL",
+    "phoneme": "n",
+    "dialogue_time": 1.9,
+    "frame": 70,
+    "path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_4/demo/ali_dental_t01.90s_f0070.png",
+    "mouth_screen_box": {
+      "x0": 0.2692,
+      "x1": 0.3383,
+      "y_top": 0.2816,
+      "y_bottom": 0.2978
+    },
+    "mouth_crop": [
+      277,
+      533,
+      378,
+      579
+    ],
+    "signature": {
+      "mean_luma": 79.048,
+      "dark_pixel_ratio": 0.1756,
+      "pixels": 4646
+    }
+  }
+]

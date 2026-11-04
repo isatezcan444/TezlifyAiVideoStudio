@@ -26,3 +26,6 @@ class RenderOutputMetadata(BaseModel):
     text_layer_count: int = 0
     transition_count: int = 0
     scene_count: int = 0
+
+    # Stage 5.4 lip sync (optional for backwards compatibility with stored renders)
+    lip_sync: Optional[dict] = None

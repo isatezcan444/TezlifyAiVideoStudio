@@ -1,10 +1,12 @@
 from typing import List, Optional
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 from tezlify_studio.domain.enums.studio_status import (
+    AlignmentSource,
     CameraAngle,
     CameraMovement,
     CharacterPose,
     CharacterExpression,
+    MouthViseme,
     TransitionType,
     VisemeShape,
 )
@@ -55,10 +57,46 @@ class CharacterPlacement(BaseModel):
         return self
 
 class DialogueViseme(BaseModel):
+    """One mouth shape over one interval of a dialogue.
+
+    Stage 5.4 turned this from a schema placeholder into the render contract for
+    lip sync. ``time`` and ``shape`` are kept for stored projects written before
+    that; ``viseme`` / ``end_time`` / ``source`` are what the renderer now reads.
+    The default ``source`` is ``ESTIMATED`` on purpose: anything that was written
+    without saying otherwise was derived from text, not measured from audio.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     time: float = Field(..., ge=0.0, description="Timestamp in seconds relative to dialogue start")
     shape: VisemeShape = Field(default=VisemeShape.X)
+    end_time: Optional[float] = Field(default=None, ge=0.0)
+    viseme: Optional[MouthViseme] = Field(default=None)
+    phoneme: Optional[str] = Field(default=None, max_length=8)
+    confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    source: AlignmentSource = Field(default=AlignmentSource.ESTIMATED)
+
+    @model_validator(mode="after")
+    def validate_viseme_span(self) -> "DialogueViseme":
+        if self.end_time is not None and self.end_time <= self.time:
+            raise InvalidDialogueTimingException(
+                f"Viseme bitiş zamanı ({self.end_time}s) başlangıçtan ({self.time}s) büyük olmalıdır."
+            )
+        return self
+
+    @property
+    def duration_seconds(self) -> float:
+        if self.end_time is None:
+            return 0.0
+        return round(self.end_time - self.time, 6)
+
+    @property
+    def is_measured(self) -> bool:
+        """True only when this shape's timing came from the actual audio."""
+        return self.source in (
+            AlignmentSource.CTC_FORCED,
+            AlignmentSource.ELEVENLABS_TIMING,
+        )
 
 class SceneDialogue(BaseModel):
     model_config = ConfigDict(extra="forbid")

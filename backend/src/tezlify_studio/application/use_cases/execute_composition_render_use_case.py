@@ -8,6 +8,7 @@ from tezlify_studio.application.ports.composition_repository_port import (
     CompositionRepositoryPort,
 )
 from tezlify_studio.application.ports.voice_synthesizer_port import VoiceSynthesizerPort
+from tezlify_studio.application.services.lip_sync_resolver import LipSyncResolver
 from tezlify_studio.application.use_cases.synthesize_dialogue_audio_use_case import (
     SynthesizeDialogueAudioUseCase,
 )
@@ -41,9 +42,11 @@ class ExecuteCompositionRenderUseCase:
         self,
         composition_engine,
         voice_synthesizer: Optional[VoiceSynthesizerPort] = None,
+        lip_sync_resolver: Optional[LipSyncResolver] = None,
     ):
         self.composition_engine = composition_engine
         self.voice_synthesizer = voice_synthesizer
+        self.lip_sync_resolver = lip_sync_resolver
 
     def execute(
         self,
@@ -106,6 +109,26 @@ class ExecuteCompositionRenderUseCase:
                 [scene.scene_id for scene in project.scene_graph.scenes],
             )
 
+            # Stage 5.4: mouth timings come from the dialogue audio itself. Runs
+            # after synthesis so it aligns what will actually be heard, and a
+            # failure must never block a render that worked before this stage.
+            scene_graph = project.scene_graph
+            if self.lip_sync_resolver is not None:
+                try:
+                    job.update_progress(8.0, "Aligning dialogue audio for lip sync")
+                    job_repo.save(job)
+                    scene_graph, lip_sync_report = self.lip_sync_resolver.resolve(
+                        project.scene_graph
+                    )
+                    if lip_sync_report.dialogues_aligned:
+                        project.update_scene_graph(scene_graph)
+                        project_repo.save(project)
+                    logger.info(f"Lip sync report: {lip_sync_report.to_dict()}")
+                except Exception as exc:
+                    logger.warning(
+                        f"Lip sync alignment failed ({exc}). Using legacy mouth animation."
+                    )
+
             last_progress = [0.0]
 
             def on_progress(pct: float, step: str) -> None:
@@ -127,7 +150,7 @@ class ExecuteCompositionRenderUseCase:
 
             try:
                 metadata = self.composition_engine.render_composition(
-                    scene_graph=project.scene_graph,
+                    scene_graph=scene_graph,
                     composition=composition,
                     project_id=project_id,
                     job_id=job_id,

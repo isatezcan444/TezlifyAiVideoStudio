@@ -137,6 +137,7 @@ class FFmpegCompositionEngine:
         scene_clips: Dict[str, str] = {}
         clip_durations: Dict[str, float] = {}
         clip_probe: Dict[str, dict] = {}
+        lip_sync_by_scene: Dict[str, dict] = {}
         rendered_scene_dirs: List[str] = []
 
         total_scenes = len(composition.scenes)
@@ -199,6 +200,8 @@ class FFmpegCompositionEngine:
 
             scene_clips[scene_id] = clip_path
             clip_durations[scene_id] = duration
+            if metadata.lip_sync:
+                lip_sync_by_scene[scene_id] = metadata.lip_sync
             rendered_scene_dirs.append(os.path.dirname(clip_path))
             report(
                 base_percent + (62.0 / total_scenes),
@@ -444,6 +447,7 @@ class FFmpegCompositionEngine:
                 1 for entry in timeline.entries if entry.transition != CompositionTransition.CUT
             ),
             scene_count=len(composition.scenes),
+            lip_sync=self._aggregate_lip_sync(lip_sync_by_scene),
         )
 
     # ------------------------------------------------------------------
@@ -677,6 +681,42 @@ class FFmpegCompositionEngine:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+    @staticmethod
+    def _aggregate_lip_sync(lip_sync_by_scene: Dict[str, dict]) -> Optional[dict]:
+        """Summarise per-scene lip sync into one honest statement for the render.
+
+        ``real_lip_sync`` is true only when at least one scene animated from
+        measured segments. A render that fell back everywhere says so rather than
+        reporting success it did not earn.
+        """
+        if not lip_sync_by_scene:
+            return None
+
+        scenes = []
+        speakers_total = 0
+        speakers_aligned = 0
+        for scene_id, payload in sorted(lip_sync_by_scene.items()):
+            scene_reports = payload.get("scenes") or []
+            modes = {}
+            for scene_report in scene_reports:
+                for char_id, mode in (scene_report.get("speakers") or {}).items():
+                    modes[char_id] = mode.get("mode", "legacy_flap")
+                    speakers_total += 1
+                    if mode.get("mode") == "viseme":
+                        speakers_aligned += 1
+            scenes.append({
+                "scene_id": scene_id,
+                "speakers": modes,
+                "real_lip_sync": any(v == "viseme" for v in modes.values()),
+            })
+
+        return {
+            "real_lip_sync": speakers_aligned > 0,
+            "speakers_total": speakers_total,
+            "speakers_aligned": speakers_aligned,
+            "scenes": scenes,
+        }
+
     @staticmethod
     def _overlay_spec(
         overlay: OverlayImage,

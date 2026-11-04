@@ -42,6 +42,15 @@ class Settings(BaseSettings):
     elevenlabs_default_model: str = Field(default="eleven_multilingual_v2", alias="ELEVENLABS_DEFAULT_MODEL")
     elevenlabs_api_base: str = Field(default="https://api.elevenlabs.io/v1", alias="ELEVENLABS_API_BASE")
 
+    # Phoneme / viseme lip sync (Aşama 5.4)
+    lip_sync_enabled: bool = Field(default=True, alias="LIP_SYNC_ENABLED")
+    alignment_venv_dir: str = Field(default="./tools/alignment-venv", alias="ALIGNMENT_VENV_DIR")
+    alignment_model_id: str = Field(
+        default="Baybars/wav2vec2-xls-r-300m-cv8-turkish",
+        alias="ALIGNMENT_MODEL_ID",
+    )
+    alignment_timeout_seconds: int = Field(default=600, alias="ALIGNMENT_TIMEOUT_SECONDS")
+
     model_config = SettingsConfigDict(
         env_file=os.path.join(PROJECT_ROOT, ".env"),
         env_file_encoding="utf-8",
@@ -91,6 +100,36 @@ class Settings(BaseSettings):
     @property
     def audio_cache_dir(self) -> str:
         path = os.path.join(self.resolved_data_dir, "audio_cache")
+        os.makedirs(os.path.abspath(path), exist_ok=True)
+        return os.path.abspath(path)
+
+    @property
+    def resolved_alignment_venv_dir(self) -> str:
+        if os.path.isabs(self.alignment_venv_dir):
+            return self.alignment_venv_dir
+        return os.path.abspath(os.path.join(PROJECT_ROOT, self.alignment_venv_dir))
+
+    @property
+    def alignment_python_executable(self) -> str:
+        """Interpreter of the isolated alignment environment, if it exists.
+
+        The application venv is Python 3.14 with no ML stack; torch and
+        transformers live only in this separate environment and are reached by
+        subprocess.
+        """
+        candidate = os.path.join(self.resolved_alignment_venv_dir, "bin", "python")
+        return candidate if os.path.isfile(candidate) else ""
+
+    @property
+    def alignment_cache_dir(self) -> str:
+        path = os.path.join(self.resolved_data_dir, "alignment_cache")
+        os.makedirs(os.path.abspath(path), exist_ok=True)
+        return os.path.abspath(path)
+
+    @property
+    def alignment_model_cache_dir(self) -> str:
+        """HuggingFace cache kept inside the repo tree so no model lands in $HOME."""
+        path = os.path.join(PROJECT_ROOT, "tools", "hf-cache")
         os.makedirs(os.path.abspath(path), exist_ok=True)
         return os.path.abspath(path)
 

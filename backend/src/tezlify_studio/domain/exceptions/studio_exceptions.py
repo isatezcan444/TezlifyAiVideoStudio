@@ -181,3 +181,30 @@ class CompositionFontException(StudioDomainException):
         super().__init__(message, error_code="COMPOSITION_FONT_NOT_FOUND")
 
 
+# ==========================================
+# Phoneme / viseme lip sync (Stage 5.4)
+# ==========================================
+
+class InvalidAlignmentException(StudioDomainException):
+    def __init__(self, message: str):
+        super().__init__(message, error_code="INVALID_SPEECH_ALIGNMENT")
+
+
+class AlignmentUnavailableException(StudioDomainException):
+    """Raised when no provider can produce real alignment.
+
+    This is an expected, reportable state rather than a crash: the caller falls
+    back to the legacy mouth animation and labels it as such.
+    """
+
+    def __init__(self, message: str, details: str = ""):
+        super().__init__(message, error_code="ALIGNMENT_UNAVAILABLE")
+        self.details = details
+
+
+class AlignmentProviderException(StudioDomainException):
+    def __init__(self, message: str, details: str = ""):
+        super().__init__(message, error_code="ALIGNMENT_PROVIDER_FAILED")
+        self.details = details
+
+

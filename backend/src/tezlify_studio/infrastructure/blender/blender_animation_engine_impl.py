@@ -382,6 +382,7 @@ class BlenderAnimationEngineImpl(BlenderAnimationEnginePort):
             frame_count=total_frames,
             render_duration_seconds=render_duration,
             engine=worker_result.get("engine", "BLENDER_WORKBENCH"),
+            lip_sync=worker_result.get("lip_sync"),
         )
 
         # Save metadata to disk
