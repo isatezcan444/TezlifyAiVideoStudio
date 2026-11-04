@@ -12,6 +12,11 @@ class BlenderAnimationEnginePort(ABC):
         job_id: str,
         progress_callback: Optional[Callable[[float, str], None]] = None,
         engine_override: Optional[str] = None,
+        include_audio: bool = True,
     ) -> RenderOutputMetadata:
-        """Renders the given scene graph to a playable, validated MP4 video."""
+        """Renders the given scene graph to a playable, validated MP4 video.
+
+        ``include_audio=False`` is used by the composition engine, which builds a
+        single continuous audio track for the whole edit instead of per-clip audio.
+        """
         pass

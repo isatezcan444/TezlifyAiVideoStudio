@@ -72,6 +72,7 @@ export interface RenderJob {
   current_step: string;
   output_video_path?: string | null;
   output_metadata?: {
+    video_file_path?: string;
     file_size_bytes: number;
     duration_seconds: number;
     width: number;
@@ -83,6 +84,14 @@ export interface RenderJob {
     frame_count: number;
     render_duration_seconds: number;
     engine: string;
+    composition_id?: string | null;
+    composition_name?: string | null;
+    format?: string | null;
+    subtitle_file_path?: string | null;
+    subtitle_cue_count?: number;
+    text_layer_count?: number;
+    transition_count?: number;
+    scene_count?: number;
   } | null;
   error_message?: string | null;
   created_at: string;
@@ -135,6 +144,103 @@ export interface VoiceStatusResponse {
   is_configured: boolean;
   default_model: string;
   provider: string;
+}
+
+// --- Video Composition Studio (Stage 4.5) ---
+
+export type CompositionFormat = '16:9' | '9:16' | '1:1';
+
+export type CompositionTransition = 'cut' | 'fade_in' | 'fade_out' | 'crossfade';
+
+export type CompositionTextAnchor =
+  | 'top_left'
+  | 'top_center'
+  | 'top_right'
+  | 'center_left'
+  | 'center'
+  | 'center_right'
+  | 'bottom_left'
+  | 'bottom_center'
+  | 'bottom_right';
+
+export interface CompositionScene {
+  scene_id: string;
+  transition: CompositionTransition;
+  transition_duration_seconds: number;
+}
+
+export interface CompositionTextLayer {
+  id: string;
+  text: string;
+  start_time: number;
+  end_time: number;
+  anchor: CompositionTextAnchor;
+  x_ratio: number;
+  y_ratio: number;
+  font_size: number;
+  color: string;
+  background_color: string | null;
+  background_opacity: number;
+  fade_in_seconds: number;
+  fade_out_seconds: number;
+  max_width_ratio: number;
+  bold: boolean;
+}
+
+export interface CompositionSubtitleSettings {
+  enabled: boolean;
+  burn_in: boolean;
+  save_srt: boolean;
+  font_size: number;
+  color: string;
+  background_color: string;
+  background_opacity: number;
+  margin_bottom_ratio: number;
+  max_width_ratio: number;
+  max_chars_per_line: number;
+}
+
+export interface CompositionAudioSettings {
+  dialogue_volume_db: number;
+  music_file: string | null;
+  music_volume_db: number;
+  limiter_enabled: boolean;
+  limiter_limit: number;
+}
+
+export interface VideoComposition {
+  id: string;
+  project_id: string;
+  name: string;
+  format: CompositionFormat;
+  width: number;
+  height: number;
+  fps: number;
+  scenes: CompositionScene[];
+  text_layers: CompositionTextLayer[];
+  subtitles: CompositionSubtitleSettings;
+  audio: CompositionAudioSettings;
+  output_format: 'mp4';
+}
+
+export interface CompositionTimelineEntry {
+  scene_id: string;
+  order: number;
+  duration_seconds: number;
+  start_time: number;
+  end_time: number;
+  transition: CompositionTransition;
+  transition_duration_seconds: number;
+}
+
+export interface CompositionSummary {
+  composition: VideoComposition;
+  timeline: CompositionTimelineEntry[];
+  total_duration_seconds: number;
+  scene_count: number;
+  text_layer_count: number;
+  transition_count: number;
+  is_saved: boolean;
 }
 
 

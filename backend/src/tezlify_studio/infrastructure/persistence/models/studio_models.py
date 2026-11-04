@@ -65,6 +65,22 @@ class StudioAssetModel(Base):
         nullable=False,
     )
 
+class VideoCompositionModel(Base):
+    __tablename__ = "video_compositions"
+
+    id = Column(String(64), primary_key=True, index=True)
+    project_id = Column(String(64), nullable=False, unique=True, index=True)
+    name = Column(String(255), nullable=False)
+    composition_json = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
 class RenderJobModel(Base):
     __tablename__ = "render_jobs"
 

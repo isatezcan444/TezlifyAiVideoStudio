@@ -24,6 +24,8 @@ import {
   StudioProjectListResponse,
   VoiceListResponse,
   VoiceStatusResponse,
+  CompositionSummary,
+  VideoComposition,
 } from '../types/studio';
 
 const API_BASE = '/api/v1';
@@ -454,6 +456,57 @@ export const apiService = {
     const res = await fetch(`${API_BASE}/studio/voices/status`);
     if (!res.ok) throw new ApiError('Ses servis durumu alınamadı.', res.status);
     return res.json();
+  },
+
+  // --- Video Composition Studio (Stage 4.5) ---
+  async getProjectComposition(projectId: string): Promise<CompositionSummary> {
+    const res = await fetch(`${API_BASE}/studio/projects/${projectId}/composition`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'Kompozisyon yüklenemedi.', res.status, err.error_code);
+    }
+    return res.json();
+  },
+
+  async saveProjectComposition(
+    projectId: string,
+    composition: VideoComposition
+  ): Promise<CompositionSummary> {
+    const res = await fetch(`${API_BASE}/studio/projects/${projectId}/composition`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ composition }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'Kompozisyon kaydedilemedi.', res.status, err.error_code);
+    }
+    return res.json();
+  },
+
+  async startCompositionRender(
+    projectId: string,
+    composition: VideoComposition,
+    options: { engineOverride?: string; synthesizeVoices?: boolean } = {}
+  ): Promise<RenderJob> {
+    const payload: Record<string, any> = { composition };
+    if (options.engineOverride) payload.engine_override = options.engineOverride;
+    if (options.synthesizeVoices !== undefined) payload.synthesize_voices = options.synthesizeVoices;
+
+    const res = await fetch(`${API_BASE}/studio/projects/${projectId}/composition/render`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new ApiError(err.detail || 'Kompozisyon render işlemi başlatılamadı.', res.status, err.error_code);
+    }
+    return res.json();
+  },
+
+  getRenderSubtitlesUrl(jobId: string): string {
+    return `${API_BASE}/studio/renders/${jobId}/subtitles`;
   },
 };
 

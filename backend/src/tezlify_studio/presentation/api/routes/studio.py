@@ -30,6 +30,11 @@ from tezlify_studio.presentation.schemas.voice_schemas import (
     VoiceStatusResponse,
     VoicePreviewRequest,
 )
+from tezlify_studio.presentation.schemas.composition_schemas import (
+    SaveCompositionRequest,
+    StartCompositionRenderRequest,
+    CompositionSummaryResponse,
+)
 from tezlify_studio.application.dto.render_dto import (
     StartRenderRequestDTO,
 )
@@ -52,6 +57,18 @@ from tezlify_studio.application.dto.studio_dto import (
     CreateStudioProjectRequestDTO,
     UpdateStudioProjectRequestDTO,
     GenerateStoryRequestDTO,
+)
+from tezlify_studio.application.dto.composition_dto import (
+    StartCompositionRenderRequestDTO,
+)
+from tezlify_studio.application.use_cases.get_project_composition_use_case import (
+    GetProjectCompositionUseCase,
+)
+from tezlify_studio.application.use_cases.save_project_composition_use_case import (
+    SaveProjectCompositionUseCase,
+)
+from tezlify_studio.application.use_cases.start_composition_render_use_case import (
+    StartCompositionRenderUseCase,
 )
 from tezlify_studio.application.dto.character_dto import (
     CreateCharacterRequestDTO,
@@ -115,6 +132,9 @@ from tezlify_studio.presentation.dependencies.container import (
     get_list_project_renders_use_case,
     get_list_voices_use_case,
     get_synthesize_dialogue_audio_use_case,
+    get_project_composition_use_case,
+    get_save_project_composition_use_case,
+    get_start_composition_render_use_case,
 )
 
 router = APIRouter(prefix="/studio", tags=["AI Studio"])
@@ -428,6 +448,72 @@ def get_voice_status(
         "default_model": settings.elevenlabs_default_model,
         "provider": "ElevenLabs",
     }
+
+# ==========================================
+# Video Composition Studio (Stage 4.5)
+# ==========================================
+
+@router.get(
+    "/projects/{project_id}/composition",
+    response_model=CompositionSummaryResponse,
+    status_code=status.HTTP_200_OK,
+)
+def get_project_composition(
+    project_id: str = Path(..., min_length=1),
+    use_case: GetProjectCompositionUseCase = Depends(get_project_composition_use_case),
+):
+    return use_case.execute(project_id).model_dump()
+
+
+@router.put(
+    "/projects/{project_id}/composition",
+    response_model=CompositionSummaryResponse,
+    status_code=status.HTTP_200_OK,
+)
+def save_project_composition(
+    project_id: str = Path(..., min_length=1),
+    req: SaveCompositionRequest = ...,
+    use_case: SaveProjectCompositionUseCase = Depends(get_save_project_composition_use_case),
+):
+    return use_case.execute(project_id, req.composition).model_dump()
+
+
+@router.post(
+    "/projects/{project_id}/composition/render",
+    response_model=RenderJobResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def start_composition_render(
+    project_id: str = Path(..., min_length=1),
+    req: Optional[StartCompositionRenderRequest] = None,
+    use_case: StartCompositionRenderUseCase = Depends(get_start_composition_render_use_case),
+):
+    dto = StartCompositionRenderRequestDTO(
+        project_id=project_id,
+        composition=req.composition if req else None,
+        engine_override=req.engine_override if req else None,
+        synthesize_voices=req.synthesize_voices if (req and req.synthesize_voices is not None) else True,
+    )
+    return use_case.execute(dto).__dict__
+
+
+@router.get("/renders/{job_id}/subtitles")
+def download_render_subtitles(
+    job_id: str = Path(..., min_length=1),
+    use_case: GetRenderJobUseCase = Depends(get_render_job_use_case),
+):
+    job = use_case.execute(job_id)
+    subtitle_path = None
+    if job.output_metadata:
+        # RenderJobDTO serialises metadata as a plain dict.
+        subtitle_path = job.output_metadata.get("subtitle_file_path")
+    if not subtitle_path or not os.path.isfile(subtitle_path):
+        raise HTTPException(status_code=404, detail="Bu render için SRT altyazı dosyası bulunamadı.")
+    return FileResponse(
+        subtitle_path,
+        media_type="application/x-subrip",
+        filename=f"{job_id}.srt",
+    )
 
 
 

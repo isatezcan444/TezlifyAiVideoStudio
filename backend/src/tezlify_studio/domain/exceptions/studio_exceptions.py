@@ -1,3 +1,6 @@
+from typing import Optional
+
+
 class StudioDomainException(Exception):
     """Base exception for all Studio domain errors."""
     def __init__(self, message: str, error_code: str = "STUDIO_ERROR"):
@@ -146,5 +149,35 @@ class VoiceNotFoundException(ElevenLabsException):
 class AudioSynthesisException(ElevenLabsException):
     def __init__(self, message: str):
         super().__init__(message, error_code="AUDIO_SYNTHESIS_FAILED")
+
+
+# ==========================================
+# Video Composition Studio (Stage 4.5)
+# ==========================================
+
+class InvalidCompositionException(StudioDomainException):
+    def __init__(self, message: str):
+        super().__init__(message, error_code="INVALID_COMPOSITION")
+
+
+class CompositionNotFoundException(StudioDomainException):
+    def __init__(self, project_id: str):
+        super().__init__(
+            f"Proje için kompozisyon bulunamadı: '{project_id}'",
+            error_code="COMPOSITION_NOT_FOUND",
+        )
+        self.project_id = project_id
+
+
+class CompositionRenderException(StudioDomainException):
+    def __init__(self, message: str, scene_id: Optional[str] = None, details: str = ""):
+        super().__init__(message, error_code="COMPOSITION_RENDER_FAILED")
+        self.scene_id = scene_id
+        self.details = details
+
+
+class CompositionFontException(StudioDomainException):
+    def __init__(self, message: str):
+        super().__init__(message, error_code="COMPOSITION_FONT_NOT_FOUND")
 
 

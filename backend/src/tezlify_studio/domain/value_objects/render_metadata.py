@@ -16,3 +16,13 @@ class RenderOutputMetadata(BaseModel):
     frame_count: int = Field(default=0, ge=0)
     render_duration_seconds: float = Field(default=0.0, ge=0.0)
     engine: str = "BLENDER_WORKBENCH"
+
+    # Stage 4.5 composition details (optional for backwards compatibility)
+    composition_id: Optional[str] = None
+    composition_name: Optional[str] = None
+    format: Optional[str] = None
+    subtitle_file_path: Optional[str] = None
+    subtitle_cue_count: int = 0
+    text_layer_count: int = 0
+    transition_count: int = 0
+    scene_count: int = 0

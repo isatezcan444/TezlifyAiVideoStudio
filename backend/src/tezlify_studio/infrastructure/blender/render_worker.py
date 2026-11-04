@@ -68,19 +68,37 @@ def setup_lighting():
     rim_obj.rotation_euler = (-0.8, 0.0, 3.14)
     bpy.context.collection.objects.link(rim_obj)
 
-def get_camera_positions(angle_str: str):
-    """Returns (cam_location, target_location, lens_mm) for camera angle."""
+def get_camera_positions(angle_str: str, aspect_ratio: str = "16:9"):
+    """Returns (cam_location, target_location, lens_mm) for camera angle.
+
+    Camera sensor fit is horizontal, so changing the output aspect ratio keeps
+    the same horizontal composition. Portrait/square frames add vertical
+    headroom instead of cropping characters out of frame; the backdrop is
+    extended separately so that headroom never turns into a black void.
+    """
     angle_lower = (angle_str or "medium_shot").lower()
     if "wide" in angle_lower:
-        return (0.0, -4.6, 1.4), (0.0, 0.0, 1.0), 38.0
+        base = ((0.0, -4.6, 1.4), (0.0, 0.0, 1.0), 38.0)
     elif "close" in angle_lower:
-        return (0.0, -1.9, 1.35), (0.0, 0.0, 1.35), 65.0
+        base = ((0.0, -1.9, 1.35), (0.0, 0.0, 1.35), 65.0)
     elif "two_shot" in angle_lower or "two" in angle_lower:
-        return (0.0, -3.2, 1.25), (0.0, 0.0, 1.05), 45.0
+        base = ((0.0, -3.2, 1.25), (0.0, 0.0, 1.05), 45.0)
     elif "shoulder" in angle_lower:
-        return (-0.6, -2.1, 1.35), (0.5, 0.0, 1.25), 55.0
-    else: # medium_shot
-        return (0.0, -3.0, 1.3), (0.0, 0.0, 1.1), 48.0
+        base = ((-0.6, -2.1, 1.35), (0.5, 0.0, 1.25), 55.0)
+    else:  # medium_shot
+        base = ((0.0, -3.0, 1.3), (0.0, 0.0, 1.1), 48.0)
+
+    loc, target, lens = base
+    if str(aspect_ratio) == "9:16":
+        # A mild zoom gives portrait delivery some presence without cutting
+        # the two-shot cast out of frame.
+        loc = (loc[0], loc[1] * 1.04, loc[2] + 0.02)
+        target = (target[0], target[1], target[2] + 0.02)
+        lens *= 1.05
+    elif str(aspect_ratio) == "1:1":
+        loc = (loc[0], loc[1] * 1.01, loc[2])
+        lens *= 1.05
+    return loc, target, lens
 
 def apply_pose(char_map: dict, pose_str: str):
     torso = char_map.get("Anchor_Torso")
@@ -184,6 +202,10 @@ def main():
     width = resolution.get("width", 1920)
     height = resolution.get("height", 1080)
     fps = resolution.get("fps", 30)
+    aspect_ratio = resolution.get(
+        "aspect_ratio",
+        "9:16" if height > width else ("1:1" if width == height else "16:9"),
+    )
 
     scenes = scene_graph.get("scenes", [])
     if not scenes:
@@ -203,6 +225,9 @@ def main():
     bpy.context.collection.objects.link(cam_target)
 
     cam_data = bpy.data.cameras.new("MainStudioCamera")
+    # Horizontal sensor fit keeps the horizontal composition identical across
+    # 16:9, 9:16 and 1:1. Portrait adds vertical room instead of cropping.
+    cam_data.sensor_fit = 'HORIZONTAL'
     cam_obj = bpy.data.objects.new("MainStudioCamera", cam_data)
     cam_obj.location = (0.0, -3.2, 1.25)
     bpy.context.collection.objects.link(cam_obj)
@@ -224,13 +249,24 @@ def main():
         # Fallback to default cafe if requested does not exist
         bg_blend_path = os.path.join(assets_dir, "backgrounds", "bg_modern_cafe.blend")
 
+    background_objects = {}
     if os.path.exists(bg_blend_path):
         log(f"Importing background: {bg_blend_path}")
-        append_blend_objects(
+        background_objects = append_blend_objects(
             bg_blend_path,
             exclude_names=["AssetCamera", "WarmFill", "WarmKey", "DayKey", "DayFill", "NeonKey", "NeonFill"],
             prefix="env"
         )
+
+    if str(aspect_ratio) == "9:16":
+        # A portrait frame sees much further above the set than 16:9. Extend
+        # the back wall so that extra headroom stays a real café wall instead
+        # of default black world background.
+        back_wall = background_objects.get("Cafe_BackWall")
+        if back_wall:
+            back_wall.scale.z *= 2.4
+            back_wall.location.z = 2.5 * 2.4
+            log("Extended café back wall for 9:16 headroom")
 
     # 4. Import Props (cafe table & cups if in cafe)
     if "cafe" in bg_asset_id or "office" in bg_asset_id:
@@ -288,7 +324,7 @@ def main():
         cam_setup = scene_def.get("camera", {})
         cam_angle = cam_setup.get("angle", "two_shot")
         cam_movement = cam_setup.get("movement", "static").lower()
-        base_loc, target_loc, lens = get_camera_positions(cam_angle)
+        base_loc, target_loc, lens = get_camera_positions(cam_angle, aspect_ratio)
         cam_data.lens = lens
         cam_target.location = target_loc
 

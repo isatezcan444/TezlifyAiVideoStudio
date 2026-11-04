@@ -8,6 +8,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { YouTubePublisherPage } from './pages/YouTubePublisherPage';
 import { SchedulerPage } from './pages/SchedulerPage';
 import { CharacterStudioPage } from './pages/CharacterStudioPage';
+import { CompositionStudioPage } from './pages/CompositionStudioPage';
 import { VideoDetailsModal } from './components/video/VideoDetailsModal';
 import { YouTubePublishModal } from './components/youtube/YouTubePublishModal';
 import { ConfirmDialog } from './components/ui/ConfirmDialog';
@@ -19,7 +20,7 @@ export const App: React.FC = () => {
   const { isDark, toggleTheme } = useTheme();
 
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'media-library' | 'import-video' | 'youtube-publisher' | 'scheduler' | 'character-studio' | 'settings'
+    'dashboard' | 'media-library' | 'import-video' | 'youtube-publisher' | 'scheduler' | 'character-studio' | 'composition-studio' | 'settings'
   >('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -100,6 +101,11 @@ export const App: React.FC = () => {
         return {
           title: 'YouTube Yayın Takvimi',
           subtitle: 'Arka plan zamanlayıcısı ile otomatik ileri tarihli video yayını',
+        };
+      case 'composition-studio':
+        return {
+          title: 'Video Kompozisyon Stüdyosu',
+          subtitle: 'Sahne birleştirme, geçişler, Türkçe metin/altyazı ve çok formatlı MP4 çıktısı',
         };
       case 'settings':
         return {
@@ -190,6 +196,10 @@ export const App: React.FC = () => {
 
           {activeTab === 'character-studio' && (
             <CharacterStudioPage />
+          )}
+
+          {activeTab === 'composition-studio' && (
+            <CompositionStudioPage />
           )}
 
           {activeTab === 'settings' && (

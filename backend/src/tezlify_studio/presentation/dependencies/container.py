@@ -426,8 +426,31 @@ from tezlify_studio.application.use_cases.list_project_renders_use_case import L
 from tezlify_studio.application.use_cases.execute_render_job_use_case import ExecuteRenderJobUseCase
 from tezlify_studio.application.use_cases.list_voices_use_case import ListVoicesUseCase
 from tezlify_studio.application.use_cases.synthesize_dialogue_audio_use_case import SynthesizeDialogueAudioUseCase
+from tezlify_studio.infrastructure.video.ffmpeg_composition_engine import (
+    FFmpegCompositionEngine,
+)
+from tezlify_studio.infrastructure.persistence.repositories.composition_repository_impl import (
+    CompositionRepositoryImpl,
+)
+from tezlify_studio.application.use_cases.get_project_composition_use_case import (
+    GetProjectCompositionUseCase,
+)
+from tezlify_studio.application.use_cases.save_project_composition_use_case import (
+    SaveProjectCompositionUseCase,
+)
+from tezlify_studio.application.use_cases.execute_composition_render_use_case import (
+    ExecuteCompositionRenderUseCase,
+)
+from tezlify_studio.application.use_cases.start_composition_render_use_case import (
+    StartCompositionRenderUseCase,
+)
 
 blender_animation_engine_singleton = BlenderAnimationEngineImpl()
+composition_engine_singleton = FFmpegCompositionEngine(
+    animation_engine=blender_animation_engine_singleton,
+    base_projects_dir=blender_animation_engine_singleton.base_projects_dir,
+    keep_scene_clips=False,
+)
 elevenlabs_client_singleton = ElevenLabsClientImpl(
     api_key=settings.elevenlabs_api_key,
     default_model=settings.elevenlabs_default_model,
@@ -476,6 +499,53 @@ def get_list_project_renders_use_case(
     repo: RenderJobRepositoryImpl = Depends(get_render_job_repository),
 ) -> ListProjectRendersUseCase:
     return ListProjectRendersUseCase(repo)
+
+# ==========================================
+# Video Composition Studio (Stage 4.5)
+# ==========================================
+def get_composition_repository(db: Session = Depends(get_db)) -> CompositionRepositoryImpl:
+    return CompositionRepositoryImpl(db)
+
+
+def get_composition_engine() -> FFmpegCompositionEngine:
+    return composition_engine_singleton
+
+
+def get_project_composition_use_case(
+    project_repo: StudioProjectRepositoryImpl = Depends(get_studio_project_repository),
+    composition_repo: CompositionRepositoryImpl = Depends(get_composition_repository),
+) -> GetProjectCompositionUseCase:
+    return GetProjectCompositionUseCase(project_repo, composition_repo)
+
+
+def get_save_project_composition_use_case(
+    project_repo: StudioProjectRepositoryImpl = Depends(get_studio_project_repository),
+    composition_repo: CompositionRepositoryImpl = Depends(get_composition_repository),
+) -> SaveProjectCompositionUseCase:
+    return SaveProjectCompositionUseCase(project_repo, composition_repo)
+
+
+def get_execute_composition_render_use_case(
+    engine: FFmpegCompositionEngine = Depends(get_composition_engine),
+    synth: VoiceSynthesizerPort = Depends(get_voice_synthesizer),
+) -> ExecuteCompositionRenderUseCase:
+    return ExecuteCompositionRenderUseCase(engine, synth)
+
+
+def get_start_composition_render_use_case(
+    project_repo: StudioProjectRepositoryImpl = Depends(get_studio_project_repository),
+    job_repo: RenderJobRepositoryImpl = Depends(get_render_job_repository),
+    composition_repo: CompositionRepositoryImpl = Depends(get_composition_repository),
+    execute_worker: ExecuteCompositionRenderUseCase = Depends(
+        get_execute_composition_render_use_case
+    ),
+) -> StartCompositionRenderUseCase:
+    return StartCompositionRenderUseCase(
+        project_repo,
+        job_repo,
+        composition_repo,
+        execute_worker,
+    )
 
 
 

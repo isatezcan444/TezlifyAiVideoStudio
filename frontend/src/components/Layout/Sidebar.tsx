@@ -10,6 +10,7 @@ import {
   Server,
   Youtube,
   Calendar,
+  Clapperboard,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -73,6 +74,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           icon: Sparkles,
           badge: 'Aşama 4.3',
           badgeColor: 'bg-emerald-500/15 text-emerald-600 dark:bg-emerald-500/25 dark:text-emerald-400',
+        },
+        {
+          id: 'composition-studio',
+          label: 'Video Kompozisyon',
+          icon: Clapperboard,
+          badge: 'Aşama 4.5',
+          badgeColor: 'bg-purple-500/15 text-purple-600 dark:bg-purple-500/25 dark:text-purple-400',
         },
       ],
     },

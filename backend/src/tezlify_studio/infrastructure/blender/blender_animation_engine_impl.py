@@ -50,6 +50,7 @@ class BlenderAnimationEngineImpl(BlenderAnimationEnginePort):
         job_id: str,
         progress_callback: Optional[Callable[[float, str], None]] = None,
         engine_override: Optional[str] = None,
+        include_audio: bool = True,
     ) -> RenderOutputMetadata:
         start_time = time.time()
 
@@ -169,7 +170,21 @@ class BlenderAnimationEngineImpl(BlenderAnimationEnginePort):
                     dialogue_audios.append((dlg.audio_file, int(round(start_sec * 1000))))
             cumulative_time += scene.duration_seconds
 
-        if dialogue_audios:
+        if not include_audio:
+            # Composition rendering needs video-only scene clips. The final
+            # continuous audio track is built once by the composition engine.
+            ffmpeg_cmd = [
+                "ffmpeg",
+                "-y",
+                "-framerate", str(fps),
+                "-i", os.path.join(frames_dir, "frame_%04d.png"),
+                "-an",
+                "-c:v", "libx264",
+                "-pix_fmt", "yuv420p",
+                "-movflags", "+faststart",
+                output_mp4_path,
+            ]
+        elif dialogue_audios:
             report(88.0, f"Mixing {len(dialogue_audios)} dialogue audio tracks with FFmpeg")
             ffmpeg_cmd = [
                 "ffmpeg",
