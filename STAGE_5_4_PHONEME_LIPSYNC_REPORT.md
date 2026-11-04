@@ -36,7 +36,9 @@
 |---|---|
 | Başlangıç (Stage 5.3 bitiş) | `e3d0bda0754ea9bcff87be6ae2990cf43c6f4134` |
 | Branch | `main` |
-| Stage 5.4 implementasyon | `feat(studio): implement phoneme-based character lip sync` — SHA bu commit'in içinde yazılı olamayacağı için Bölüm 12'de ayrıca verilmiştir |
+| Stage 5.4 implementasyon commit'i | `da1dc6416f2629ac20371e903a5b08b65c298bd9` — `feat(studio): implement phoneme-based character lip sync` (44 dosya, +9546 / −23) |
+| Bu satır | Bir commit kendi SHA'sını içeremeyeceği için rapor, SHA'sı bilinen tek dosya olarak ayrı bir docs commit'i ile güncellenmiştir |
+| Push / deploy | **Yapılmadı.** `origin` tanımlı; `main` şu an `origin/main` önünde — önceki aşamalarda olduğu gibi yalnızca yerel commit |
 
 ---
 
@@ -433,8 +435,12 @@ raporda sabittir. İstenirse kanıt görselleri ayrıca stage'lenebilir.
 ### Commit
 
 ```
-feat(studio): implement phoneme-based character lip sync
+da1dc64  feat(studio): implement phoneme-based character lip sync
 ```
+
+Kod, testler ve hafif kanıt artefaktları bu tek commit'te yer aldı. Ardından yalnızca bu
+rapordaki SHA alanı dolduruldu (`docs(studio): record Stage 5.4 commit SHA`) — Bölüm 1'de
+açıklandığı için ayrılmaz bir sıralı düzeltmedir. Push ve deploy yapılmadı.
 
 ---
 
