@@ -12,8 +12,10 @@ import {
 } from 'lucide-react';
 import { apiService } from '../services/api';
 import { useChannelContext } from '../context/ChannelContext';
-import { PlatformConnection } from '../types/account';
+import { CapabilityStatus, PlatformConnection } from '../types/account';
 import { PlatformDescriptor } from '../types/creator';
+import { CAPABILITY_META, CapabilityName } from '../lib/capabilities';
+import { awaitYouTubeOAuth, openOAuthPopup } from '../lib/youtubeOAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 
@@ -30,17 +32,21 @@ const formatDate = (value?: string | null): string => {
   return date.toLocaleString('tr-TR');
 };
 
-function openOAuthPopup(authUrl: string, name: string): Window | null {
-  const width = 600;
-  const height = 700;
-  const left = window.screen.width / 2 - width / 2;
-  const top = window.screen.height / 2 - height / 2;
-  return window.open(
-    authUrl,
-    name,
-    `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,status=1`
-  );
-}
+const CAPABILITY_ORDER: CapabilityName[] = [
+  'channel_read',
+  'analytics',
+  'upload',
+  'comments',
+  'revenue',
+];
+
+const CAPABILITY_STATE: Record<string, { label: string; className: string }> = {
+  active: { label: 'aktif', className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+  scope_required: { label: 'izin gerekli', className: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
+  api_not_enabled: { label: 'API kapalı', className: 'bg-orange-500/10 text-orange-600 dark:text-orange-400' },
+  reauth_required: { label: 'yeniden bağlan', className: 'bg-rose-500/10 text-rose-600 dark:text-rose-400' },
+  unavailable: { label: 'kullanılamıyor', className: 'bg-slate-500/10 text-slate-500 dark:text-slate-400' },
+};
 
 export const ConnectedAccountsPage: React.FC = () => {
   const { refresh, activeChannel, selectChannel } = useChannelContext();
@@ -49,6 +55,7 @@ export const ConnectedAccountsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [granting, setGranting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -106,6 +113,28 @@ export const ConnectedAccountsPage: React.FC = () => {
       setError(err?.message || 'Yeniden bağlanma başlatılamadı.');
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const handleGrant = async (connection: PlatformConnection, capability: CapabilityName) => {
+    setError(null);
+    setGranting(`${connection.id}:${capability}`);
+    try {
+      const result = awaitYouTubeOAuth();
+      const res = await apiService.grantCapabilities(connection.id, [capability]);
+      openOAuthPopup(res.auth_url, `tezlify_grant_${connection.id}_${capability}`);
+      const success = await result;
+      await load();
+      await refresh();
+      if (!success) {
+        setError(
+          'Ek izin tamamlanmadı. Mevcut hesap bağlantınız ve izinleri korunuyor; işlemi yeniden deneyebilirsiniz.'
+        );
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Ek izin başlatılamadı.');
+    } finally {
+      setGranting(null);
     }
   };
 
@@ -259,6 +288,63 @@ export const ConnectedAccountsPage: React.FC = () => {
                       >
                         <Unplug className="h-3.5 w-3.5" /> Bağlantıyı Kes
                       </Button>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-100 px-4 py-3 dark:border-white/[0.06]">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-[#7E7F96]">
+                      Yetenekler
+                    </p>
+                    <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {CAPABILITY_ORDER.map((capability) => {
+                        const status: CapabilityStatus | undefined = connection.capabilities?.find(
+                          (item) => item.capability === capability
+                        );
+                        const meta = CAPABILITY_META[capability];
+                        const state = CAPABILITY_STATE[status?.status || 'unavailable'];
+                        const grantKey = `${connection.id}:${capability}`;
+                        return (
+                          <div
+                            key={capability}
+                            className="rounded-lg border border-slate-100 p-2.5 dark:border-white/[0.06]"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
+                                  {meta.label}
+                                  {meta.optional && (
+                                    <span className="ml-1 text-[9px] font-normal text-slate-400">
+                                      isteğe bağlı
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="truncate text-[10px] text-slate-400">{meta.description}</p>
+                              </div>
+                              <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-bold ${state.className}`}>
+                                {state.label}
+                              </span>
+                            </div>
+                            {status?.status === 'scope_required' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="mt-2 h-7 w-full text-[10px]"
+                                onClick={() => handleGrant(connection, capability)}
+                                disabled={granting === grantKey}
+                              >
+                                {granting === grantKey && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                                {meta.grantLabel}
+                              </Button>
+                            )}
+                            {status?.status === 'api_not_enabled' && (
+                              <p className="mt-1.5 text-[10px] leading-relaxed text-orange-600 dark:text-orange-400">
+                                Google Cloud Console'da YouTube Analytics API etkin değil. İzin vermek bu
+                                sorunu çözmez.
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 

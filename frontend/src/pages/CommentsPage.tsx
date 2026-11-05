@@ -1,5 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, Loader2, MessageSquare, RefreshCw, Send, ShieldCheck, ThumbsUp } from 'lucide-react';
+import {
+  AlertTriangle,
+  Loader2,
+  MessageSquare,
+  RefreshCw,
+  Send,
+  ShieldAlert,
+  ShieldCheck,
+  ThumbsUp,
+  Youtube,
+} from 'lucide-react';
 import { apiService } from '../services/api';
 import { useChannelContext } from '../context/ChannelContext';
 import { ChannelVideo, VideoComment } from '../types/creator';
@@ -7,10 +17,17 @@ import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { EmptyState } from '../components/ui/EmptyState';
 import { formatDate, formatNumber } from '../lib/utils';
+import { CAPABILITY_META, capabilityAllows, capabilityNeedsScope } from '../lib/capabilities';
+import { awaitYouTubeOAuth, openOAuthPopup } from '../lib/youtubeOAuth';
 
 export const CommentsPage: React.FC = () => {
-  const { activeChannel } = useChannelContext();
+  const { activeChannel, connections, refresh } = useChannelContext();
   const channelId = activeChannel?.id;
+  const connection = connections.find((item) => item.id === activeChannel?.platform_connection_id);
+  const commentsAllowed = capabilityAllows(connection, 'comments');
+  const commentsNeedsScope = capabilityNeedsScope(connection, 'comments');
+  const [isGrantingComments, setIsGrantingComments] = useState(false);
+  const [grantError, setGrantError] = useState<string | null>(null);
   const [videos, setVideos] = useState<ChannelVideo[]>([]);
   const [videoId, setVideoId] = useState('');
   const [comments, setComments] = useState<VideoComment[]>([]);
@@ -50,6 +67,12 @@ export const CommentsPage: React.FC = () => {
   }, [channelId]);
 
   const handleReply = async (commentId: string) => {
+    if (!commentsAllowed) {
+      setActionError(
+        'Yorum yanıtlamak için yorum yönetimi izni gerekiyor. İzin vermeden hiçbir yazma çağrısı yapılmaz.'
+      );
+      return;
+    }
     if (!replyText.trim()) return;
     setIsSending(true);
     setActionError(null);
@@ -66,12 +89,37 @@ export const CommentsPage: React.FC = () => {
   };
 
   const handleModeration = async (commentId: string, status: string) => {
+    if (!commentsAllowed) {
+      setActionError(
+        'Yorum moderasyonu için yorum yönetimi izni gerekiyor. İzin vermeden hiçbir yazma çağrısı yapılmaz.'
+      );
+      return;
+    }
     setActionError(null);
     try {
       await apiService.moderateComment(commentId, status, channelId);
       await loadComments(videoId);
     } catch (err: any) {
       setActionError(err.message || 'Yorum durumu değiştirilemedi.');
+    }
+  };
+
+  const handleGrantComments = async () => {
+    if (!connection) return;
+    setIsGrantingComments(true);
+    setGrantError(null);
+    try {
+      const result = awaitYouTubeOAuth();
+      const res = await apiService.grantCapabilities(connection.id, ['comments']);
+      openOAuthPopup(res.auth_url, `tezlify_grant_comments_${connection.id}`);
+      const success = await result;
+      await refresh();
+      if (!success)
+        setGrantError('Yorum yönetimi izni verilmedi. Mevcut hesap bağlantınız ve okuma izinleri korunuyor.');
+    } catch (err: any) {
+      setGrantError(err?.message || 'Yorum izni başlatılamadı.');
+    } finally {
+      setIsGrantingComments(false);
     }
   };
 
@@ -107,6 +155,46 @@ export const CommentsPage: React.FC = () => {
           Yenile
         </Button>
       </div>
+
+      {!commentsAllowed && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/20 dark:bg-amber-500/10">
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="min-w-0 space-y-1.5">
+              <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                Yorum yönetimi izni gerekiyor
+              </h3>
+              <p className="text-xs leading-relaxed text-amber-800 dark:text-amber-300">
+                Yorumları okumaya devam edebilirsiniz; yanıtlama ve moderasyon için ek izin gerekir. İzin
+                verilmeden hiçbir yazma çağrısı yapılmaz ve mevcut hesap bağlantınız korunur.
+              </p>
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {commentsNeedsScope && (
+                  <Button
+                    size="sm"
+                    onClick={handleGrantComments}
+                    disabled={isGrantingComments || !connection}
+                    className="gap-2"
+                  >
+                    {isGrantingComments ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Youtube className="h-4 w-4" />
+                    )}
+                    {CAPABILITY_META.comments.grantLabel}
+                  </Button>
+                )}
+                <span className="text-[11px] text-amber-700 dark:text-amber-400">
+                  {CAPABILITY_META.comments.label} · {commentsAllowed ? 'active' : 'scope_required'}
+                </span>
+              </div>
+              {grantError && (
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">{grantError}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {actionError && (
         <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
@@ -186,6 +274,8 @@ export const CommentsPage: React.FC = () => {
                         setReplyTarget(comment.comment_id);
                         setReplyText('');
                       }}
+                      disabled={!commentsAllowed}
+                      title={!commentsAllowed ? 'Yorum yönetimi izni gerekiyor' : undefined}
                       className="gap-1.5 text-[11px]"
                     >
                       <Send className="h-3.5 w-3.5" /> Yanıtla
@@ -194,6 +284,8 @@ export const CommentsPage: React.FC = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleModeration(comment.comment_id, 'heldForReview')}
+                      disabled={!commentsAllowed}
+                      title={!commentsAllowed ? 'Yorum yönetimi izni gerekiyor' : undefined}
                       className="gap-1.5 text-[11px]"
                     >
                       <ShieldCheck className="h-3.5 w-3.5" /> İncelemeye al
@@ -202,6 +294,8 @@ export const CommentsPage: React.FC = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleModeration(comment.comment_id, 'rejected')}
+                      disabled={!commentsAllowed}
+                      title={!commentsAllowed ? 'Yorum yönetimi izni gerekiyor' : undefined}
                       className="gap-1.5 text-[11px] text-[#EA5455]"
                     >
                       Reddet

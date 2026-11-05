@@ -8,7 +8,14 @@ import { PublishHistoryTable } from '../components/youtube/PublishHistoryTable';
 import { YouTubePublishModal } from '../components/youtube/YouTubePublishModal';
 import { Button } from '../components/ui/button';
 import { Spinner } from '../components/ui/Spinner';
-import { Youtube, Link2, AlertTriangle } from 'lucide-react';
+import { Youtube, Link2, AlertTriangle, ShieldAlert } from 'lucide-react';
+import {
+  CAPABILITY_META,
+  capabilityAllows,
+  capabilityNeedsScope,
+  findCapability,
+} from '../lib/capabilities';
+import { awaitYouTubeOAuth, openOAuthPopup } from '../lib/youtubeOAuth';
 
 interface UploadVideoPageProps {
   videos: MediaAsset[];
@@ -21,12 +28,18 @@ export const UploadVideoPage: React.FC<UploadVideoPageProps> = ({
   onNavigateLibrary,
   onNavigateAccounts,
 }) => {
-  const { activeChannel, connections, isLoading: isChannelLoading } = useChannelContext();
+  const {
+    activeChannel,
+    connections,
+    isLoading: isChannelLoading,
+    refresh,
+  } = useChannelContext();
   const channelId = activeChannel?.id;
 
   const [publishRecords, setPublishRecords] = useState<PublishRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isGrantingUpload, setIsGrantingUpload] = useState(false);
 
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [selectedVideoForPublish, setSelectedVideoForPublish] = useState<MediaAsset | null>(null);
@@ -50,9 +63,42 @@ export const UploadVideoPage: React.FC<UploadVideoPageProps> = ({
     else setIsLoading(false);
   }, [channelId, fetchHistory]);
 
+  const connection = connections.find((item) => item.id === activeChannel?.platform_connection_id);
+  const uploadAllowed = capabilityAllows(connection, 'upload');
+  const uploadNeedsScope = capabilityNeedsScope(connection, 'upload');
+  const uploadStatus = findCapability(connection, 'upload');
+
   const handleStartPublishFromSelect = (asset: MediaAsset) => {
+    if (!uploadAllowed) {
+      setLoadError(
+        'YouTube yükleme izni olmadan yayın başlatılamaz. Önce "YouTube yükleme izni ver" ile izin verin.'
+      );
+      return;
+    }
     setSelectedVideoForPublish(asset);
     setIsPublishModalOpen(true);
+  };
+
+  const handleGrantUpload = async () => {
+    if (!connection) return;
+    setIsGrantingUpload(true);
+    setLoadError(null);
+    try {
+      const result = awaitYouTubeOAuth();
+      const res = await apiService.grantCapabilities(connection.id, ['upload']);
+      openOAuthPopup(res.auth_url, `tezlify_grant_upload_${connection.id}`);
+      const success = await result;
+      await refresh();
+      if (!success) {
+        setLoadError(
+          'Yükleme izni verilmedi. Mevcut hesap bağlantınız korunuyor; izin vermeden yayın başlatılamaz.'
+        );
+      }
+    } catch (err: any) {
+      setLoadError(err?.message || 'Yükleme izni başlatılamadı.');
+    } finally {
+      setIsGrantingUpload(false);
+    }
   };
 
   const handlePublishStarted = (newRecord: PublishRecord) => {
@@ -66,8 +112,6 @@ export const UploadVideoPage: React.FC<UploadVideoPageProps> = ({
   const activeRecords = publishRecords.filter((r) =>
     ['pending', 'authenticating', 'uploading', 'paused', 'processing'].includes(r.status)
   );
-
-  const connection = connections.find((item) => item.id === activeChannel?.platform_connection_id);
 
   if (isChannelLoading) {
     return (
@@ -137,7 +181,47 @@ export const UploadVideoPage: React.FC<UploadVideoPageProps> = ({
         </div>
       </div>
 
+      {/* Missing upload permission */}
+      {!uploadAllowed && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/20 dark:bg-amber-500/10">
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="min-w-0 space-y-1.5">
+              <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                YouTube yükleme izni gerekiyor
+              </h3>
+              <p className="text-xs leading-relaxed text-amber-800 dark:text-amber-300">
+                {uploadStatus?.status === 'api_not_enabled'
+                  ? 'YouTube Data API projenizde etkin değil. Google Cloud Console üzerinden YouTube Data API v3 servisini etkinleştirdikten sonra tekrar deneyin.'
+                  : uploadStatus?.status === 'reauth_required' || uploadStatus?.status === 'unavailable'
+                    ? 'Seçili hesabın bağlantısı yeniden yetkilendirme gerektiriyor. Mevcut bağlantı korunur; Bağlı Hesaplar ekranından bağlantıyı yenileyin.'
+                    : 'Mevcut hesap bağlantınız yalnızca temel okuma izinlerine sahip. Yayın başlatmadan önce yalnızca yükleme yeteneğini ekleyebilirsiniz; mevcut izinler ve token\'lar korunur.'}
+              </p>
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {uploadNeedsScope && (
+                  <Button size="sm" onClick={handleGrantUpload} disabled={isGrantingUpload} className="gap-2">
+                    {isGrantingUpload ? <Spinner size="sm" /> : <Youtube className="h-4 w-4" />}
+                    YouTube yükleme izni ver
+                  </Button>
+                )}
+                {(uploadStatus?.status === 'reauth_required' ||
+                  uploadStatus?.status === 'unavailable' ||
+                  uploadStatus?.status === 'api_not_enabled') && (
+                  <Button variant="outline" size="sm" onClick={onNavigateAccounts} className="gap-2">
+                    <Link2 className="h-4 w-4" /> Bağlı Hesaplar
+                  </Button>
+                )}
+                <span className="text-[11px] text-amber-700 dark:text-amber-400">
+                  {CAPABILITY_META.upload.label} · {uploadStatus?.status ?? 'unavailable'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Upload entry */}
+      {uploadAllowed && (
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-white dark:bg-[#2F3349] border border-slate-200/80 dark:border-slate-800 shadow-sm">
         <div>
           <h3 className="text-sm font-semibold text-[#4B465C] dark:text-[#DBD7EC]">
@@ -177,6 +261,7 @@ export const UploadVideoPage: React.FC<UploadVideoPageProps> = ({
           )}
         </div>
       </div>
+      )}
 
       {loadError && (
         <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">

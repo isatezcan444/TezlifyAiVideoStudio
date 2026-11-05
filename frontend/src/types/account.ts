@@ -17,6 +17,14 @@ export interface PlatformChannel {
   updated_at: string;
 }
 
+export interface CapabilityStatus {
+  capability: string;
+  status: 'active' | 'scope_required' | 'api_not_enabled' | 'reauth_required' | 'unavailable' | string;
+  granted: boolean;
+  optional: boolean;
+  required_scopes: string[];
+}
+
 export interface PlatformConnection {
   id: string;
   platform: string;
@@ -24,6 +32,7 @@ export interface PlatformConnection {
   account_display_name: string;
   connection_status: ConnectionStatus | string;
   granted_scopes: string[];
+  capabilities: CapabilityStatus[];
   connected_at: string;
   last_refreshed_at: string;
   token_expires_at: string;

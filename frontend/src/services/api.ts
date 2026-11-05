@@ -27,6 +27,7 @@ import {
   VideoUpdatePayload,
 } from '../types/creator';
 import {
+  CapabilityStatus,
   ChannelListResponse,
   ChannelSelection,
   ConnectionListResponse,
@@ -159,6 +160,25 @@ export const apiService = {
     return res.json();
   },
 
+  async grantCapabilities(
+    connectionId: string,
+    capabilities: string[]
+  ): Promise<{ auth_url: string; state: string; capabilities: string[] }> {
+    const res = await fetch(`${API_BASE}/social/connections/${connectionId}/grant`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ capabilities }),
+    });
+    if (!res.ok) throw await parseError(res, 'Ek izin oturumu başlatılamadı.');
+    return res.json();
+  },
+
+  async getConnectionCapabilities(connectionId: string): Promise<CapabilityStatus[]> {
+    const res = await fetch(`${API_BASE}/social/connections/${connectionId}/capabilities`);
+    if (!res.ok) throw await parseError(res, 'Hesap yetenekleri alınamadı.');
+    return res.json();
+  },
+
   async getYouTubeStatus(): Promise<YouTubeStatusResponse> {
     const res = await fetch(`${API_BASE}/social/youtube/status`);
     if (!res.ok) throw new ApiError('YouTube durumu alınamadı.', res.status);
@@ -167,10 +187,12 @@ export const apiService = {
 
   async connectYouTube(
     intent: 'add_account' | 'reconnect' = 'add_account',
-    connectionId?: string
-  ): Promise<{ auth_url: string; state: string }> {
+    connectionId?: string,
+    capabilities?: string[]
+  ): Promise<{ auth_url: string; state: string; capabilities: string[] }> {
     const search = new URLSearchParams({ intent });
     if (connectionId) search.set('connection_id', connectionId);
+    if (capabilities?.length) search.set('capabilities', capabilities.join(','));
     const res = await fetch(`${API_BASE}/social/youtube/connect?${search.toString()}`, {
       method: 'POST',
     });

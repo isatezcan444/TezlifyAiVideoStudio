@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, BarChart3, Loader2, RefreshCw } from 'lucide-react';
+import { AlertTriangle, BarChart3, Loader2, RefreshCw, ShieldAlert, Youtube } from 'lucide-react';
 import { apiService } from '../services/api';
 import { useChannelContext } from '../context/ChannelContext';
 import { AnalyticsResponse } from '../types/creator';
@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { EmptyState } from '../components/ui/EmptyState';
 import { formatDateTime, formatNumber } from '../lib/utils';
+import { CAPABILITY_META, findCapability } from '../lib/capabilities';
+import { awaitYouTubeOAuth, openOAuthPopup } from '../lib/youtubeOAuth';
 
 const RANGES = [
   { key: '7', label: '7 gün' },
@@ -33,8 +35,12 @@ const METRICS = [
 ];
 
 export const AnalyticsPage: React.FC<{ onNavigate: (tab: string) => void }> = ({ onNavigate }) => {
-  const { activeChannel } = useChannelContext();
+  const { activeChannel, connections, refresh } = useChannelContext();
   const channelId = activeChannel?.id;
+  const connection = connections.find((item) => item.id === activeChannel?.platform_connection_id);
+  const analyticsCapability = findCapability(connection, 'analytics');
+  const [isGrantingAnalytics, setIsGrantingAnalytics] = useState(false);
+  const [grantError, setGrantError] = useState<string | null>(null);
   const [range, setRange] = useState('28');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -71,9 +77,32 @@ export const AnalyticsPage: React.FC<{ onNavigate: (tab: string) => void }> = ({
     load();
   }, [load]);
 
+  const handleGrantAnalytics = async () => {
+    if (!connection) return;
+    setIsGrantingAnalytics(true);
+    setGrantError(null);
+    try {
+      const result = awaitYouTubeOAuth();
+      const res = await apiService.grantCapabilities(connection.id, ['analytics']);
+      openOAuthPopup(res.auth_url, `tezlify_grant_analytics_${connection.id}`);
+      const success = await result;
+      await refresh();
+      if (success) await load();
+      else
+        setGrantError(
+          'Analytics izni verilmedi. Mevcut hesap bağlantınız ve diğer izinler korunuyor.'
+        );
+    } catch (err: any) {
+      setGrantError(err?.message || 'Analytics izni başlatılamadı.');
+    } finally {
+      setIsGrantingAnalytics(false);
+    }
+  };
+
   const analytics = data?.analytics;
   const dimensionKey = dimension;
   const rows = analytics?.rows || [];
+  const unavailableReason = analytics?.reason ?? null;
 
   return (
     <div className="space-y-6">
@@ -165,14 +194,50 @@ export const AnalyticsPage: React.FC<{ onNavigate: (tab: string) => void }> = ({
         <Card>
           <CardContent className="space-y-3 p-8 text-center">
             <BarChart3 className="mx-auto h-8 w-8 text-slate-300" />
-            <h3 className="text-sm font-bold text-slate-800 dark:text-white">YouTube Analytics verisi kullanılamıyor</h3>
+            <h3 className="text-sm font-bold text-slate-800 dark:text-white">
+              {unavailableReason === 'api_not_enabled'
+                ? 'YouTube Analytics API etkin değil'
+                : unavailableReason === 'insufficient_scope'
+                  ? 'Analytics izni gerekiyor'
+                  : 'YouTube Analytics verisi kullanılamıyor'}
+            </h3>
             <p className="mx-auto max-w-xl text-xs leading-relaxed text-slate-500 dark:text-[#7E7F96]">
-              {data?.explanation ||
-                'Analitik verisi alınamadı. Mevcut yükleme, kanal ve planlama özellikleri çalışmaya devam eder.'}
+              {unavailableReason === 'api_not_enabled'
+                ? data?.explanation ||
+                  'YouTube Analytics API bu Google Cloud projesinde etkin değil. API’yi Google Cloud Console üzerinden etkinleştirdikten sonra tekrar deneyin; yeni bir izin gerekmez.'
+                : data?.explanation ||
+                  'Analitik verisi alınamadı. Mevcut yükleme, kanal ve planlama özellikleri çalışmaya devam eder.'}
             </p>
-            <Button size="sm" variant="outline" onClick={() => onNavigate('connected-accounts')}>
-              Bağlı Hesaplar
-            </Button>
+            {grantError && (
+              <p className="mx-auto max-w-xl text-xs font-semibold text-amber-600 dark:text-amber-400">
+                {grantError}
+              </p>
+            )}
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {unavailableReason === 'insufficient_scope' ? (
+                <Button
+                  size="sm"
+                  onClick={handleGrantAnalytics}
+                  disabled={isGrantingAnalytics || !connection}
+                  className="gap-2"
+                >
+                  {isGrantingAnalytics ? <Loader2 className="h-4 w-4 animate-spin" /> : <Youtube className="h-4 w-4" />}
+                  {CAPABILITY_META.analytics.grantLabel}
+                </Button>
+              ) : unavailableReason === 'api_not_enabled' ? (
+                <Button size="sm" variant="outline" onClick={() => onNavigate('connected-accounts')} className="gap-2">
+                  <ShieldAlert className="h-4 w-4" /> Bağlı Hesaplar
+                </Button>
+              ) : (
+                <Button size="sm" variant="outline" onClick={() => onNavigate('connected-accounts')}>
+                  Bağlı Hesaplar
+                </Button>
+              )}
+              <span className="text-[11px] text-slate-400 dark:text-[#7E7F96]">
+                {CAPABILITY_META.analytics.label} ·{' '}
+                {unavailableReason ?? analyticsCapability?.status ?? 'unavailable'}
+              </span>
+            </div>
           </CardContent>
         </Card>
       ) : (
