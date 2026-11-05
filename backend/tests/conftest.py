@@ -2,9 +2,8 @@
 
 Without this file every integration test that does `TestClient(app)` at import
 time runs `create_app()`, which calls `init_db()` and the startup reconciliations
-against the *user's* SQLite database, and every render test writes into the
-user's real `data/studio_projects`. That is how the production database ended up
-with dozens of `pending` jobs named after test fixtures.
+against the *user's* SQLite database. That is how the production database ended up
+with stray test rows written by earlier suites.
 
 The rule enforced here: `DATA_DIR` points at a scratch tree before anything under
 `tezlify_studio` is imported. `settings` is a module-level singleton
@@ -12,10 +11,6 @@ The rule enforced here: `DATA_DIR` points at a scratch tree before anything unde
 at import time, so setting the variable any later than this file would be too
 late. Environment variables outrank `.env` in pydantic-settings, which matters
 because this machine's `.env` does set `DATA_DIR`.
-
-Character/prop/background `.blend` assets are copied into the scratch tree
-instead of being regenerated: they are inputs, they are ~16 MB, and rebuilding
-them would make the Blender tests depend on a working Blender build step.
 """
 
 from __future__ import annotations
@@ -33,9 +28,7 @@ _REAL_DATA_DIR = os.path.join(_REPO_ROOT, "data")
 _ISOLATED_DATA_DIR = tempfile.mkdtemp(prefix="tezlify-test-data-")
 
 os.environ["DATA_DIR"] = _ISOLATED_DATA_DIR
-# Force the deterministic, offline behaviour the suite was never able to rely on
-# while it shared the user's environment: no live voice API, no scheduler.
-os.environ.setdefault("ELEVENLABS_API_KEY", "")
+# No background scheduler and no live network client during tests.
 os.environ["TEZLIFY_TEST_ENV"] = "1"
 os.environ["SCHEDULER_ENABLED"] = "false"
 
@@ -46,19 +39,7 @@ if _SRC not in sys.path:
     sys.path.insert(0, _SRC)
 
 
-def _copy_builtin_assets() -> None:
-    """Give the scratch tree the same readable asset library the app has."""
-    src = os.path.join(_REAL_DATA_DIR, "studio_assets")
-    if not os.path.isdir(src):
-        return
-    dst = os.path.join(_ISOLATED_DATA_DIR, "studio_assets")
-    if os.path.isdir(dst):
-        return
-    shutil.copytree(src, dst, symlinks=False, ignore=shutil.ignore_patterns("__pycache__"))
-
-
 def pytest_sessionstart(session) -> None:  # noqa: ARG001
-    _copy_builtin_assets()
     from tezlify_studio.infrastructure.configuration.settings import settings
 
     resolved = settings.resolved_data_dir

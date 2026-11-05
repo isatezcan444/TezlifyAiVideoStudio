@@ -1,5 +1,6 @@
 import os
 import sys
+import httpx
 from fastapi import Depends
 from sqlalchemy.orm import Session
 from tezlify_studio.infrastructure.configuration.settings import settings
@@ -55,6 +56,22 @@ from tezlify_studio.application.use_cases.get_upcoming_publishes_use_case import
 from tezlify_studio.application.use_cases.retry_failed_scheduled_publish_use_case import (
     RetryFailedScheduledPublishUseCase,
 )
+
+# Creator Studio: platform-agnostic channel / analytics / comments use cases
+from tezlify_studio.application.use_cases.list_platforms_use_case import ListPlatformsUseCase
+from tezlify_studio.application.use_cases.get_channel_overview_use_case import GetChannelOverviewUseCase
+from tezlify_studio.application.use_cases.list_channel_videos_use_case import ListChannelVideosUseCase
+from tezlify_studio.application.use_cases.get_channel_video_use_case import GetChannelVideoUseCase
+from tezlify_studio.application.use_cases.update_channel_video_use_case import UpdateChannelVideoUseCase
+from tezlify_studio.application.use_cases.list_channel_playlists_use_case import ListChannelPlaylistsUseCase
+from tezlify_studio.application.use_cases.list_video_categories_use_case import ListVideoCategoriesUseCase
+from tezlify_studio.application.use_cases.get_channel_analytics_use_case import GetChannelAnalyticsUseCase
+from tezlify_studio.application.use_cases.list_comments_use_case import ListCommentsUseCase
+from tezlify_studio.application.use_cases.reply_to_comment_use_case import ReplyToCommentUseCase
+from tezlify_studio.application.use_cases.set_comment_moderation_use_case import SetCommentModerationUseCase
+from tezlify_studio.application.use_cases.get_dashboard_use_case import GetDashboardUseCase
+from tezlify_studio.application.services.youtube_token_provider import YouTubeTokenProvider
+from tezlify_studio.infrastructure.youtube.youtube_creator_api import YouTubeCreatorApi
 
 # Singleton instances
 media_storage = LocalMediaStorage(settings.media_dir, settings.temp_dir)
@@ -254,346 +271,85 @@ def get_retry_scheduled_publish_use_case(
     return RetryFailedScheduledPublishUseCase(sched_repo)
 
 # ---------------------------------------------------------------------------
-# Stage 4: AI Animation Studio Dependencies
+# Creator Studio Dependencies (platform-agnostic YouTube channel management)
 # ---------------------------------------------------------------------------
-from tezlify_studio.infrastructure.persistence.repositories.studio_project_repository_impl import (
-    StudioProjectRepositoryImpl,
-)
-from tezlify_studio.infrastructure.ai.template_story_planner_impl import TemplateStoryPlannerImpl
-from tezlify_studio.infrastructure.ai.ollama_story_planner_impl import OllamaStoryPlannerImpl
-from tezlify_studio.application.use_cases.create_studio_project_use_case import (
-    CreateStudioProjectUseCase,
-)
-from tezlify_studio.application.use_cases.generate_story_scene_graph_use_case import (
-    GenerateStorySceneGraphUseCase,
-)
-from tezlify_studio.application.use_cases.get_studio_project_use_case import (
-    GetStudioProjectUseCase,
-)
-from tezlify_studio.application.use_cases.list_studio_projects_use_case import (
-    ListStudioProjectsUseCase,
-)
-from tezlify_studio.application.use_cases.update_studio_project_use_case import (
-    UpdateStudioProjectUseCase,
-)
-from tezlify_studio.application.use_cases.delete_studio_project_use_case import (
-    DeleteStudioProjectUseCase,
-)
+_creator_http_client = httpx.Client(timeout=30.0)
 
-template_story_planner_singleton = TemplateStoryPlannerImpl()
-ollama_story_planner_singleton = OllamaStoryPlannerImpl(fallback_planner=template_story_planner_singleton)
+def get_youtube_creator_api(
+    account_repo: SocialAccountRepositoryImpl = Depends(get_social_account_repository),
+    storage: TokenStoragePort = Depends(get_token_storage),
+    publisher: YouTubeApiClientImpl = Depends(get_youtube_publisher),
+) -> YouTubeCreatorApi:
+    provider = YouTubeTokenProvider(account_repo, storage, publisher)
+    return YouTubeCreatorApi(provider, client=_creator_http_client)
 
-def get_studio_project_repository(db: Session = Depends(get_db)) -> StudioProjectRepositoryImpl:
-    return StudioProjectRepositoryImpl(db)
+def get_list_platforms_use_case(
+    api: YouTubeCreatorApi = Depends(get_youtube_creator_api),
+) -> ListPlatformsUseCase:
+    return ListPlatformsUseCase(api)
 
-def get_template_story_planner() -> TemplateStoryPlannerImpl:
-    return template_story_planner_singleton
+def get_channel_overview_use_case(
+    api: YouTubeCreatorApi = Depends(get_youtube_creator_api),
+) -> GetChannelOverviewUseCase:
+    return GetChannelOverviewUseCase(api)
 
-def get_ollama_story_planner() -> OllamaStoryPlannerImpl:
-    return ollama_story_planner_singleton
+def get_list_channel_videos_use_case(
+    api: YouTubeCreatorApi = Depends(get_youtube_creator_api),
+) -> ListChannelVideosUseCase:
+    return ListChannelVideosUseCase(api)
 
-def get_create_studio_project_use_case(
-    repo: StudioProjectRepositoryImpl = Depends(get_studio_project_repository),
-) -> CreateStudioProjectUseCase:
-    return CreateStudioProjectUseCase(repo)
+def get_channel_video_use_case(
+    api: YouTubeCreatorApi = Depends(get_youtube_creator_api),
+) -> GetChannelVideoUseCase:
+    return GetChannelVideoUseCase(api)
 
-def get_generate_story_use_case(
-    template_planner: TemplateStoryPlannerImpl = Depends(get_template_story_planner),
-    ollama_planner: OllamaStoryPlannerImpl = Depends(get_ollama_story_planner),
-) -> GenerateStorySceneGraphUseCase:
-    return GenerateStorySceneGraphUseCase(template_planner, ollama_planner)
+def get_update_channel_video_use_case(
+    api: YouTubeCreatorApi = Depends(get_youtube_creator_api),
+) -> UpdateChannelVideoUseCase:
+    return UpdateChannelVideoUseCase(api)
 
-def get_studio_project_use_case(
-    repo: StudioProjectRepositoryImpl = Depends(get_studio_project_repository),
-) -> GetStudioProjectUseCase:
-    return GetStudioProjectUseCase(repo)
+def get_list_channel_playlists_use_case(
+    api: YouTubeCreatorApi = Depends(get_youtube_creator_api),
+) -> ListChannelPlaylistsUseCase:
+    return ListChannelPlaylistsUseCase(api)
 
-def get_list_studio_projects_use_case(
-    repo: StudioProjectRepositoryImpl = Depends(get_studio_project_repository),
-) -> ListStudioProjectsUseCase:
-    return ListStudioProjectsUseCase(repo)
+def get_list_video_categories_use_case(
+    api: YouTubeCreatorApi = Depends(get_youtube_creator_api),
+) -> ListVideoCategoriesUseCase:
+    return ListVideoCategoriesUseCase(api)
 
-def get_update_studio_project_use_case(
-    repo: StudioProjectRepositoryImpl = Depends(get_studio_project_repository),
-) -> UpdateStudioProjectUseCase:
-    return UpdateStudioProjectUseCase(repo)
+def get_channel_analytics_use_case(
+    api: YouTubeCreatorApi = Depends(get_youtube_creator_api),
+) -> GetChannelAnalyticsUseCase:
+    return GetChannelAnalyticsUseCase(api, max_range_days=settings.analytics_max_range_days)
 
-def get_delete_studio_project_use_case(
-    repo: StudioProjectRepositoryImpl = Depends(get_studio_project_repository),
-) -> DeleteStudioProjectUseCase:
-    return DeleteStudioProjectUseCase(repo)
+def get_list_comments_use_case(
+    api: YouTubeCreatorApi = Depends(get_youtube_creator_api),
+) -> ListCommentsUseCase:
+    return ListCommentsUseCase(api)
 
-# Character & Asset Studio (Stage 4.2)
-from tezlify_studio.infrastructure.persistence.repositories.character_repository_impl import (
-    CharacterRepositoryImpl,
-)
-from tezlify_studio.infrastructure.persistence.repositories.studio_asset_repository_impl import (
-    StudioAssetRepositoryImpl,
-)
-from tezlify_studio.infrastructure.blender.blender_asset_generator_impl import (
-    BlenderAssetGeneratorImpl,
-)
-from tezlify_studio.application.use_cases.create_character_use_case import (
-    CreateCharacterUseCase,
-)
-from tezlify_studio.application.use_cases.get_character_use_case import (
-    GetCharacterUseCase,
-)
-from tezlify_studio.application.use_cases.list_characters_use_case import (
-    ListCharactersUseCase,
-)
-from tezlify_studio.application.use_cases.update_character_use_case import (
-    UpdateCharacterUseCase,
-)
-from tezlify_studio.application.use_cases.delete_character_use_case import (
-    DeleteCharacterUseCase,
-)
-from tezlify_studio.application.use_cases.get_studio_asset_use_case import (
-    GetStudioAssetUseCase,
-)
-from tezlify_studio.application.use_cases.list_studio_assets_use_case import (
-    ListStudioAssetsUseCase,
-)
-from tezlify_studio.application.use_cases.seed_builtin_assets_use_case import (
-    SeedBuiltinAssetsUseCase,
-)
+def get_reply_to_comment_use_case(
+    api: YouTubeCreatorApi = Depends(get_youtube_creator_api),
+) -> ReplyToCommentUseCase:
+    return ReplyToCommentUseCase(api)
 
-blender_asset_generator_singleton = BlenderAssetGeneratorImpl()
+def get_set_comment_moderation_use_case(
+    api: YouTubeCreatorApi = Depends(get_youtube_creator_api),
+) -> SetCommentModerationUseCase:
+    return SetCommentModerationUseCase(api)
 
-def get_character_repository(db: Session = Depends(get_db)) -> CharacterRepositoryImpl:
-    return CharacterRepositoryImpl(db)
-
-def get_studio_asset_repository(db: Session = Depends(get_db)) -> StudioAssetRepositoryImpl:
-    return StudioAssetRepositoryImpl(db)
-
-def get_blender_asset_generator() -> BlenderAssetGeneratorImpl:
-    return blender_asset_generator_singleton
-
-def get_create_character_use_case(
-    repo: CharacterRepositoryImpl = Depends(get_character_repository),
-    blender: BlenderAssetGeneratorImpl = Depends(get_blender_asset_generator),
-) -> CreateCharacterUseCase:
-    return CreateCharacterUseCase(repo, blender)
-
-def get_character_use_case(
-    repo: CharacterRepositoryImpl = Depends(get_character_repository),
-) -> GetCharacterUseCase:
-    return GetCharacterUseCase(repo)
-
-def get_list_characters_use_case(
-    repo: CharacterRepositoryImpl = Depends(get_character_repository),
-) -> ListCharactersUseCase:
-    return ListCharactersUseCase(repo)
-
-def get_update_character_use_case(
-    repo: CharacterRepositoryImpl = Depends(get_character_repository),
-    blender: BlenderAssetGeneratorImpl = Depends(get_blender_asset_generator),
-) -> UpdateCharacterUseCase:
-    return UpdateCharacterUseCase(repo, blender)
-
-def get_delete_character_use_case(
-    repo: CharacterRepositoryImpl = Depends(get_character_repository),
-) -> DeleteCharacterUseCase:
-    return DeleteCharacterUseCase(repo)
-
-def get_studio_asset_use_case(
-    repo: StudioAssetRepositoryImpl = Depends(get_studio_asset_repository),
-) -> GetStudioAssetUseCase:
-    return GetStudioAssetUseCase(repo)
-
-def get_list_studio_assets_use_case(
-    repo: StudioAssetRepositoryImpl = Depends(get_studio_asset_repository),
-) -> ListStudioAssetsUseCase:
-    return ListStudioAssetsUseCase(repo)
-
-def get_seed_builtin_assets_use_case(
-    char_repo: CharacterRepositoryImpl = Depends(get_character_repository),
-    asset_repo: StudioAssetRepositoryImpl = Depends(get_studio_asset_repository),
-    blender: BlenderAssetGeneratorImpl = Depends(get_blender_asset_generator),
-) -> SeedBuiltinAssetsUseCase:
-    return SeedBuiltinAssetsUseCase(char_repo, asset_repo, blender)
-
-# ==========================================
-# Render Engine & Jobs (Stage 4.3)
-# ==========================================
-from tezlify_studio.infrastructure.persistence.repositories.render_job_repository_impl import RenderJobRepositoryImpl
-from tezlify_studio.infrastructure.blender.blender_animation_engine_impl import BlenderAnimationEngineImpl
-from tezlify_studio.infrastructure.ai.elevenlabs_client_impl import ElevenLabsClientImpl
-from tezlify_studio.application.ports.voice_synthesizer_port import VoiceSynthesizerPort
-from tezlify_studio.application.use_cases.start_project_render_use_case import StartProjectRenderUseCase
-from tezlify_studio.application.use_cases.get_render_job_use_case import GetRenderJobUseCase
-from tezlify_studio.application.use_cases.list_project_renders_use_case import ListProjectRendersUseCase
-from tezlify_studio.application.use_cases.list_render_jobs_use_case import ListRenderJobsUseCase
-from tezlify_studio.application.use_cases.cancel_render_job_use_case import CancelRenderJobUseCase
-from tezlify_studio.application.use_cases.execute_render_job_use_case import ExecuteRenderJobUseCase
-from tezlify_studio.application.use_cases.list_voices_use_case import ListVoicesUseCase
-from tezlify_studio.application.use_cases.synthesize_dialogue_audio_use_case import SynthesizeDialogueAudioUseCase
-from tezlify_studio.infrastructure.video.ffmpeg_composition_engine import (
-    FFmpegCompositionEngine,
-)
-from tezlify_studio.infrastructure.persistence.repositories.composition_repository_impl import (
-    CompositionRepositoryImpl,
-)
-from tezlify_studio.application.use_cases.get_project_composition_use_case import (
-    GetProjectCompositionUseCase,
-)
-from tezlify_studio.application.use_cases.save_project_composition_use_case import (
-    SaveProjectCompositionUseCase,
-)
-from tezlify_studio.application.use_cases.execute_composition_render_use_case import (
-    ExecuteCompositionRenderUseCase,
-)
-from tezlify_studio.application.use_cases.start_composition_render_use_case import (
-    StartCompositionRenderUseCase,
-)
-from tezlify_studio.application.ports.speech_alignment_port import SpeechAlignmentPort
-from tezlify_studio.application.services.lip_sync_resolver import LipSyncResolver
-from tezlify_studio.infrastructure.alignment.ctc_forced_alignment_impl import (
-    CTCForcedAlignmentImpl,
-)
-
-blender_animation_engine_singleton = BlenderAnimationEngineImpl()
-composition_engine_singleton = FFmpegCompositionEngine(
-    animation_engine=blender_animation_engine_singleton,
-    base_projects_dir=blender_animation_engine_singleton.base_projects_dir,
-    keep_scene_clips=False,
-)
-elevenlabs_client_singleton = ElevenLabsClientImpl(
-    api_key=settings.elevenlabs_api_key,
-    default_model=settings.elevenlabs_default_model,
-    api_base=settings.elevenlabs_api_base,
-    cache_dir=settings.audio_cache_dir,
-)
-
-# Stage 5.4 — local phoneme/viseme lip sync. The engine lives in an isolated
-# virtualenv and is reached by subprocess, so nothing here imports torch.
-ctc_alignment_singleton = CTCForcedAlignmentImpl(
-    python_executable=settings.alignment_python_executable,
-    model_id=settings.alignment_model_id,
-    cache_dir=settings.alignment_cache_dir,
-    model_cache_dir=settings.alignment_model_cache_dir,
-    timeout_seconds=settings.alignment_timeout_seconds,
-)
-lip_sync_resolver_singleton = LipSyncResolver(
-    ctc_alignment_singleton if settings.lip_sync_enabled else None
-)
-
-def get_render_job_repository(db: Session = Depends(get_db)) -> RenderJobRepositoryImpl:
-    return RenderJobRepositoryImpl(db)
-
-def get_blender_animation_engine() -> BlenderAnimationEngineImpl:
-    return blender_animation_engine_singleton
-
-def get_voice_synthesizer() -> VoiceSynthesizerPort:
-    return elevenlabs_client_singleton
-
-def get_list_voices_use_case(
-    synth: VoiceSynthesizerPort = Depends(get_voice_synthesizer),
-) -> ListVoicesUseCase:
-    return ListVoicesUseCase(synth)
-
-def get_synthesize_dialogue_audio_use_case(
-    synth: VoiceSynthesizerPort = Depends(get_voice_synthesizer),
-) -> SynthesizeDialogueAudioUseCase:
-    return SynthesizeDialogueAudioUseCase(synth)
-
-def get_lip_sync_resolver() -> LipSyncResolver:
-    return lip_sync_resolver_singleton
-
-
-def get_alignment_engine() -> SpeechAlignmentPort:
-    return ctc_alignment_singleton
-
-
-def get_execute_render_job_use_case(
-    engine: BlenderAnimationEngineImpl = Depends(get_blender_animation_engine),
-    synth: VoiceSynthesizerPort = Depends(get_voice_synthesizer),
-    lip_sync: LipSyncResolver = Depends(get_lip_sync_resolver),
-) -> ExecuteRenderJobUseCase:
-    return ExecuteRenderJobUseCase(engine, synth, lip_sync)
-
-def get_start_project_render_use_case(
-    project_repo: StudioProjectRepositoryImpl = Depends(get_studio_project_repository),
-    job_repo: RenderJobRepositoryImpl = Depends(get_render_job_repository),
-    execute_worker: ExecuteRenderJobUseCase = Depends(get_execute_render_job_use_case),
-) -> StartProjectRenderUseCase:
-    return StartProjectRenderUseCase(project_repo, job_repo, execute_worker)
-
-def get_render_job_use_case(
-    repo: RenderJobRepositoryImpl = Depends(get_render_job_repository),
-) -> GetRenderJobUseCase:
-    return GetRenderJobUseCase(repo)
-
-def get_list_project_renders_use_case(
-    repo: RenderJobRepositoryImpl = Depends(get_render_job_repository),
-) -> ListProjectRendersUseCase:
-    return ListProjectRendersUseCase(repo)
-
-
-def get_list_render_jobs_use_case(
-    repo: RenderJobRepositoryImpl = Depends(get_render_job_repository),
-) -> ListRenderJobsUseCase:
-    return ListRenderJobsUseCase(repo)
-
-
-def get_cancel_render_job_use_case(
-    db: Session = Depends(get_db),
-) -> CancelRenderJobUseCase:
-    from tezlify_studio.infrastructure.persistence.repositories.studio_project_repository_impl import (
-        StudioProjectRepositoryImpl,
+def get_dashboard_use_case(
+    account_repo: SocialAccountRepositoryImpl = Depends(get_social_account_repository),
+    api: YouTubeCreatorApi = Depends(get_youtube_creator_api),
+    publish_repo: PublishRecordRepositoryImpl = Depends(get_publish_record_repository),
+    schedule_repo: ScheduledPublishRepositoryImpl = Depends(get_scheduled_publish_repository),
+) -> GetDashboardUseCase:
+    return GetDashboardUseCase(
+        account_repo=account_repo,
+        channel_port=api,
+        analytics_port=api,
+        publish_repo=publish_repo,
+        schedule_repo=schedule_repo,
+        default_range_days=settings.analytics_default_range_days,
+        max_range_days=settings.analytics_max_range_days,
     )
-    return CancelRenderJobUseCase(
-        RenderJobRepositoryImpl(db),
-        StudioProjectRepositoryImpl(db),
-    )
-
-# ==========================================
-# Video Composition Studio (Stage 4.5)
-# ==========================================
-def get_composition_repository(db: Session = Depends(get_db)) -> CompositionRepositoryImpl:
-    return CompositionRepositoryImpl(db)
-
-
-def get_composition_engine() -> FFmpegCompositionEngine:
-    return composition_engine_singleton
-
-
-def get_project_composition_use_case(
-    project_repo: StudioProjectRepositoryImpl = Depends(get_studio_project_repository),
-    composition_repo: CompositionRepositoryImpl = Depends(get_composition_repository),
-) -> GetProjectCompositionUseCase:
-    return GetProjectCompositionUseCase(project_repo, composition_repo)
-
-
-def get_save_project_composition_use_case(
-    project_repo: StudioProjectRepositoryImpl = Depends(get_studio_project_repository),
-    composition_repo: CompositionRepositoryImpl = Depends(get_composition_repository),
-) -> SaveProjectCompositionUseCase:
-    return SaveProjectCompositionUseCase(project_repo, composition_repo)
-
-
-def get_execute_composition_render_use_case(
-    engine: FFmpegCompositionEngine = Depends(get_composition_engine),
-    synth: VoiceSynthesizerPort = Depends(get_voice_synthesizer),
-    lip_sync: LipSyncResolver = Depends(get_lip_sync_resolver),
-) -> ExecuteCompositionRenderUseCase:
-    return ExecuteCompositionRenderUseCase(engine, synth, lip_sync)
-
-
-def get_start_composition_render_use_case(
-    project_repo: StudioProjectRepositoryImpl = Depends(get_studio_project_repository),
-    job_repo: RenderJobRepositoryImpl = Depends(get_render_job_repository),
-    composition_repo: CompositionRepositoryImpl = Depends(get_composition_repository),
-    execute_worker: ExecuteCompositionRenderUseCase = Depends(
-        get_execute_composition_render_use_case
-    ),
-) -> StartCompositionRenderUseCase:
-    return StartCompositionRenderUseCase(
-        project_repo,
-        job_repo,
-        composition_repo,
-        execute_worker,
-    )
-
-
-

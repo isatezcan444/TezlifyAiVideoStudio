@@ -28,22 +28,18 @@ class GetSystemStatusUseCase:
         except Exception:
             pass
 
-        # Check blender in PATH or common macOS apps
-        blender_found = bool(shutil.which("blender")) or os.path.exists("/Applications/Blender.app")
-
         # Total storage used by media assets
         assets = self.repository.list_all(limit=1000)
         total_storage = sum(a.file_size_bytes for a in assets)
 
         return SystemStatusDTO(
             status="healthy",
-            app_name="Tezlify AI Video Studio",
-            version="1.0.0",
+            app_name="Tezlify YouTube Creator Studio",
+            version="2.0.0",
             os_name=f"{platform.system()} {platform.release()} ({platform.machine()})",
             python_version=sys.version.split()[0],
             ffmpeg_installed=self.probe.is_ffmpeg_available(),
             ffprobe_installed=self.probe.is_ffprobe_available(),
-            blender_installed=blender_found,
             data_dir=os.path.abspath(self.data_dir),
             disk_total_gb=total_gb,
             disk_free_gb=free_gb,

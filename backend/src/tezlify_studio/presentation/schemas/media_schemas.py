@@ -38,7 +38,6 @@ class SystemStatusResponse(BaseModel):
     python_version: str
     ffmpeg_installed: bool
     ffprobe_installed: bool
-    blender_installed: bool
     data_dir: str
     disk_total_gb: float
     disk_free_gb: float

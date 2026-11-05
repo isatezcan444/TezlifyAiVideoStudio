@@ -7,7 +7,16 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from tezlify_studio.infrastructure.configuration.settings import settings
 from tezlify_studio.infrastructure.persistence.database import init_db
-from tezlify_studio.presentation.api.routes import health, media, publish, scheduler, studio
+from tezlify_studio.presentation.api.routes import (
+    channels,
+    comments,
+    dashboard,
+    health,
+    media,
+    platforms,
+    publish,
+    scheduler,
+)
 from tezlify_studio.domain.exceptions.media_exceptions import (
     EntityNotFoundException,
     DuplicateMediaException,
@@ -29,11 +38,12 @@ from tezlify_studio.domain.exceptions.schedule_exceptions import (
     InvalidScheduleStateTransitionException,
     ScheduleAlreadyClaimedException,
 )
-from tezlify_studio.domain.exceptions.studio_exceptions import (
-    StudioProjectNotFoundException,
-    InvalidSceneGraphException,
-    UnsupportedSchemaVersionException,
-    StudioDomainException,
+from tezlify_studio.domain.exceptions.creator_exceptions import (
+    AnalyticsUnavailableException,
+    CreatorApiException,
+    CreatorStudioException,
+    InsufficientScopeException,
+    PlatformNotSupportedException,
 )
 
 logger = logging.getLogger(__name__)
@@ -50,14 +60,6 @@ async def lifespan(app: FastAPI):
     if settings.scheduler_enabled and not is_test:
         from tezlify_studio.presentation.dependencies.container import publish_scheduler_service
         publish_scheduler_service.stop()
-    # Graceful shutdown of render workers: cancel running subprocesses and
-    # wait (bounded) for worker threads to finish so no mid-render subprocess
-    # is orphaned and no partial MP4 is mistaken for a completed render.
-    if not is_test:
-        from tezlify_studio.application.use_cases.start_project_render_use_case import (
-            shutdown_render_workers,
-        )
-        shutdown_render_workers(grace_seconds=30.0)
 
 def create_app() -> FastAPI:
     # Initialize SQLite database schema
@@ -89,43 +91,13 @@ def create_app() -> FastAPI:
             publish_repo=pub_repo,
             grace_period_minutes=settings.scheduler_missed_grace_period_minutes,
         ).execute()
-
-        # Reconcile stale render jobs left RUNNING by a previous (crashed or
-        # restarted) server process so affected projects can be re-rendered.
-        from tezlify_studio.infrastructure.persistence.repositories.render_job_repository_impl import (
-            RenderJobRepositoryImpl,
-        )
-        from tezlify_studio.infrastructure.persistence.repositories.studio_project_repository_impl import (
-            StudioProjectRepositoryImpl,
-        )
-        from tezlify_studio.application.use_cases.reconcile_render_jobs_use_case import (
-            ReconcileRenderJobsUseCase,
-        )
-
-        render_job_repo = RenderJobRepositoryImpl(startup_db)
-        project_repo = StudioProjectRepositoryImpl(startup_db)
-        reconciled = ReconcileRenderJobsUseCase(render_job_repo, project_repo).execute()
-        if reconciled:
-            logger.info(
-                f"Render reconciliation: {reconciled} stale RUNNING job(s) marked FAILED."
-            )
-
-        from tezlify_studio.infrastructure.persistence.repositories.character_repository_impl import CharacterRepositoryImpl
-        from tezlify_studio.infrastructure.persistence.repositories.studio_asset_repository_impl import StudioAssetRepositoryImpl
-        from tezlify_studio.infrastructure.blender.blender_asset_generator_impl import BlenderAssetGeneratorImpl
-        from tezlify_studio.application.use_cases.seed_builtin_assets_use_case import SeedBuiltinAssetsUseCase
-
-        char_repo = CharacterRepositoryImpl(startup_db)
-        asset_repo = StudioAssetRepositoryImpl(startup_db)
-        blender_gen = BlenderAssetGeneratorImpl()
-        SeedBuiltinAssetsUseCase(char_repo, asset_repo, blender_gen).execute()
     finally:
         startup_db.close()
 
     app = FastAPI(
         title=settings.app_name,
-        description="Local-First Professional Video Production & Publishing Core",
-        version="1.0.0",
+        description="Local-first YouTube channel management, publishing and scheduling studio",
+        version="2.0.0",
         docs_url="/docs" if settings.debug else None,
         redoc_url=None,
         lifespan=lifespan,
@@ -251,83 +223,44 @@ def create_app() -> FastAPI:
             content={"detail": str(exc), "error_code": "SCHEDULE_ALREADY_CLAIMED"},
         )
 
-    @app.exception_handler(StudioProjectNotFoundException)
-    async def studio_project_not_found_handler(request: Request, exc: StudioProjectNotFoundException):
-        return JSONResponse(
-            status_code=status.HTTP_404_NOT_FOUND,
-            content={"detail": exc.message, "error_code": exc.error_code},
-        )
-
-    from tezlify_studio.domain.exceptions.studio_exceptions import (
-        CharacterNotFoundException,
-        AssetNotFoundException,
-        DuplicateCharacterIdException,
-        DuplicateAssetIdException,
-        RenderJobNotFoundException,
-        VoiceNotFoundException,
-    )
-
-    @app.exception_handler(VoiceNotFoundException)
-    async def voice_not_found_handler(request: Request, exc: VoiceNotFoundException):
-        return JSONResponse(
-            status_code=status.HTTP_404_NOT_FOUND,
-            content={"detail": exc.message, "error_code": exc.error_code},
-        )
-
-    @app.exception_handler(RenderJobNotFoundException)
-    async def render_job_not_found_handler(request: Request, exc: RenderJobNotFoundException):
-        return JSONResponse(
-            status_code=status.HTTP_404_NOT_FOUND,
-            content={"detail": exc.message, "error_code": exc.error_code},
-        )
-
-    @app.exception_handler(CharacterNotFoundException)
-    async def character_not_found_handler(request: Request, exc: CharacterNotFoundException):
-        return JSONResponse(
-            status_code=status.HTTP_404_NOT_FOUND,
-            content={"detail": exc.message, "error_code": exc.error_code},
-        )
-
-    @app.exception_handler(AssetNotFoundException)
-    async def asset_not_found_handler(request: Request, exc: AssetNotFoundException):
-        return JSONResponse(
-            status_code=status.HTTP_404_NOT_FOUND,
-            content={"detail": exc.message, "error_code": exc.error_code},
-        )
-
-    @app.exception_handler(DuplicateCharacterIdException)
-    async def duplicate_character_handler(request: Request, exc: DuplicateCharacterIdException):
-        return JSONResponse(
-            status_code=status.HTTP_409_CONFLICT,
-            content={"detail": exc.message, "error_code": exc.error_code},
-        )
-
-    @app.exception_handler(DuplicateAssetIdException)
-    async def duplicate_asset_handler(request: Request, exc: DuplicateAssetIdException):
-        return JSONResponse(
-            status_code=status.HTTP_409_CONFLICT,
-            content={"detail": exc.message, "error_code": exc.error_code},
-        )
-
-    @app.exception_handler(InvalidSceneGraphException)
-    async def invalid_scene_graph_handler(request: Request, exc: InvalidSceneGraphException):
+    @app.exception_handler(PlatformNotSupportedException)
+    async def platform_not_supported_handler(request: Request, exc: PlatformNotSupportedException):
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content={"detail": exc.message, "error_code": exc.error_code},
+            content={"detail": str(exc), "error_code": exc.error_code, "platform_id": exc.platform_id},
         )
 
-    @app.exception_handler(UnsupportedSchemaVersionException)
-    async def unsupported_schema_version_handler(request: Request, exc: UnsupportedSchemaVersionException):
+    @app.exception_handler(InsufficientScopeException)
+    async def insufficient_scope_handler(request: Request, exc: InsufficientScopeException):
         return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={"detail": exc.message, "error_code": exc.error_code},
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={
+                "detail": str(exc),
+                "error_code": exc.error_code,
+                "required_scope": exc.required_scope,
+                "action": exc.action,
+            },
         )
 
-    @app.exception_handler(StudioDomainException)
-    async def studio_domain_handler(request: Request, exc: StudioDomainException):
+    @app.exception_handler(AnalyticsUnavailableException)
+    async def analytics_unavailable_handler(request: Request, exc: AnalyticsUnavailableException):
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"detail": str(exc), "error_code": exc.error_code, "reason": exc.reason},
+        )
+
+    @app.exception_handler(CreatorApiException)
+    async def creator_api_handler(request: Request, exc: CreatorApiException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": str(exc), "error_code": exc.error_code},
+        )
+
+    @app.exception_handler(CreatorStudioException)
+    async def creator_studio_handler(request: Request, exc: CreatorStudioException):
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content={"detail": exc.message, "error_code": exc.error_code},
+            content={"detail": str(exc), "error_code": exc.error_code},
         )
 
     @app.exception_handler(DomainException)
@@ -349,9 +282,11 @@ def create_app() -> FastAPI:
     app.include_router(media.router, prefix="/api/v1")
     app.include_router(publish.router, prefix="/api/v1")
     app.include_router(scheduler.router, prefix="/api/v1")
-    app.include_router(studio.router, prefix="/api/v1")
+    app.include_router(platforms.router, prefix="/api/v1")
+    app.include_router(channels.router, prefix="/api/v1")
+    app.include_router(comments.router, prefix="/api/v1")
+    app.include_router(dashboard.router, prefix="/api/v1")
 
     return app
 
 app = create_app()
-

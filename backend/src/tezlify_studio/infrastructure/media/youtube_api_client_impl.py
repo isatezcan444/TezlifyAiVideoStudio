@@ -24,10 +24,12 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
     TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
     API_BASE = "https://www.googleapis.com/youtube/v3"
     UPLOAD_BASE = "https://www.googleapis.com/upload/youtube/v3"
-    SCOPES = [
-        "https://www.googleapis.com/auth/youtube.upload",
-        "https://www.googleapis.com/auth/youtube.readonly",
-    ]
+    # Creator Studio needs channel management, analytics and comments on top of
+    # upload. Existing grants keep working for upload/read; the new scopes are
+    # only requested when the user chooses to reconnect.
+    from tezlify_studio.infrastructure.youtube.youtube_creator_api import YOUTUBE_SCOPES
+
+    SCOPES = YOUTUBE_SCOPES
 
     def __init__(
         self,

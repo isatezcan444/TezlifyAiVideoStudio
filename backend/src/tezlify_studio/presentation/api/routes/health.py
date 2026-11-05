@@ -9,8 +9,8 @@ router = APIRouter(tags=["Health & System"])
 def health_check():
     return {
         "status": "ok",
-        "app": "Tezlify AI Video Studio",
-        "version": "1.0.0"
+        "app": "Tezlify YouTube Creator Studio",
+        "version": "2.0.0"
     }
 
 @router.get("/system/status", response_model=SystemStatusResponse)

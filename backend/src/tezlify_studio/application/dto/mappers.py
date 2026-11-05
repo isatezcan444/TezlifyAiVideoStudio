@@ -2,15 +2,10 @@ from tezlify_studio.domain.entities.media_asset import MediaAsset
 from tezlify_studio.domain.entities.social_account import SocialAccount
 from tezlify_studio.domain.entities.publish_record import PublishRecord
 from tezlify_studio.domain.entities.scheduled_publish import ScheduledPublish
-from tezlify_studio.domain.entities.studio_project import StudioProject
-from tezlify_studio.domain.entities.character import Character
-from tezlify_studio.domain.entities.studio_asset import StudioAsset
 from tezlify_studio.domain.value_objects.video_metadata import VideoMetadata
 from tezlify_studio.application.dto.media_dto import MediaAssetDTO, VideoMetadataDTO
 from tezlify_studio.application.dto.publish_dto import SocialAccountDTO, PublishRecordDTO
 from tezlify_studio.application.dto.schedule_dto import ScheduledPublishDTO
-from tezlify_studio.application.dto.studio_dto import StudioProjectDTO
-from tezlify_studio.application.dto.character_dto import CharacterDTO, StudioAssetDTO
 
 def metadata_to_dto(meta: VideoMetadata | None) -> VideoMetadataDTO | None:
     if not meta:
@@ -102,62 +97,6 @@ def scheduled_publish_to_dto(schedule: ScheduledPublish) -> ScheduledPublishDTO:
         created_at=schedule.created_at.isoformat(),
         updated_at=schedule.updated_at.isoformat(),
         version=schedule.version,
-    )
-
-def studio_project_to_dto(project: StudioProject) -> StudioProjectDTO:
-    sg_dict = project.scene_graph.model_dump() if project.scene_graph else None
-    dur = project.scene_graph.total_duration_seconds if project.scene_graph else 0.0
-    scene_count = len(project.scene_graph.scenes) if project.scene_graph else 0
-    char_count = len(project.scene_graph.characters) if project.scene_graph else 0
-
-    return StudioProjectDTO(
-        id=project.id,
-        title=project.title,
-        description=project.description,
-        status=project.status.value,
-        scene_graph=sg_dict,
-        total_duration_seconds=dur,
-        scene_count=scene_count,
-        character_count=char_count,
-        created_at=project.created_at.isoformat(),
-        updated_at=project.updated_at.isoformat(),
-    )
-
-def character_to_dto(char: Character) -> CharacterDTO:
-    return CharacterDTO(
-        id=char.id,
-        name=char.name,
-        description=char.description,
-        gender=char.gender,
-        palette=char.palette.model_dump(),
-        hair_style=char.hair_style,
-        eye_style=char.eye_style,
-        clothing_style=char.clothing_style,
-        voice_id=char.voice_id,
-        default_expression=char.default_expression.value,
-        default_pose=char.default_pose.value,
-        proportions=char.proportions.model_dump(),
-        blend_file_path=char.blend_file_path,
-        thumbnail_path=char.thumbnail_path,
-        is_builtin=char.is_builtin,
-        created_at=char.created_at.isoformat(),
-        updated_at=char.updated_at.isoformat(),
-    )
-
-def studio_asset_to_dto(asset: StudioAsset) -> StudioAssetDTO:
-    return StudioAssetDTO(
-        id=asset.id,
-        name=asset.name,
-        category=asset.category.value,
-        description=asset.description,
-        file_path=asset.file_path,
-        asset_format=asset.asset_format.value,
-        thumbnail_path=asset.thumbnail_path,
-        version=asset.version,
-        tags=asset.tags,
-        is_builtin=asset.is_builtin,
-        created_at=asset.created_at.isoformat(),
-        updated_at=asset.updated_at.isoformat(),
     )
 
 
