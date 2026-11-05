@@ -42,7 +42,10 @@ from tezlify_studio.application.use_cases.process_due_scheduled_publishes_use_ca
 from tezlify_studio.application.use_cases.reconcile_scheduled_publishes_use_case import (
     ReconcileScheduledPublishesUseCase,
 )
-from tezlify_studio.domain.exceptions.publish_exceptions import QuotaExceededException
+from tezlify_studio.domain.exceptions.publish_exceptions import (
+    AuthenticationRequiredException,
+    QuotaExceededException,
+)
 from tezlify_studio.domain.entities.platform_channel import PlatformChannel
 from tezlify_studio.domain.entities.platform_connection import PlatformConnection
 from tezlify_studio.domain.value_objects.channel_access import ChannelAccess
@@ -94,10 +97,18 @@ class FakeAccessProvider:
         )
 
 
+class ExpiredAccessProvider:
+    def get_access(self, context: ChannelContext) -> ChannelAccess:
+        raise AuthenticationRequiredException(
+            "Bu hesap için yenileme anahtarı bulunamadı."
+        )
+
+
 class FakeSchedulerPublisher(YouTubePublisherPort):
     def __init__(self):
         self.should_fail_quota = False
         self.should_fail_transient = False
+        self.initiate_calls = []
 
     def generate_auth_url(
         self,
@@ -114,6 +125,7 @@ class FakeSchedulerPublisher(YouTubePublisherPort):
     def get_channel_profile(self, access_token: str) -> Dict[str, Any]:
         return {"channel_id": "UC_TEST", "channel_title": "Test Channel"}
     def initiate_resumable_upload(self, *args, **kwargs) -> str:
+        self.initiate_calls.append(args)
         if self.should_fail_quota:
             raise QuotaExceededException("Quota exhausted")
         if self.should_fail_transient:
@@ -335,6 +347,66 @@ def test_process_due_permanent_quota_error():
         if cleanup:
             cleanup()
         db.close()
+
+def test_process_due_expired_credentials_fail_without_uploading():
+    """An expired grant must never trigger an upload; the job stops safely."""
+    db = SessionLocal()
+    cleanup = None
+    try:
+        (
+            media_id,
+            acc_id,
+            token_storage,
+            cleanup,
+            channel_id,
+            connection_id,
+            external_channel_id,
+        ) = setup_test_prerequisites(db)
+        sched_repo = ScheduledPublishRepositoryImpl(db)
+        pub_repo = PublishRecordRepositoryImpl(db)
+        media_repo = MediaRepositoryImpl(db)
+
+        publisher = FakeSchedulerPublisher()
+        publish_use_case = PublishVideoToYouTubeUseCase(
+            media_repo=media_repo,
+            storage=FakeStorage(),
+            resolver=FakeResolver(channel_id, connection_id, external_channel_id),
+            access_provider=ExpiredAccessProvider(),
+            publish_repo=pub_repo,
+            publisher=publisher,
+        )
+
+        sched_id = f"s_expired_{uuid.uuid4().hex[:8]}"
+        sched_repo.save(
+            ScheduledPublish(
+                id=sched_id,
+                media_asset_id=media_id,
+                social_account_id=acc_id,
+                channel_id=channel_id,
+                platform_connection_id=connection_id,
+                channel_attribution="exact",
+                title="Expired Credentials Job",
+                scheduled_at_utc=datetime.now(timezone.utc) - timedelta(minutes=2),
+                status=ScheduleStatus.SCHEDULED,
+            )
+        )
+
+        ProcessDueScheduledPublishesUseCase(
+            schedule_repo=sched_repo,
+            publish_repo=pub_repo,
+            publish_use_case=publish_use_case,
+        ).execute()
+
+        saved = sched_repo.get_by_id(sched_id)
+        assert saved.status == ScheduleStatus.FAILED
+        assert saved.last_error_code == "PERMANENT_ERROR"
+        assert saved.publish_record_id is None
+        assert publisher.initiate_calls == []
+    finally:
+        if cleanup:
+            cleanup()
+        db.close()
+
 
 def test_process_due_transient_error_retry_backoff():
     db = SessionLocal()

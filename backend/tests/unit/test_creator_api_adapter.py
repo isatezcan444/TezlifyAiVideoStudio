@@ -200,6 +200,58 @@ def test_quota_error_surfaces_as_quota_exception() -> None:
         api.get_channel()
 
 
+def test_comments_disabled_403_is_explained_without_google_markup() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/channels"):
+            return httpx.Response(200, json=CHANNEL)
+        if request.url.path.endswith("/playlistItems"):
+            return httpx.Response(
+                200, json={"items": [{"contentDetails": {"videoId": "vid_1"}}]}
+            )
+        return httpx.Response(
+            403,
+            json={
+                "error": {
+                    "message": (
+                        'The video identified by the <code><a href="/youtube/data/'
+                        'reference/rest/v3/commentThreads/list#videoId">videoId</a>'
+                        "</code> parameter has disabled comments."
+                    ),
+                    "errors": [{"reason": "commentsDisabled"}],
+                }
+            },
+        )
+
+    api = build_api(handler)
+    with pytest.raises(CreatorApiException) as exc:
+        api.list_comments(video_id="vid_1")
+
+    assert "yorumlar kapalı" in str(exc.value).lower()
+    assert "<code>" not in str(exc.value)
+    assert "videoId" not in str(exc.value)
+
+
+def test_generic_forbidden_message_never_contains_html() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            403,
+            json={
+                "error": {
+                    "message": "Denied by <b>policy</b> for this &amp; that reason.",
+                    "errors": [{"reason": "forbidden"}],
+                }
+            },
+        )
+
+    api = build_api(handler)
+    with pytest.raises(CreatorApiException) as exc:
+        api.get_channel()
+
+    message = str(exc.value)
+    assert "<b>" not in message
+    assert "Denied by policy for this & that reason." in message
+
+
 def test_analytics_api_not_enabled_returns_structured_reason() -> None:
     """A disabled Analytics API is a project setting, not a permission problem."""
 

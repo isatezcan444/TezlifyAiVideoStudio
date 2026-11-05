@@ -393,6 +393,24 @@ def test_new_connection_adds_only_the_requested_capability_scope():
     assert SCOPE_COMMENTS not in result.requested_scopes
 
 
+@pytest.mark.parametrize(
+    "capability,scope",
+    [
+        (CAPABILITY_ANALYTICS, SCOPE_ANALYTICS),
+        (CAPABILITY_COMMENTS, SCOPE_COMMENTS),
+    ],
+)
+def test_analytics_and_comments_are_requested_only_on_demand(capability, scope):
+    publisher, _, generate, _ = _auth_flow()
+
+    result = generate.execute(capabilities=[capability])
+
+    assert scope in result.requested_scopes
+    other_extra_scopes = {SCOPE_ANALYTICS, SCOPE_UPLOAD, SCOPE_COMMENTS} - {scope}
+    assert not (other_extra_scopes & set(result.requested_scopes))
+    assert SCOPE_REVENUE not in result.requested_scopes
+
+
 def test_auth_url_rejects_unknown_capability_before_creating_a_session():
     publisher, _, generate, _ = _auth_flow()
 

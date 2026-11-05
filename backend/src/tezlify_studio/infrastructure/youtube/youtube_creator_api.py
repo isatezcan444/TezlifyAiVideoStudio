@@ -1,3 +1,4 @@
+import html
 import re
 from typing import Any, Dict, List, Optional
 
@@ -180,7 +181,13 @@ class YouTubeCreatorApi(ChannelPort, AnalyticsPort, CommentPort):
             raise CreatorApiException(
                 f"{action}: ilgili YouTube API Google Cloud projesinde etkin değil.", status_code=403
             )
-        raise CreatorApiException(f"{action} reddedildi: {message}", status_code=403)
+        if any(reason == "commentsDisabled" for reason in reasons):
+            raise CreatorApiException(
+                "Bu videoda yorumlar kapalı. Yorumları görüntülemek veya yönetmek "
+                "için YouTube Studio üzerinden yorumları açın.",
+                status_code=403,
+            )
+        raise CreatorApiException(f"{action} reddedildi: {_plain_text(message)}", status_code=403)
 
     # ------------------------------------------------------------------ channel
 
@@ -622,6 +629,11 @@ class YouTubeCreatorApi(ChannelPort, AnalyticsPort, CommentPort):
             text="",
             moderation_status=status,
         )
+
+
+def _plain_text(value: Any) -> str:
+    """Google error messages sometimes embed HTML; never surface markup in the UI."""
+    return html.unescape(re.sub(r"<[^>]+>", "", str(value))).strip()
 
 
 def _as_int(value: Any) -> Optional[int]:
