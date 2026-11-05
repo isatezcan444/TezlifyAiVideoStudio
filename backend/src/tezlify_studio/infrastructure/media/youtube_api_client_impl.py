@@ -64,6 +64,7 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
             "scope": " ".join(self.SCOPES),
             "access_type": "offline",
             "prompt": "consent",
+            "include_granted_scopes": "true",
             "state": state,
             "code_challenge": code_challenge,
             "code_challenge_method": "S256",

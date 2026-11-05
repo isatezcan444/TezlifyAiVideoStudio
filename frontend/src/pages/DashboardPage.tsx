@@ -39,6 +39,8 @@ const ANALYTICS_REASON_LABEL: Record<string, string> = {
   api_not_enabled: 'YouTube Analytics API kapalı',
   insufficient_scope: 'Analitik izni gerekli',
   quota_exceeded: 'Analitik kotası aşıldı',
+  forbidden: 'Analitik erişimi reddedildi',
+  api_error: 'Analitik API hatası',
 };
 
 const analyticsReasonLabel = (reason?: string | null): string =>
@@ -53,6 +55,12 @@ const analyticsReasonDetail = (reason?: string | null): string => {
   }
   if (reason === 'quota_exceeded') {
     return 'YouTube Analytics API kotası aşıldı. Kota sıfırlandığında veri yeniden yüklenecek.';
+  }
+  if (reason === 'forbidden') {
+    return 'YouTube Analytics isteği reddedildi. Bağlı hesabın kanala erişim yetkisini ve Analytics iznini kontrol edin.';
+  }
+  if (reason === 'api_error') {
+    return 'YouTube Analytics API beklenmeyen bir hata döndürdü. Birkaç dakika sonra yeniden deneyin.';
   }
   return 'Analitik verisi şu anda kullanılamıyor.';
 };

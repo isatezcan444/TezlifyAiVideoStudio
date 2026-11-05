@@ -28,14 +28,39 @@ from tezlify_studio.domain.value_objects.creator_models import (
     YOUTUBE_ANALYTICS_METRICS,
 )
 
-YOUTUBE_SCOPES = [
+SCOPE_IDENTITY = [
     "openid",
     "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/userinfo.profile",
-    "https://www.googleapis.com/auth/youtube.readonly",
-    "https://www.googleapis.com/auth/youtube.upload",
-    "https://www.googleapis.com/auth/yt-analytics.readonly",
-    "https://www.googleapis.com/auth/youtube.force-ssl",
+]
+SCOPE_CHANNEL_READ = ["https://www.googleapis.com/auth/youtube.readonly"]
+SCOPE_ANALYTICS = ["https://www.googleapis.com/auth/yt-analytics.readonly"]
+SCOPE_REVENUE = ["https://www.googleapis.com/auth/yt-analytics-monetary.readonly"]
+SCOPE_UPLOAD = ["https://www.googleapis.com/auth/youtube.upload"]
+SCOPE_COMMENTS = ["https://www.googleapis.com/auth/youtube.force-ssl"]
+
+# Capability boundaries are explicit so a future incremental-authorization flow
+# can request only what a feature needs. The default consent request still
+# includes every implemented capability because upload and comment actions are
+# reachable from the main UI; narrowing it requires a user-facing re-consent.
+SCOPE_CAPABILITIES = {
+    "identity": SCOPE_IDENTITY,
+    "channel_read": SCOPE_CHANNEL_READ,
+    "analytics": SCOPE_ANALYTICS,
+    "upload": SCOPE_UPLOAD,
+    "comments": SCOPE_COMMENTS,
+}
+
+# Opt-in only: revenue reporting needs a separate monetary scope and is not
+# requested by default because the rest of the product works without it.
+OPTIONAL_SCOPES = {"revenue": SCOPE_REVENUE}
+
+YOUTUBE_SCOPES = [
+    *SCOPE_IDENTITY,
+    *SCOPE_CHANNEL_READ,
+    *SCOPE_ANALYTICS,
+    *SCOPE_UPLOAD,
+    *SCOPE_COMMENTS,
 ]
 
 _ISO_DURATION = re.compile(

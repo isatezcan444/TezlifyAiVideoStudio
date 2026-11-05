@@ -113,7 +113,13 @@ export const ChannelOverviewPage: React.FC<{ onNavigate: (tab: string) => void }
           variant="primary"
         />
         <StatsCard title="Toplam görüntüleme" value={formatNumber(channel.view_count)} icon={Eye} variant="info" />
-        <StatsCard title="Video sayısı" value={formatNumber(channel.video_count)} icon={Film} variant="success" />
+        <StatsCard
+          title="Video sayısı"
+          value={formatNumber(channel.video_count)}
+          subtitle="Yalnızca herkese açık videolar"
+          icon={Film}
+          variant="success"
+        />
       </div>
 
       <Card>

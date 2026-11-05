@@ -23,6 +23,14 @@ _REASON_TEXT = {
     ),
     "not_connected": "Önce bir YouTube kanalı bağlamalısınız.",
     "quota_exceeded": "YouTube Analytics kotası doldu. Kota Pasifik Saati gece yarısı sıfırlanır.",
+    "forbidden": (
+        "YouTube Analytics isteği reddedildi. Bağlı hesabın kanala erişim yetkisini "
+        "ve Analytics iznini kontrol edin."
+    ),
+    "api_error": (
+        "YouTube Analytics API beklenmeyen bir hata döndürdü. Birkaç dakika sonra "
+        "yeniden deneyin; sorun sürerse YouTube API durumunu kontrol edin."
+    ),
 }
 
 

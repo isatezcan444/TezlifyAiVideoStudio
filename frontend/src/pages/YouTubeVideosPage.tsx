@@ -104,6 +104,7 @@ export const YouTubeVideosPage: React.FC = () => {
           <h3 className="text-sm font-bold text-slate-800 dark:text-white">Kanal videoları</h3>
           <p className="text-[11px] text-slate-400 dark:text-[#7E7F96]">
             YouTube Data API · başlık, açıklama, etiket ve gizlilik değişiklikleri yalnızca sizin onayınızla gönderilir.
+            Liste özel ve liste dışı videoları da içerir; kanal kartındaki video sayısı yalnızca herkese açık videoları sayar.
           </p>
         </div>
         <Button variant="ghost" size="sm" onClick={load} disabled={isLoading} className="gap-1.5 text-xs">
