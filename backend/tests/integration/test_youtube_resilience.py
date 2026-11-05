@@ -18,6 +18,7 @@ from tezlify_studio.domain.exceptions.publish_exceptions import (
     PublishDomainException,
 )
 from tezlify_studio.infrastructure.media.youtube_api_client_impl import YouTubeApiClientImpl
+from tezlify_studio.infrastructure.youtube.youtube_creator_api import YOUTUBE_SCOPES
 from tezlify_studio.infrastructure.persistence.database import SessionLocal
 from tezlify_studio.infrastructure.persistence.repositories.publish_record_repository_impl import (
     PublishRecordRepositoryImpl,
@@ -34,11 +35,22 @@ class MockResiliencePublisher(YouTubePublisherPort):
         self.should_fail_quota = False
         self.query_return_bytes = 0
 
-    def generate_auth_url(self, state: str, code_challenge: str, redirect_uri: Optional[str] = None) -> str:
+    def generate_auth_url(
+        self,
+        state: str,
+        code_challenge: str,
+        redirect_uri: Optional[str] = None,
+        scopes: Optional[List[str]] = None,
+    ) -> str:
         return f"https://accounts.google.com/o/oauth2/v2/auth?state={state}"
 
     def exchange_code_for_tokens(self, code: str, code_verifier: str, redirect_uri: Optional[str] = None) -> Dict[str, Any]:
-        return {"access_token": "token_resilience", "refresh_token": "refresh_resilience", "expires_in": 3600}
+        return {
+            "access_token": "token_resilience",
+            "refresh_token": "refresh_resilience",
+            "expires_in": 3600,
+            "scope": " ".join(YOUTUBE_SCOPES),
+        }
 
     def refresh_access_token(self, refresh_token: str) -> Dict[str, Any]:
         return {"access_token": "token_new", "expires_in": 3600}

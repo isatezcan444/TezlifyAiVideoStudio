@@ -99,7 +99,13 @@ class FakeSchedulerPublisher(YouTubePublisherPort):
         self.should_fail_quota = False
         self.should_fail_transient = False
 
-    def generate_auth_url(self, state: str, code_challenge: str, redirect_uri: Optional[str] = None) -> str:
+    def generate_auth_url(
+        self,
+        state: str,
+        code_challenge: str,
+        redirect_uri: Optional[str] = None,
+        scopes: Optional[List[str]] = None,
+    ) -> str:
         return ""
     def exchange_code_for_tokens(self, *args, **kwargs) -> Dict[str, Any]:
         return {}

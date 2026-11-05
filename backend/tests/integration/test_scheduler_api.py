@@ -2,7 +2,7 @@ import io
 import uuid
 import pytest
 from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 from fastapi.testclient import TestClient
 
 from tezlify_studio.presentation.api.app import app
@@ -12,17 +12,29 @@ from tezlify_studio.presentation.dependencies.container import (
 )
 from tezlify_studio.application.ports.youtube_publisher_port import YouTubePublisherPort
 from tezlify_studio.infrastructure.security.token_storage_impl import InMemoryTokenStorageAdapter
+from tezlify_studio.infrastructure.youtube.youtube_creator_api import YOUTUBE_SCOPES
 from tezlify_studio.infrastructure.persistence.database import SessionLocal
 from tezlify_studio.infrastructure.persistence.repositories.scheduled_publish_repository_impl import (
     ScheduledPublishRepositoryImpl,
 )
 
 class ApiFakePublisher(YouTubePublisherPort):
-    def generate_auth_url(self, state: str, code_challenge: str, redirect_uri: Optional[str] = None) -> str:
+    def generate_auth_url(
+        self,
+        state: str,
+        code_challenge: str,
+        redirect_uri: Optional[str] = None,
+        scopes: Optional[List[str]] = None,
+    ) -> str:
         return f"https://accounts.google.com/o/oauth2/v2/auth?state={state}"
 
     def exchange_code_for_tokens(self, *args, **kwargs) -> Dict[str, Any]:
-        return {"access_token": "api_access_tok", "refresh_token": "api_refresh_tok", "expires_in": 3600}
+        return {
+            "access_token": "api_access_tok",
+            "refresh_token": "api_refresh_tok",
+            "expires_in": 3600,
+            "scope": " ".join(YOUTUBE_SCOPES),
+        }
 
     def refresh_access_token(self, *args, **kwargs) -> Dict[str, Any]:
         return {"access_token": "api_new_tok", "expires_in": 3600}

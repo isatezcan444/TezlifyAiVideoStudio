@@ -296,7 +296,11 @@ class FakePublisher(YouTubePublisherPort):
         self.access_profiles[access_token] = [dict(profile) for profile in profiles]
 
     def generate_auth_url(
-        self, state: str, code_challenge: str, redirect_uri: Optional[str] = None
+        self,
+        state: str,
+        code_challenge: str,
+        redirect_uri: Optional[str] = None,
+        scopes: Optional[List[str]] = None,
     ) -> str:
         return f"https://accounts.google.test/o/oauth2/auth?state={state}"
 

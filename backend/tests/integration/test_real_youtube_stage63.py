@@ -19,7 +19,9 @@ from tezlify_studio.infrastructure.media.youtube_api_client_impl import (
     YouTubeApiClientImpl,
 )
 from tezlify_studio.infrastructure.youtube.youtube_creator_api import (
+    BASE_SCOPES,
     OPTIONAL_SCOPES,
+    SCOPE_ANALYTICS,
     SCOPE_CAPABILITIES,
     SCOPE_REVENUE,
     YOUTUBE_SCOPES,
@@ -52,7 +54,7 @@ def test_revenue_scope_is_opt_in_and_not_part_of_default_consent():
     assert "yt-analytics-monetary.readonly" not in " ".join(YOUTUBE_SCOPES)
 
 
-def test_auth_url_enables_incremental_authorization():
+def test_auth_url_enables_incremental_authorization_and_defaults_to_base_scopes():
     client = YouTubeApiClientImpl(
         client_id="test_client_id",
         redirect_uri="http://127.0.0.1:54321/oauth2callback",
@@ -62,6 +64,22 @@ def test_auth_url_enables_incremental_authorization():
     )
 
     assert query["include_granted_scopes"] == ["true"]
+    assert query["scope"] == [" ".join(BASE_SCOPES)]
+
+
+def test_auth_url_accepts_an_explicit_incremental_scope_set():
+    client = YouTubeApiClientImpl(
+        client_id="test_client_id",
+        redirect_uri="http://127.0.0.1:54321/oauth2callback",
+    )
+    query = parse_qs(
+        urlparse(
+            client.generate_auth_url(
+                state="state", code_challenge="challenge", scopes=list(YOUTUBE_SCOPES)
+            )
+        ).query
+    )
+
     assert query["scope"] == [" ".join(YOUTUBE_SCOPES)]
 
 
@@ -84,6 +102,7 @@ class _AnalyticsStub:
 class _ResolverStub:
     def resolve(self, channel_id=None):
         return SimpleNamespace(
+            connection_id="conn_1",
             channel=SimpleNamespace(
                 id="local_ch_1",
                 platform=SocialPlatform.YOUTUBE,
@@ -92,7 +111,8 @@ class _ResolverStub:
             ),
             connection=SimpleNamespace(
                 id="conn_1",
-                connection_status=SimpleNamespace(value="connected"),
+                connection_status=SimpleNamespace(value="active"),
+                granted_scopes=[SCOPE_ANALYTICS],
             ),
         )
 

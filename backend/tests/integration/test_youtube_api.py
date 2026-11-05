@@ -12,6 +12,7 @@ from tezlify_studio.presentation.dependencies.container import (
 )
 from tezlify_studio.application.ports.youtube_publisher_port import YouTubePublisherPort
 from tezlify_studio.infrastructure.security.token_storage_impl import InMemoryTokenStorageAdapter
+from tezlify_studio.infrastructure.youtube.youtube_creator_api import YOUTUBE_SCOPES
 from tezlify_studio.application.use_cases.oauth_session_store import oauth_session_store
 
 # Fake YouTube Publisher for deterministic integration testing
@@ -21,7 +22,13 @@ class FakeYouTubePublisher(YouTubePublisherPort):
         self.initiate_calls = []
         self.pause_chunks = False
 
-    def generate_auth_url(self, state: str, code_challenge: str, redirect_uri: Optional[str] = None) -> str:
+    def generate_auth_url(
+        self,
+        state: str,
+        code_challenge: str,
+        redirect_uri: Optional[str] = None,
+        scopes: Optional[List[str]] = None,
+    ) -> str:
         r_uri = redirect_uri or "http://127.0.0.1:8000/api/v1/social/youtube/callback"
         return f"https://accounts.google.com/o/oauth2/v2/auth?client_id=test_client&state={state}&code_challenge={code_challenge}&redirect_uri={r_uri}"
 
@@ -35,6 +42,7 @@ class FakeYouTubePublisher(YouTubePublisherPort):
             "access_token": "fake_access_token_123",
             "refresh_token": "fake_refresh_token_456",
             "expires_in": 3600,
+            "scope": " ".join(YOUTUBE_SCOPES),
         }
 
     def refresh_access_token(self, refresh_token: str) -> Dict[str, Any]:
