@@ -19,14 +19,20 @@ class PlatformNotSupportedException(CreatorStudioException):
 
 
 class InsufficientScopeException(CreatorStudioException):
-    def __init__(self, required_scope: str, action: str):
+    def __init__(
+        self,
+        required_scope: str,
+        action: str,
+        capability: str = "",
+    ):
         super().__init__(
-            f"'{action}' için '{required_scope}' izni gerekiyor. Bağlantıyı genişletmek için "
-            "Ayarlar > Bağlı Hesaplar bölümünden YouTube hesabını yeniden yetkilendirin.",
+            f"'{action}' için '{required_scope}' izni gerekiyor. Mevcut hesap bağlantınız "
+            "korunur; yalnızca bu yeteneği eklemek için izin verebilirsiniz.",
             "INSUFFICIENT_SCOPE",
         )
         self.required_scope = required_scope
         self.action = action
+        self.capability = capability
 
 
 class AnalyticsUnavailableException(CreatorStudioException):

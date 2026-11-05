@@ -20,6 +20,14 @@ class ChannelResponse(BaseModel):
     updated_at: str = ""
 
 
+class CapabilityStatusResponse(BaseModel):
+    capability: str
+    status: str
+    granted: bool
+    optional: bool = False
+    required_scopes: List[str] = []
+
+
 class ConnectionResponse(BaseModel):
     id: str
     platform: str
@@ -27,6 +35,7 @@ class ConnectionResponse(BaseModel):
     account_display_name: str
     connection_status: str
     granted_scopes: List[str] = []
+    capabilities: List[CapabilityStatusResponse] = []
     connected_at: str = ""
     last_refreshed_at: str = ""
     token_expires_at: str = ""

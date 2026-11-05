@@ -5,6 +5,10 @@ from tezlify_studio.application.ports.channel_context_resolver_port import (
     ChannelContextResolverPort,
 )
 from tezlify_studio.application.ports.creator_gateway_port import CreatorGatewayPort
+from tezlify_studio.application.services.youtube_capability_service import (
+    YouTubeCapabilityService,
+)
+from tezlify_studio.domain.value_objects.youtube_capabilities import CAPABILITY_COMMENTS
 
 
 class ReplyToCommentUseCase:
@@ -12,9 +16,11 @@ class ReplyToCommentUseCase:
         self,
         resolver: ChannelContextResolverPort,
         gateway: CreatorGatewayPort,
+        capability_service: Optional[YouTubeCapabilityService] = None,
     ):
         self.resolver = resolver
         self.gateway = gateway
+        self.capability_service = capability_service
 
     def execute(
         self,
@@ -28,6 +34,8 @@ class ReplyToCommentUseCase:
         if len(clean) > 10000:
             raise ValueError("Yanıt metni 10.000 karakteri aşamaz.")
         context = self.resolver.resolve(channel_id)
+        if self.capability_service:
+            self.capability_service.require(context.connection, CAPABILITY_COMMENTS)
         session = self.gateway.bind(context)
         comment = session.comments.reply_to_comment(parent_comment_id, clean)
         return {

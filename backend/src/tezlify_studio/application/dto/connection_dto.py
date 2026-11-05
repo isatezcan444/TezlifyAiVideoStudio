@@ -1,6 +1,12 @@
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Optional
 
+from tezlify_studio.application.services.analytics_availability_registry import (
+    analytics_availability_registry,
+)
+from tezlify_studio.application.services.youtube_capability_service import (
+    YouTubeCapabilityService,
+)
 from tezlify_studio.domain.entities.platform_channel import PlatformChannel
 from tezlify_studio.domain.entities.platform_connection import PlatformConnection
 
@@ -24,6 +30,15 @@ class ChannelDTO:
 
 
 @dataclass
+class CapabilityStatusDTO:
+    capability: str
+    status: str
+    granted: bool
+    optional: bool
+    required_scopes: List[str] = field(default_factory=list)
+
+
+@dataclass
 class ConnectionDTO:
     id: str
     platform: str
@@ -31,6 +46,7 @@ class ConnectionDTO:
     account_display_name: str
     connection_status: str
     granted_scopes: List[str] = field(default_factory=list)
+    capabilities: List[CapabilityStatusDTO] = field(default_factory=list)
     connected_at: str = ""
     last_refreshed_at: str = ""
     token_expires_at: str = ""
@@ -83,10 +99,30 @@ def channel_context_payload(context) -> dict:
     }
 
 
+def _default_capability_service() -> YouTubeCapabilityService:
+    return YouTubeCapabilityService(
+        api_state_provider=lambda connection_id, _capability: (
+            analytics_availability_registry.get(connection_id)
+        )
+    )
+
+
 def connection_to_dto(
     connection: PlatformConnection,
     channels: List[PlatformChannel],
+    capability_service: Optional[YouTubeCapabilityService] = None,
 ) -> ConnectionDTO:
+    service = capability_service or _default_capability_service()
+    capabilities = [
+        CapabilityStatusDTO(
+            capability=item.capability,
+            status=item.status,
+            granted=item.granted,
+            optional=item.optional,
+            required_scopes=list(item.required_scopes),
+        )
+        for item in service.resolve(connection)
+    ]
     return ConnectionDTO(
         id=connection.id,
         platform=connection.platform.value,
@@ -94,6 +130,7 @@ def connection_to_dto(
         account_display_name=connection.account_display_name,
         connection_status=connection.connection_status.value,
         granted_scopes=list(connection.granted_scopes),
+        capabilities=capabilities,
         connected_at=iso_or_empty(connection.connected_at),
         last_refreshed_at=iso_or_empty(connection.last_refreshed_at),
         token_expires_at=iso_or_empty(connection.token_expires_at),

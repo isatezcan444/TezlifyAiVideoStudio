@@ -8,6 +8,7 @@ from tezlify_studio.application.ports.media_repository_port import MediaReposito
 from tezlify_studio.application.ports.publish_record_repository_port import PublishRecordRepositoryPort
 from tezlify_studio.application.ports.youtube_publisher_port import YouTubePublisherPort
 from tezlify_studio.domain.exceptions.creator_exceptions import CreatorStudioException
+from tezlify_studio.domain.value_objects.youtube_capabilities import CAPABILITY_UPLOAD
 from tezlify_studio.application.dto.publish_dto import PublishRecordDTO
 from tezlify_studio.application.dto.mappers import publish_record_to_dto
 from tezlify_studio.application.use_cases.publish_video_to_youtube_use_case import PublishVideoToYouTubeUseCase
@@ -58,6 +59,9 @@ class ResumeYouTubeUploadUseCase:
             )
 
         context = self.resolver.resolve(record.channel_id)
+        capability_service = getattr(self.publish_use_case, "capability_service", None)
+        if capability_service:
+            capability_service.require(context.connection, CAPABILITY_UPLOAD)
         access = self.access_provider.get_access(context)
         self.publish_use_case._assert_token_binding(
             access.access_token, context.channel.channel_external_id, context.channel.id

@@ -245,6 +245,7 @@ def create_app() -> FastAPI:
                 "error_code": exc.error_code,
                 "required_scope": exc.required_scope,
                 "action": exc.action,
+                **({"capability": exc.capability} if exc.capability else {}),
             },
         )
 

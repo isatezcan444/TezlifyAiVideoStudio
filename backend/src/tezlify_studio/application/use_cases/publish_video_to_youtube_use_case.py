@@ -22,10 +22,14 @@ from tezlify_studio.application.ports.media_repository_port import MediaReposito
 from tezlify_studio.application.ports.media_storage_port import MediaStoragePort
 from tezlify_studio.application.ports.publish_record_repository_port import PublishRecordRepositoryPort
 from tezlify_studio.application.ports.youtube_publisher_port import YouTubePublisherPort
+from tezlify_studio.application.services.youtube_capability_service import (
+    YouTubeCapabilityService,
+)
 from tezlify_studio.domain.exceptions.creator_exceptions import (
     ChannelBindingMismatchException,
     PlatformNotSupportedException,
 )
+from tezlify_studio.domain.value_objects.youtube_capabilities import CAPABILITY_UPLOAD
 from tezlify_studio.application.dto.publish_dto import PublishRecordDTO, StartPublishRequestDTO
 from tezlify_studio.application.dto.mappers import publish_record_to_dto
 
@@ -46,6 +50,7 @@ class PublishVideoToYouTubeUseCase:
         stop_checker: Optional[Callable[[], bool]] = None,
         poll_processing_attempts: int = 15,
         poll_processing_interval: float = 3.0,
+        capability_service: Optional[YouTubeCapabilityService] = None,
     ):
         self.media_repo = media_repo
         self.storage = storage
@@ -58,6 +63,7 @@ class PublishVideoToYouTubeUseCase:
         self.stop_checker = stop_checker
         self.poll_processing_attempts = poll_processing_attempts
         self.poll_processing_interval = poll_processing_interval
+        self.capability_service = capability_service
 
     def _assert_token_binding(
         self, access_token: str, external_channel_id: str, local_channel_id: str
@@ -92,6 +98,8 @@ class PublishVideoToYouTubeUseCase:
         context = self.resolver.resolve(req.channel_id)
         if context.channel.platform != SocialPlatform.YOUTUBE:
             raise PlatformNotSupportedException(context.channel.platform.value)
+        if self.capability_service:
+            self.capability_service.require(context.connection, CAPABILITY_UPLOAD)
         access = self.access_provider.get_access(context)
         self._assert_token_binding(
             access.access_token, context.channel.channel_external_id, context.channel.id

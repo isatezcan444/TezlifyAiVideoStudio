@@ -6,9 +6,22 @@ from tezlify_studio.application.ports.channel_context_resolver_port import (
     ChannelContextResolverPort,
 )
 from tezlify_studio.application.ports.creator_gateway_port import CreatorGatewayPort
+from tezlify_studio.application.services.analytics_availability_registry import (
+    AnalyticsAvailabilityRegistry,
+    analytics_availability_registry,
+)
 from tezlify_studio.application.services.analytics_range import resolve_date_range
+from tezlify_studio.application.services.youtube_capability_service import (
+    YouTubeCapabilityService,
+)
 from tezlify_studio.domain.value_objects.creator_models import (
+    AnalyticsResult,
     YOUTUBE_ANALYTICS_METRICS,
+)
+from tezlify_studio.domain.value_objects.youtube_capabilities import (
+    CAPABILITY_ANALYTICS,
+    CAPABILITY_REVENUE,
+    has_capability,
 )
 
 _REASON_TEXT = {
@@ -40,10 +53,16 @@ class GetChannelAnalyticsUseCase:
         resolver: ChannelContextResolverPort,
         gateway: CreatorGatewayPort,
         max_range_days: int = 365,
+        capability_service: Optional[YouTubeCapabilityService] = None,
+        availability_registry: Optional[AnalyticsAvailabilityRegistry] = None,
     ):
         self.resolver = resolver
         self.gateway = gateway
         self.max_range_days = max_range_days
+        self.capability_service = capability_service
+        self.availability_registry = (
+            availability_registry or analytics_availability_registry
+        )
 
     def execute(
         self,
@@ -67,13 +86,40 @@ class GetChannelAnalyticsUseCase:
             raise ValueError(f"Desteklenmeyen boyutlar: {', '.join(invalid)}")
 
         context = self.resolver.resolve(channel_id)
-        session = self.gateway.bind(context)
-        result = session.analytics.query(
-            date_range=date_range,
-            metrics=list(YOUTUBE_ANALYTICS_METRICS),
-            dimensions=selected_dimensions,
-            include_revenue=include_revenue,
+
+        missing_analytics_scope = bool(
+            self.capability_service
+            and not has_capability(
+                context.connection.granted_scopes, CAPABILITY_ANALYTICS
+            )
         )
+        if missing_analytics_scope:
+            # The central resolver decides from the granted scope, so a missing
+            # permission is reported without calling Google. "API not enabled"
+            # is observed from the real API response below and stays distinct.
+            result = AnalyticsResult(
+                available=False,
+                reason="insufficient_scope",
+                start_date=date_range.start_date.isoformat(),
+                end_date=date_range.end_date.isoformat(),
+                metrics=list(YOUTUBE_ANALYTICS_METRICS),
+                dimensions=selected_dimensions,
+            )
+        else:
+            revenue_allowed = include_revenue and (
+                not self.capability_service
+                or self.capability_service.can(context.connection, CAPABILITY_REVENUE)
+            )
+            session = self.gateway.bind(context)
+            result = session.analytics.query(
+                date_range=date_range,
+                metrics=list(YOUTUBE_ANALYTICS_METRICS),
+                dimensions=selected_dimensions,
+                include_revenue=revenue_allowed,
+            )
+            self.availability_registry.mark(
+                context.connection_id, result.reason if not result.available else None
+            )
 
         return {
             "range": {

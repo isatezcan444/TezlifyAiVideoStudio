@@ -5,8 +5,14 @@ import httpx
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
+from tezlify_studio.application.services.analytics_availability_registry import (
+    analytics_availability_registry,
+)
 from tezlify_studio.application.services.channel_context_service import ChannelContextService
 from tezlify_studio.application.services.connection_token_provider import ConnectionTokenProvider
+from tezlify_studio.application.services.youtube_capability_service import (
+    YouTubeCapabilityService,
+)
 from tezlify_studio.application.use_cases.cancel_scheduled_publish_use_case import (
     CancelScheduledPublishUseCase,
 )
@@ -227,10 +233,23 @@ def get_access_provider(
     return ConnectionTokenProvider(connection_repo, storage, publisher)
 
 
+def get_capability_service() -> YouTubeCapabilityService:
+    return YouTubeCapabilityService(
+        api_state_provider=lambda connection_id, _capability: (
+            analytics_availability_registry.get(connection_id)
+        )
+    )
+
+
 def get_creator_gateway(
     access_provider: ConnectionTokenProvider = Depends(get_access_provider),
+    capability_service: YouTubeCapabilityService = Depends(get_capability_service),
 ) -> YouTubeCreatorGateway:
-    return YouTubeCreatorGateway(access_provider, client=_creator_http_client)
+    return YouTubeCreatorGateway(
+        access_provider,
+        client=_creator_http_client,
+        capability_service=capability_service,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -361,6 +380,7 @@ def get_publish_video_use_case(
     access_provider: ConnectionTokenProvider = Depends(get_access_provider),
     publish_repo: PublishRecordRepositoryImpl = Depends(get_publish_record_repository),
     publisher: YouTubeApiClientImpl = Depends(get_youtube_publisher),
+    capability_service: YouTubeCapabilityService = Depends(get_capability_service),
 ) -> PublishVideoToYouTubeUseCase:
     return PublishVideoToYouTubeUseCase(
         media_repo=media_repo,
@@ -370,6 +390,7 @@ def get_publish_video_use_case(
         publish_repo=publish_repo,
         publisher=publisher,
         repo_factory=_make_publish_repo_factory(),
+        capability_service=capability_service,
     )
 
 
@@ -539,9 +560,14 @@ def get_list_video_categories_use_case(
 def get_channel_analytics_use_case(
     resolver: ChannelContextService = Depends(get_channel_context_service),
     gateway: YouTubeCreatorGateway = Depends(get_creator_gateway),
+    capability_service: YouTubeCapabilityService = Depends(get_capability_service),
 ) -> GetChannelAnalyticsUseCase:
     return GetChannelAnalyticsUseCase(
-        resolver, gateway, max_range_days=settings.analytics_max_range_days
+        resolver,
+        gateway,
+        max_range_days=settings.analytics_max_range_days,
+        capability_service=capability_service,
+        availability_registry=analytics_availability_registry,
     )
 
 
@@ -555,15 +581,17 @@ def get_list_comments_use_case(
 def get_reply_to_comment_use_case(
     resolver: ChannelContextService = Depends(get_channel_context_service),
     gateway: YouTubeCreatorGateway = Depends(get_creator_gateway),
+    capability_service: YouTubeCapabilityService = Depends(get_capability_service),
 ) -> ReplyToCommentUseCase:
-    return ReplyToCommentUseCase(resolver, gateway)
+    return ReplyToCommentUseCase(resolver, gateway, capability_service)
 
 
 def get_set_comment_moderation_use_case(
     resolver: ChannelContextService = Depends(get_channel_context_service),
     gateway: YouTubeCreatorGateway = Depends(get_creator_gateway),
+    capability_service: YouTubeCapabilityService = Depends(get_capability_service),
 ) -> SetCommentModerationUseCase:
-    return SetCommentModerationUseCase(resolver, gateway)
+    return SetCommentModerationUseCase(resolver, gateway, capability_service)
 
 
 def get_dashboard_use_case(
