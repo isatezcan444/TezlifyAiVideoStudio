@@ -37,6 +37,26 @@ class YouTubePublisherPort(ABC):
         """Fetches YouTube channel title, ID, and thumbnail avatar."""
         pass
 
+    def list_channel_profiles(self, access_token: str) -> List[Dict[str, Any]]:
+        """Discovers every channel the token can manage.
+
+        The default keeps older fakes working with a single profile; the real
+        adapter overrides it with channels.list?mine=true.
+        """
+        return [self.get_channel_profile(access_token)]
+
+    def get_account_identity(self, access_token: str) -> Dict[str, Any]:
+        """Returns Google account identity when the grant allows it."""
+        return {}
+
+    def list_authorized_channel_ids(self, access_token: str) -> Optional[List[str]]:
+        """Returns channel ids the token is authorized for.
+
+        None means the adapter cannot verify the binding; callers must treat
+        that as "unverified", never as a match.
+        """
+        return None
+
     @abstractmethod
     def initiate_resumable_upload(
         self,

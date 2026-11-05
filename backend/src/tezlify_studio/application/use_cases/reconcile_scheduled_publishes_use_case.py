@@ -40,7 +40,11 @@ class ReconcileScheduledPublishesUseCase:
                 pub_record = self.publish_repo.get_by_id(schedule.publish_record_id)
             else:
                 # Fallback: check if an existing publish record was created for this media asset
-                latest_pub = self.publish_repo.get_latest_by_media(schedule.media_asset_id, schedule.platform)
+                latest_pub = self.publish_repo.get_latest_by_media(
+                    schedule.media_asset_id,
+                    schedule.platform,
+                    channel_id=schedule.channel_id,
+                )
                 if latest_pub:
                     pub_record = latest_pub
                     schedule.publish_record_id = latest_pub.id

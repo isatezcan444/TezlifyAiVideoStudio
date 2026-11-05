@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, BarChart3, Loader2, RefreshCw } from 'lucide-react';
 import { apiService } from '../services/api';
+import { useChannelContext } from '../context/ChannelContext';
 import { AnalyticsResponse } from '../types/creator';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -32,6 +33,8 @@ const METRICS = [
 ];
 
 export const AnalyticsPage: React.FC<{ onNavigate: (tab: string) => void }> = ({ onNavigate }) => {
+  const { activeChannel } = useChannelContext();
+  const channelId = activeChannel?.id;
   const [range, setRange] = useState('28');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -53,6 +56,7 @@ export const AnalyticsPage: React.FC<{ onNavigate: (tab: string) => void }> = ({
           endDate: isCustom ? customEnd : undefined,
           dimensions: [dimension],
           includeRevenue,
+          channelId,
         })
       );
     } catch (err: any) {
@@ -60,9 +64,10 @@ export const AnalyticsPage: React.FC<{ onNavigate: (tab: string) => void }> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [range, customStart, customEnd, dimension, includeRevenue]);
+  }, [range, customStart, customEnd, dimension, includeRevenue, channelId]);
 
   useEffect(() => {
+    setData(null);
     load();
   }, [load]);
 

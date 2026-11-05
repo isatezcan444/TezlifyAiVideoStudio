@@ -1,6 +1,7 @@
 import React from 'react';
 import { Sun, Moon, Menu, UploadCloud } from 'lucide-react';
 import { Button } from '../ui/button';
+import { ChannelSwitcher } from '../channels/ChannelSwitcher';
 
 interface TopHeaderProps {
   title: string;
@@ -9,6 +10,7 @@ interface TopHeaderProps {
   onToggleTheme: () => void;
   onToggleMobileMenu: () => void;
   onQuickUpload?: () => void;
+  onManageAccounts: () => void;
 }
 
 export const TopHeader: React.FC<TopHeaderProps> = ({
@@ -18,6 +20,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onToggleTheme,
   onToggleMobileMenu,
   onQuickUpload,
+  onManageAccounts,
 }) => {
   return (
     <header className="sticky top-0 z-30 px-4 sm:px-6 lg:px-8 pt-4 pb-2 select-none">
@@ -44,8 +47,10 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           </div>
         </div>
 
-        {/* Right Side: Quick Actions */}
+        {/* Right Side: Channel selector & Quick Actions */}
         <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
+          <ChannelSwitcher onManageAccounts={onManageAccounts} />
+
           {onQuickUpload && (
             <Button
               variant="default"

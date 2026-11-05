@@ -19,6 +19,9 @@ class PublishRecordRepositoryImpl(PublishRecordRepositoryPort):
         return PublishRecord(
             id=model.id,
             media_asset_id=model.media_asset_id,
+            channel_id=model.channel_id,
+            platform_connection_id=model.platform_connection_id,
+            channel_attribution=model.channel_attribution or "unresolved",
             platform=SocialPlatform(model.platform),
             external_video_id=model.external_video_id,
             external_video_url=model.external_video_url,
@@ -48,6 +51,9 @@ class PublishRecordRepositoryImpl(PublishRecordRepositoryPort):
             model = PublishRecordModel(
                 id=record.id,
                 media_asset_id=record.media_asset_id,
+                channel_id=record.channel_id,
+                platform_connection_id=record.platform_connection_id,
+                channel_attribution=record.channel_attribution,
                 platform=record.platform.value,
                 external_video_id=record.external_video_id,
                 external_video_url=record.external_video_url,
@@ -70,6 +76,9 @@ class PublishRecordRepositoryImpl(PublishRecordRepositoryPort):
             )
             self.db.add(model)
         else:
+            model.channel_id = record.channel_id
+            model.platform_connection_id = record.platform_connection_id
+            model.channel_attribution = record.channel_attribution
             model.platform = record.platform.value
             model.external_video_id = record.external_video_id
             model.external_video_url = record.external_video_url
@@ -97,7 +106,9 @@ class PublishRecordRepositoryImpl(PublishRecordRepositoryPort):
         model = self.db.query(PublishRecordModel).filter(PublishRecordModel.id == record_id).first()
         return self._to_domain(model) if model else None
 
-    def get_active_by_media(self, media_id: str, platform: SocialPlatform) -> Optional[PublishRecord]:
+    def get_active_by_media(
+        self, media_id: str, platform: SocialPlatform, channel_id: Optional[str] = None
+    ) -> Optional[PublishRecord]:
         # Active means in progress (pending, authenticating, uploading, paused, processing)
         active_statuses = [
             PublishStatus.PENDING.value,
@@ -106,44 +117,88 @@ class PublishRecordRepositoryImpl(PublishRecordRepositoryPort):
             PublishStatus.PAUSED.value,
             PublishStatus.PROCESSING.value,
         ]
-        model = (
-            self.db.query(PublishRecordModel)
-            .filter(
-                PublishRecordModel.media_asset_id == media_id,
-                PublishRecordModel.platform == platform.value,
-                PublishRecordModel.status.in_(active_statuses),
-            )
-            .first()
+        query = self.db.query(PublishRecordModel).filter(
+            PublishRecordModel.media_asset_id == media_id,
+            PublishRecordModel.platform == platform.value,
+            PublishRecordModel.status.in_(active_statuses),
         )
+        if channel_id:
+            query = query.filter(PublishRecordModel.channel_id == channel_id)
+        model = query.first()
         return self._to_domain(model) if model else None
 
-    def get_latest_by_media(self, media_id: str, platform: SocialPlatform) -> Optional[PublishRecord]:
-        model = (
-            self.db.query(PublishRecordModel)
-            .filter(
-                PublishRecordModel.media_asset_id == media_id,
-                PublishRecordModel.platform == platform.value,
-            )
-            .order_by(PublishRecordModel.created_at.desc())
-            .first()
+    def get_latest_by_media(
+        self, media_id: str, platform: SocialPlatform, channel_id: Optional[str] = None
+    ) -> Optional[PublishRecord]:
+        query = self.db.query(PublishRecordModel).filter(
+            PublishRecordModel.media_asset_id == media_id,
+            PublishRecordModel.platform == platform.value,
         )
+        if channel_id:
+            query = query.filter(PublishRecordModel.channel_id == channel_id)
+        model = query.order_by(PublishRecordModel.created_at.desc()).first()
         return self._to_domain(model) if model else None
 
-    def list_by_platform(self, platform: SocialPlatform, limit: int = 50, offset: int = 0) -> List[PublishRecord]:
+    def list_by_platform(
+        self,
+        platform: SocialPlatform,
+        limit: int = 50,
+        offset: int = 0,
+        channel_id: Optional[str] = None,
+    ) -> List[PublishRecord]:
+        query = self.db.query(PublishRecordModel).filter(
+            PublishRecordModel.platform == platform.value
+        )
+        if channel_id:
+            query = query.filter(PublishRecordModel.channel_id == channel_id)
         models = (
-            self.db.query(PublishRecordModel)
-            .filter(PublishRecordModel.platform == platform.value)
-            .order_by(PublishRecordModel.created_at.desc())
+            query.order_by(PublishRecordModel.created_at.desc())
             .offset(offset)
             .limit(limit)
             .all()
         )
         return [self._to_domain(m) for m in models]
 
-    def list_all(self, limit: int = 50, offset: int = 0) -> List[PublishRecord]:
+    def count_by_channel(self, channel_id: str) -> int:
+        return (
+            self.db.query(PublishRecordModel)
+            .filter(PublishRecordModel.channel_id == channel_id)
+            .count()
+        )
+
+    def fail_pending_for_connection(
+        self, connection_id: str, error_code: str, error_message: str
+    ) -> int:
+        pending = [
+            PublishStatus.PENDING.value,
+            PublishStatus.AUTHENTICATING.value,
+            PublishStatus.UPLOADING.value,
+            PublishStatus.PAUSED.value,
+            PublishStatus.PROCESSING.value,
+        ]
         models = (
             self.db.query(PublishRecordModel)
-            .order_by(PublishRecordModel.created_at.desc())
+            .filter(
+                PublishRecordModel.platform_connection_id == connection_id,
+                PublishRecordModel.status.in_(pending),
+            )
+            .all()
+        )
+        for model in models:
+            model.status = PublishStatus.FAILED.value
+            model.error_code = error_code
+            model.error_message = error_message
+        self.db.commit()
+        return len(models)
+
+    def list_all(
+        self, limit: int = 50, offset: int = 0, channel_id: Optional[str] = None
+    ) -> List[PublishRecord]:
+        query = self.db.query(PublishRecordModel)
+        if channel_id:
+            query = query.filter(PublishRecordModel.channel_id == channel_id)
+        models = (
+            query.order_by(PublishRecordModel.created_at.desc())
             .offset(offset)
             .limit(limit)
             .all()
@@ -163,8 +218,11 @@ class PublishRecordRepositoryImpl(PublishRecordRepositoryPort):
         )
         return [self._to_domain(m) for m in models]
 
-    def count(self) -> int:
-        return self.db.query(PublishRecordModel).count()
+    def count(self, channel_id: Optional[str] = None) -> int:
+        query = self.db.query(PublishRecordModel)
+        if channel_id:
+            query = query.filter(PublishRecordModel.channel_id == channel_id)
+        return query.count()
 
     def delete(self, record_id: str) -> bool:
         model = self.db.query(PublishRecordModel).filter(PublishRecordModel.id == record_id).first()

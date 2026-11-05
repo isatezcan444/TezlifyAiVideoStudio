@@ -47,6 +47,12 @@ from tezlify_studio.presentation.dependencies.container import (
 
 router = APIRouter(prefix="/scheduler", tags=["Publishing Scheduler"])
 
+_CHANNEL_ID_DESCRIPTION = (
+    "Target channel id. Omit to use the globally selected channel; the backend "
+    "validates ownership and never trusts a channel id blindly."
+)
+
+
 @router.post("", response_model=ScheduledPublishResponse, status_code=status.HTTP_201_CREATED)
 def create_scheduled_publish(
     req: CreateScheduledPublishRequest,
@@ -61,30 +67,38 @@ def create_scheduled_publish(
         scheduled_at_iso=req.scheduled_at,
         timezone=req.timezone,
         max_attempts=req.max_attempts,
+        channel_id=req.channel_id,
     )
     result = use_case.execute(dto)
     return ScheduledPublishResponse(**result.__dict__)
 
+
 @router.get("", response_model=ScheduledPublishListResponse)
 def list_scheduled_publishes(
     status: Optional[str] = Query(None, description="Filter by status (scheduled, processing, published, failed, paused, cancelled, missed)"),
+    channel_id: Optional[str] = Query(None, description=_CHANNEL_ID_DESCRIPTION),
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
     use_case: ListScheduledPublishesUseCase = Depends(get_list_scheduled_publishes_use_case),
 ):
-    items, total = use_case.execute(status=status, limit=limit, offset=offset)
+    items, total = use_case.execute(
+        status=status, limit=limit, offset=offset, channel_id=channel_id
+    )
     return ScheduledPublishListResponse(
         items=[ScheduledPublishResponse(**i.__dict__) for i in items],
         total=total,
     )
 
+
 @router.get("/upcoming", response_model=List[ScheduledPublishResponse])
 def get_upcoming_publishes(
     limit: int = Query(20, ge=1, le=100),
+    channel_id: Optional[str] = Query(None, description=_CHANNEL_ID_DESCRIPTION),
     use_case: GetUpcomingPublishesUseCase = Depends(get_upcoming_publishes_use_case),
 ):
-    items = use_case.execute(limit=limit)
+    items = use_case.execute(limit=limit, channel_id=channel_id)
     return [ScheduledPublishResponse(**i.__dict__) for i in items]
+
 
 @router.get("/status", response_model=SchedulerStatusResponse)
 def get_scheduler_status(
@@ -93,6 +107,7 @@ def get_scheduler_status(
     status_dto = scheduler_service.get_status()
     return SchedulerStatusResponse(**status_dto.__dict__)
 
+
 @router.get("/{id}", response_model=ScheduledPublishResponse)
 def get_scheduled_publish(
     id: str = Path(..., description="Schedule UUID"),
@@ -100,6 +115,7 @@ def get_scheduled_publish(
 ):
     result = use_case.execute(schedule_id=id)
     return ScheduledPublishResponse(**result.__dict__)
+
 
 @router.patch("/{id}", response_model=ScheduledPublishResponse)
 def update_scheduled_publish(
@@ -118,6 +134,7 @@ def update_scheduled_publish(
     result = use_case.execute(schedule_id=id, dto=dto)
     return ScheduledPublishResponse(**result.__dict__)
 
+
 @router.delete("/{id}")
 def cancel_scheduled_publish(
     id: str = Path(..., description="Schedule UUID"),
@@ -125,6 +142,7 @@ def cancel_scheduled_publish(
 ):
     result = use_case.execute(schedule_id=id)
     return {"success": True, "message": "Yayın planı iptal edildi.", "item": ScheduledPublishResponse(**result.__dict__)}
+
 
 @router.post("/{id}/retry", response_model=ScheduledPublishResponse)
 def retry_failed_scheduled_publish(

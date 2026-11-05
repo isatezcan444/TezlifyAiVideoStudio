@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from tezlify_studio.infrastructure.configuration.settings import settings
 from tezlify_studio.infrastructure.persistence.database import init_db
 from tezlify_studio.presentation.api.routes import (
+    accounts,
     channels,
     comments,
     dashboard,
@@ -40,8 +41,13 @@ from tezlify_studio.domain.exceptions.schedule_exceptions import (
 )
 from tezlify_studio.domain.exceptions.creator_exceptions import (
     AnalyticsUnavailableException,
+    ChannelBindingMismatchException,
+    ChannelDisabledException,
+    ChannelNotFoundException,
+    ConnectionInactiveException,
     CreatorApiException,
     CreatorStudioException,
+    DuplicateOAuthCallbackException,
     InsufficientScopeException,
     PlatformNotSupportedException,
 )
@@ -256,6 +262,45 @@ def create_app() -> FastAPI:
             content={"detail": str(exc), "error_code": exc.error_code},
         )
 
+    @app.exception_handler(ChannelNotFoundException)
+    async def channel_not_found_handler(request: Request, exc: ChannelNotFoundException):
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"detail": str(exc), "error_code": exc.error_code},
+        )
+
+    @app.exception_handler(ChannelDisabledException)
+    async def channel_disabled_handler(request: Request, exc: ChannelDisabledException):
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={"detail": str(exc), "error_code": exc.error_code},
+        )
+
+    @app.exception_handler(ConnectionInactiveException)
+    async def connection_inactive_handler(request: Request, exc: ConnectionInactiveException):
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={"detail": str(exc), "error_code": exc.error_code},
+        )
+
+    @app.exception_handler(ChannelBindingMismatchException)
+    async def channel_binding_mismatch_handler(
+        request: Request, exc: ChannelBindingMismatchException
+    ):
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={"detail": str(exc), "error_code": exc.error_code},
+        )
+
+    @app.exception_handler(DuplicateOAuthCallbackException)
+    async def duplicate_oauth_callback_handler(
+        request: Request, exc: DuplicateOAuthCallbackException
+    ):
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={"detail": str(exc), "error_code": exc.error_code},
+        )
+
     @app.exception_handler(CreatorStudioException)
     async def creator_studio_handler(request: Request, exc: CreatorStudioException):
         return JSONResponse(
@@ -280,6 +325,7 @@ def create_app() -> FastAPI:
     # Mount API routers under /api/v1
     app.include_router(health.router, prefix="/api/v1")
     app.include_router(media.router, prefix="/api/v1")
+    app.include_router(accounts.router, prefix="/api/v1")
     app.include_router(publish.router, prefix="/api/v1")
     app.include_router(scheduler.router, prefix="/api/v1")
     app.include_router(platforms.router, prefix="/api/v1")

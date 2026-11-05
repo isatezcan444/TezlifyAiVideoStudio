@@ -34,6 +34,9 @@ class PublishRecordDTO:
     created_at: str
     updated_at: str
     published_at: Optional[str]
+    channel_id: Optional[str] = None
+    platform_connection_id: Optional[str] = None
+    channel_attribution: str = "unresolved"
 
 @dataclass
 class StartPublishRequestDTO:
@@ -44,6 +47,7 @@ class StartPublishRequestDTO:
     category_id: str = "22"
     privacy_status: str = "private"
     thumbnail_path: Optional[str] = None
+    channel_id: Optional[str] = None
 
 @dataclass
 class YouTubeAuthUrlResponseDTO:

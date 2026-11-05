@@ -18,6 +18,13 @@ from tezlify_studio.domain.exceptions.publish_exceptions import (
     AuthenticationRequiredException,
     SocialAccountNotFoundException,
 )
+from tezlify_studio.domain.exceptions.creator_exceptions import (
+    ChannelBindingMismatchException,
+    ChannelDisabledException,
+    ChannelNotFoundException,
+    ConnectionInactiveException,
+    CreatorStudioException,
+)
 from tezlify_studio.domain.exceptions.media_exceptions import (
     EntityNotFoundException,
     InvalidMediaFileException,
@@ -71,12 +78,27 @@ class ProcessDueScheduledPublishesUseCase:
             processed_count += 1
             logger.info("Starting processing for scheduled publish '%s' (title: '%s')", record.id, record.title)
 
+            if not record.channel_id:
+                record.mark_failed(
+                    error_code="CHANNEL_UNRESOLVED",
+                    error_message=(
+                        "Bu planın hangi kanala ait olduğu kesin değil. Yanlış kanala yükleme "
+                        "yapmamak için otomatik yayın durduruldu; kanal seçerek yeniden planlayın."
+                    ),
+                )
+                self.schedule_repo.save(record)
+                continue
+
             # Idempotency Guard: Check if a publish record already exists for this schedule or media asset
             existing_pub = None
             if record.publish_record_id:
                 existing_pub = self.publish_repo.get_by_id(record.publish_record_id)
             if not existing_pub:
-                latest_pub = self.publish_repo.get_latest_by_media(record.media_asset_id, record.platform)
+                latest_pub = self.publish_repo.get_latest_by_media(
+                    record.media_asset_id,
+                    record.platform,
+                    channel_id=record.channel_id,
+                )
                 if latest_pub and latest_pub.status == PublishStatus.PUBLISHED:
                     existing_pub = latest_pub
 
@@ -107,6 +129,7 @@ class ProcessDueScheduledPublishesUseCase:
                         description=record.description,
                         tags=record.tags,
                         privacy_status=record.privacy_status.value,
+                        channel_id=record.channel_id,
                     )
                     # Synchronous chunked upload in this scheduler worker thread
                     publish_dto = self.publish_use_case.execute(publish_req, async_upload=False)
@@ -127,7 +150,16 @@ class ProcessDueScheduledPublishesUseCase:
                     record.mark_paused("UPLOAD_PAUSED", "Video yüklemesi duraklatıldı.")
                     self.schedule_repo.save(record)
 
-            except (QuotaExceededException, AuthenticationRequiredException, SocialAccountNotFoundException) as e:
+            except (
+                QuotaExceededException,
+                AuthenticationRequiredException,
+                SocialAccountNotFoundException,
+                ChannelBindingMismatchException,
+                ChannelDisabledException,
+                ChannelNotFoundException,
+                ConnectionInactiveException,
+                CreatorStudioException,
+            ) as e:
                 # Permanent credential or quota error - do not retry automatically
                 logger.warning("Permanent error publishing scheduled '%s': %s", record.id, e)
                 record.mark_failed(

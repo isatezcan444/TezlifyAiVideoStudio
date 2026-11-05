@@ -15,9 +15,17 @@ from tezlify_studio.infrastructure.persistence.repositories.publish_record_repos
 from tezlify_studio.infrastructure.persistence.repositories.media_repository_impl import (
     MediaRepositoryImpl,
 )
-from tezlify_studio.infrastructure.persistence.repositories.social_account_repository_impl import (
-    SocialAccountRepositoryImpl,
+from tezlify_studio.infrastructure.persistence.repositories.platform_channel_repository_impl import (
+    PlatformChannelRepositoryImpl,
 )
+from tezlify_studio.infrastructure.persistence.repositories.platform_connection_repository_impl import (
+    PlatformConnectionRepositoryImpl,
+)
+from tezlify_studio.infrastructure.persistence.repositories.channel_selection_repository_impl import (
+    ChannelSelectionRepositoryImpl,
+)
+from tezlify_studio.application.services.channel_context_service import ChannelContextService
+from tezlify_studio.application.services.connection_token_provider import ConnectionTokenProvider
 from tezlify_studio.application.ports.token_storage_port import TokenStoragePort
 from tezlify_studio.application.ports.youtube_publisher_port import YouTubePublisherPort
 from tezlify_studio.application.ports.media_storage_port import MediaStoragePort
@@ -134,15 +142,21 @@ class PublishSchedulerService:
             sched_repo = ScheduledPublishRepositoryImpl(db)
             pub_repo = PublishRecordRepositoryImpl(db)
             media_repo = MediaRepositoryImpl(db)
-            account_repo = SocialAccountRepositoryImpl(db)
+            connection_repo = PlatformConnectionRepositoryImpl(db)
+            channel_repo = PlatformChannelRepositoryImpl(db)
+            selection_repo = ChannelSelectionRepositoryImpl(db)
+            resolver = ChannelContextService(connection_repo, channel_repo, selection_repo)
+            access_provider = ConnectionTokenProvider(
+                connection_repo, self.token_storage, self.youtube_publisher
+            )
 
             # Build publish use case with dedicated session
             publish_use_case = PublishVideoToYouTubeUseCase(
                 media_repo=media_repo,
                 storage=self.storage,
-                account_repo=account_repo,
+                resolver=resolver,
+                access_provider=access_provider,
                 publish_repo=pub_repo,
-                token_storage=self.token_storage,
                 publisher=self.youtube_publisher,
                 stop_checker=self._stop_event.is_set,
             )
@@ -154,7 +168,8 @@ class PublishSchedulerService:
                 publish_use_case=publish_use_case,
                 publish_repo=pub_repo,
                 media_repo=media_repo,
-                account_repo=account_repo,
+                resolver=resolver,
+                access_provider=access_provider,
                 publisher=self.youtube_publisher,
             )
 

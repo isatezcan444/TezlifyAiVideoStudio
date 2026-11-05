@@ -11,6 +11,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { apiService } from '../services/api';
+import { useChannelContext } from '../context/ChannelContext';
 import { ChannelVideo, VideoCategory } from '../types/creator';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -25,6 +26,8 @@ const PRIVACY_STYLE: Record<string, string> = {
 };
 
 export const YouTubeVideosPage: React.FC = () => {
+  const { activeChannel } = useChannelContext();
+  const channelId = activeChannel?.id;
   const [videos, setVideos] = useState<ChannelVideo[]>([]);
   const [categories, setCategories] = useState<VideoCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,10 +41,10 @@ export const YouTubeVideosPage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await apiService.listChannelVideos(50);
+      const res = await apiService.listChannelVideos(50, undefined, channelId);
       setVideos(res.items);
       apiService
-        .listVideoCategories()
+        .listVideoCategories(channelId)
         .then((cat) => setCategories(cat.items))
         .catch(() => setCategories([]));
     } catch (err: any) {
@@ -52,8 +55,9 @@ export const YouTubeVideosPage: React.FC = () => {
   };
 
   useEffect(() => {
+    setVideos([]);
     load();
-  }, []);
+  }, [channelId]);
 
   const openEditor = (video: ChannelVideo) => {
     setEditing(video);
@@ -83,7 +87,7 @@ export const YouTubeVideosPage: React.FC = () => {
       };
       if (form.category_id) payload.category_id = form.category_id;
 
-      const res = await apiService.updateChannelVideo(editing.video_id, payload);
+      const res = await apiService.updateChannelVideo(editing.video_id, payload, channelId);
       setVideos((prev) => prev.map((item) => (item.video_id === res.video.video_id ? res.video : item)));
       setEditing(null);
     } catch (err: any) {

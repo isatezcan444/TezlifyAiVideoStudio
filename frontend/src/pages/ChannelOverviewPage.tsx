@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ExternalLink, Loader2, RefreshCw, Users, Eye, Film, ListVideo, AlertTriangle } from 'lucide-react';
 import { apiService } from '../services/api';
+import { useChannelContext } from '../context/ChannelContext';
 import { ChannelOverviewResponse } from '../types/creator';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -9,6 +10,8 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { formatDate, formatNumber } from '../lib/utils';
 
 export const ChannelOverviewPage: React.FC<{ onNavigate: (tab: string) => void }> = ({ onNavigate }) => {
+  const { activeChannel } = useChannelContext();
+  const channelId = activeChannel?.id;
   const [data, setData] = useState<ChannelOverviewResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +20,7 @@ export const ChannelOverviewPage: React.FC<{ onNavigate: (tab: string) => void }
     setIsLoading(true);
     setError(null);
     try {
-      setData(await apiService.getChannelOverview());
+      setData(await apiService.getChannelOverview(channelId));
     } catch (err: any) {
       setError(err.message || 'Kanal bilgisi alınamadı.');
     } finally {
@@ -26,8 +29,9 @@ export const ChannelOverviewPage: React.FC<{ onNavigate: (tab: string) => void }
   };
 
   useEffect(() => {
+    setData(null);
     load();
-  }, []);
+  }, [channelId]);
 
   if (isLoading && !data) {
     return (

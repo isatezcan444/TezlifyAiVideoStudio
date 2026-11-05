@@ -16,6 +16,11 @@ from tezlify_studio.presentation.dependencies.container import (
 
 router = APIRouter(prefix="/comments", tags=["Comments"])
 
+_CHANNEL_ID_DESCRIPTION = (
+    "Target channel id. Omit to use the globally selected channel; the backend "
+    "validates ownership and never trusts a channel id blindly."
+)
+
 
 class ReplyRequest(BaseModel):
     text: str = Field(min_length=1, max_length=10000)
@@ -30,19 +35,26 @@ def list_comments(
     video_id: Optional[str] = None,
     max_results: int = Query(25, ge=1, le=100),
     page_token: Optional[str] = None,
+    channel_id: Optional[str] = Query(None, description=_CHANNEL_ID_DESCRIPTION),
     use_case: ListCommentsUseCase = Depends(get_list_comments_use_case),
 ):
-    return use_case.execute(video_id=video_id, max_results=max_results, page_token=page_token)
+    return use_case.execute(
+        video_id=video_id,
+        max_results=max_results,
+        page_token=page_token,
+        channel_id=channel_id,
+    )
 
 
 @router.post("/{comment_id}/reply", response_model=Dict[str, Any])
 def reply_to_comment(
     comment_id: str,
     payload: ReplyRequest,
+    channel_id: Optional[str] = Query(None, description=_CHANNEL_ID_DESCRIPTION),
     use_case: ReplyToCommentUseCase = Depends(get_reply_to_comment_use_case),
 ):
     try:
-        return use_case.execute(comment_id, payload.text)
+        return use_case.execute(comment_id, payload.text, channel_id=channel_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -51,6 +63,7 @@ def reply_to_comment(
 def set_comment_moderation(
     comment_id: str,
     payload: ModerationRequest,
+    channel_id: Optional[str] = Query(None, description=_CHANNEL_ID_DESCRIPTION),
     use_case: SetCommentModerationUseCase = Depends(get_set_comment_moderation_use_case),
 ):
-    return use_case.execute(comment_id, payload.status)
+    return use_case.execute(comment_id, payload.status, channel_id=channel_id)

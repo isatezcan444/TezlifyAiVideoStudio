@@ -16,10 +16,23 @@ class ScheduledPublishModel(Base):
     )
     social_account_id = Column(
         String(64),
-        ForeignKey("social_accounts.id", ondelete="CASCADE"),
-        nullable=False,
+        ForeignKey("social_accounts.id", ondelete="SET NULL"),
+        nullable=True,
         index=True,
     )
+    channel_id = Column(
+        String(64),
+        ForeignKey("platform_channels.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    platform_connection_id = Column(
+        String(64),
+        ForeignKey("platform_connections.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    channel_attribution = Column(String(32), default="unresolved", nullable=False)
     platform = Column(String(32), default="youtube", index=True, nullable=False)
     title = Column(String(255), nullable=False)
     description = Column(Text, default="", nullable=False)

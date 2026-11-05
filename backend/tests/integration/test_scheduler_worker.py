@@ -17,6 +17,12 @@ from tezlify_studio.infrastructure.persistence.repositories.media_repository_imp
 from tezlify_studio.infrastructure.persistence.repositories.social_account_repository_impl import (
     SocialAccountRepositoryImpl,
 )
+from tezlify_studio.infrastructure.persistence.repositories.platform_connection_repository_impl import (
+    PlatformConnectionRepositoryImpl,
+)
+from tezlify_studio.infrastructure.persistence.repositories.platform_channel_repository_impl import (
+    PlatformChannelRepositoryImpl,
+)
 from tezlify_studio.domain.entities.scheduled_publish import ScheduledPublish
 from tezlify_studio.domain.entities.media_asset import MediaAsset
 from tezlify_studio.domain.entities.social_account import SocialAccount
@@ -37,6 +43,10 @@ from tezlify_studio.application.use_cases.reconcile_scheduled_publishes_use_case
     ReconcileScheduledPublishesUseCase,
 )
 from tezlify_studio.domain.exceptions.publish_exceptions import QuotaExceededException
+from tezlify_studio.domain.entities.platform_channel import PlatformChannel
+from tezlify_studio.domain.entities.platform_connection import PlatformConnection
+from tezlify_studio.domain.value_objects.channel_access import ChannelAccess
+from tezlify_studio.domain.value_objects.channel_context import ChannelContext
 from tezlify_studio.infrastructure.scheduler.scheduler_service import PublishSchedulerService
 
 class FakeStorage(MediaStoragePort):
@@ -50,6 +60,39 @@ class FakeStorage(MediaStoragePort):
         return True
     def open_range_stream(self, file_path, start, end, chunk_size=524288):
         yield b"0" * (end - start + 1)
+
+class FakeResolver:
+    def __init__(self, channel_id: str, connection_id: str, external_channel_id: str):
+        self.context = ChannelContext(
+            channel=PlatformChannel(
+                id=channel_id,
+                platform_connection_id=connection_id,
+                platform=SocialPlatform.YOUTUBE,
+                channel_external_id=external_channel_id,
+                channel_name="Scheduler Channel",
+            ),
+            connection=PlatformConnection(
+                id=connection_id,
+                platform=SocialPlatform.YOUTUBE,
+                account_external_id="google_sched",
+                account_display_name="Scheduler Account",
+            ),
+        )
+
+    def resolve(self, channel_id=None) -> ChannelContext:
+        return self.context
+
+
+class FakeAccessProvider:
+    def get_access(self, context: ChannelContext) -> ChannelAccess:
+        return ChannelAccess(
+            platform=SocialPlatform.YOUTUBE,
+            channel_id=context.channel_id,
+            external_channel_id=context.external_channel_id,
+            connection_id=context.connection_id,
+            access_token="access_sched",
+        )
+
 
 class FakeSchedulerPublisher(YouTubePublisherPort):
     def __init__(self):
@@ -118,22 +161,63 @@ def setup_test_prerequisites(db):
     token_storage = InMemoryTokenStorageAdapter()
     token_storage.store_tokens(acc_id, "access_sched", "refresh_sched")
 
+    connection_repo = PlatformConnectionRepositoryImpl(db)
+    channel_repo = PlatformChannelRepositoryImpl(db)
+    connection_id = f"conn_{acc_id}"
+    channel_id = f"ch_{acc_id}"
+    connection_repo.save(
+        PlatformConnection(
+            id=connection_id,
+            platform=SocialPlatform.YOUTUBE,
+            account_external_id=f"google_{acc_id}",
+            account_display_name="Scheduler Account",
+        )
+    )
+    channel_repo.save(
+        PlatformChannel(
+            id=channel_id,
+            platform_connection_id=connection_id,
+            platform=SocialPlatform.YOUTUBE,
+            channel_external_id=account.channel_id,
+            channel_name="Scheduler Channel",
+            is_primary=True,
+        )
+    )
+
     def cleanup():
         try:
             if os.path.exists(file_path):
                 os.remove(file_path)
+            channel_repo.delete(channel_id)
+            connection_repo.delete(connection_id)
             account_repo.delete(acc_id)
             media_repo.delete(media_id)
         except Exception:
             pass
 
-    return media_id, acc_id, token_storage, cleanup
+    return (
+        media_id,
+        acc_id,
+        token_storage,
+        cleanup,
+        channel_id,
+        connection_id,
+        account.channel_id,
+    )
 
 def test_process_due_scheduled_publish_success():
     db = SessionLocal()
     cleanup = None
     try:
-        media_id, acc_id, token_storage, cleanup = setup_test_prerequisites(db)
+        (
+            media_id,
+            acc_id,
+            token_storage,
+            cleanup,
+            channel_id,
+            connection_id,
+            external_channel_id,
+        ) = setup_test_prerequisites(db)
         sched_repo = ScheduledPublishRepositoryImpl(db)
         pub_repo = PublishRecordRepositoryImpl(db)
         media_repo = MediaRepositoryImpl(db)
@@ -145,9 +229,9 @@ def test_process_due_scheduled_publish_success():
         publish_use_case = PublishVideoToYouTubeUseCase(
             media_repo=media_repo,
             storage=storage,
-            account_repo=account_repo,
+            resolver=FakeResolver(channel_id, connection_id, external_channel_id),
+            access_provider=FakeAccessProvider(),
             publish_repo=pub_repo,
-            token_storage=token_storage,
             publisher=publisher,
         )
 
@@ -156,6 +240,9 @@ def test_process_due_scheduled_publish_success():
             id=sched_id,
             media_asset_id=media_id,
             social_account_id=acc_id,
+            channel_id=channel_id,
+            platform_connection_id=connection_id,
+            channel_attribution="exact",
             title="Due Schedule Job",
             scheduled_at_utc=datetime.now(timezone.utc) - timedelta(minutes=5),
             status=ScheduleStatus.SCHEDULED,
@@ -186,7 +273,15 @@ def test_process_due_permanent_quota_error():
     db = SessionLocal()
     cleanup = None
     try:
-        media_id, acc_id, token_storage, cleanup = setup_test_prerequisites(db)
+        (
+            media_id,
+            acc_id,
+            token_storage,
+            cleanup,
+            channel_id,
+            connection_id,
+            external_channel_id,
+        ) = setup_test_prerequisites(db)
         sched_repo = ScheduledPublishRepositoryImpl(db)
         pub_repo = PublishRecordRepositoryImpl(db)
         media_repo = MediaRepositoryImpl(db)
@@ -199,9 +294,9 @@ def test_process_due_permanent_quota_error():
         publish_use_case = PublishVideoToYouTubeUseCase(
             media_repo=media_repo,
             storage=storage,
-            account_repo=account_repo,
+            resolver=FakeResolver(channel_id, connection_id, external_channel_id),
+            access_provider=FakeAccessProvider(),
             publish_repo=pub_repo,
-            token_storage=token_storage,
             publisher=publisher,
         )
 
@@ -210,6 +305,9 @@ def test_process_due_permanent_quota_error():
             id=sched_id,
             media_asset_id=media_id,
             social_account_id=acc_id,
+            channel_id=channel_id,
+            platform_connection_id=connection_id,
+            channel_attribution="exact",
             title="Quota Fail Job",
             scheduled_at_utc=datetime.now(timezone.utc) - timedelta(minutes=2),
             status=ScheduleStatus.SCHEDULED,
@@ -236,7 +334,15 @@ def test_process_due_transient_error_retry_backoff():
     db = SessionLocal()
     cleanup = None
     try:
-        media_id, acc_id, token_storage, cleanup = setup_test_prerequisites(db)
+        (
+            media_id,
+            acc_id,
+            token_storage,
+            cleanup,
+            channel_id,
+            connection_id,
+            external_channel_id,
+        ) = setup_test_prerequisites(db)
         sched_repo = ScheduledPublishRepositoryImpl(db)
         pub_repo = PublishRecordRepositoryImpl(db)
         media_repo = MediaRepositoryImpl(db)
@@ -249,9 +355,9 @@ def test_process_due_transient_error_retry_backoff():
         publish_use_case = PublishVideoToYouTubeUseCase(
             media_repo=media_repo,
             storage=storage,
-            account_repo=account_repo,
+            resolver=FakeResolver(channel_id, connection_id, external_channel_id),
+            access_provider=FakeAccessProvider(),
             publish_repo=pub_repo,
-            token_storage=token_storage,
             publisher=publisher,
         )
 
@@ -260,6 +366,9 @@ def test_process_due_transient_error_retry_backoff():
             id=sched_id,
             media_asset_id=media_id,
             social_account_id=acc_id,
+            channel_id=channel_id,
+            platform_connection_id=connection_id,
+            channel_attribution="exact",
             title="Transient Retry Job",
             scheduled_at_utc=datetime.now(timezone.utc) - timedelta(minutes=1),
             status=ScheduleStatus.SCHEDULED,
@@ -290,7 +399,15 @@ def test_reconcile_scheduled_publishes_on_reboot():
     db = SessionLocal()
     cleanup = None
     try:
-        media_id, acc_id, _, cleanup = setup_test_prerequisites(db)
+        (
+            media_id,
+            acc_id,
+            _,
+            cleanup,
+            channel_id,
+            connection_id,
+            external_channel_id,
+        ) = setup_test_prerequisites(db)
         sched_repo = ScheduledPublishRepositoryImpl(db)
         pub_repo = PublishRecordRepositoryImpl(db)
 
@@ -300,6 +417,9 @@ def test_reconcile_scheduled_publishes_on_reboot():
             id=zombie_id,
             media_asset_id=media_id,
             social_account_id=acc_id,
+            channel_id=channel_id,
+            platform_connection_id=connection_id,
+            channel_attribution="exact",
             title="Zombie Task",
             scheduled_at_utc=datetime.now(timezone.utc) - timedelta(minutes=10),
             status=ScheduleStatus.PROCESSING,
@@ -312,6 +432,9 @@ def test_reconcile_scheduled_publishes_on_reboot():
             id=missed_id,
             media_asset_id=media_id,
             social_account_id=acc_id,
+            channel_id=channel_id,
+            platform_connection_id=connection_id,
+            channel_attribution="exact",
             title="Missed Task",
             scheduled_at_utc=datetime.now(timezone.utc) - timedelta(hours=2),
             status=ScheduleStatus.SCHEDULED,
@@ -324,6 +447,9 @@ def test_reconcile_scheduled_publishes_on_reboot():
             id=grace_id,
             media_asset_id=media_id,
             social_account_id=acc_id,
+            channel_id=channel_id,
+            platform_connection_id=connection_id,
+            channel_attribution="exact",
             title="Grace Task",
             scheduled_at_utc=datetime.now(timezone.utc) - timedelta(minutes=10),
             status=ScheduleStatus.SCHEDULED,

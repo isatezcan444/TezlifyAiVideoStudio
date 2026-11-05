@@ -8,16 +8,16 @@ def make_test_use_case(mock_publisher):
     mock_media_repo = MagicMock()
     mock_storage = MagicMock()
     mock_storage.exists.return_value = False
-    mock_account_repo = MagicMock()
+    mock_resolver = MagicMock()
+    mock_access_provider = MagicMock()
     mock_publish_repo = MagicMock()
-    mock_token_storage = MagicMock()
 
     use_case = PublishVideoToYouTubeUseCase(
         media_repo=mock_media_repo,
         storage=mock_storage,
-        account_repo=mock_account_repo,
+        resolver=mock_resolver,
+        access_provider=mock_access_provider,
         publish_repo=mock_publish_repo,
-        token_storage=mock_token_storage,
         publisher=mock_publisher,
     )
     return use_case

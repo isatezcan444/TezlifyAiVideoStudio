@@ -39,7 +39,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       title: 'GENEL BAKIŞ',
       items: [
-        { id: 'dashboard', label: 'Panel', icon: LayoutDashboard, badge: null },
+        { id: 'global-dashboard', label: 'Genel Panel', icon: LayoutDashboard, badge: null },
+        { id: 'dashboard', label: 'Kanal Paneli', icon: Youtube, badge: null },
         { id: 'channel-overview', label: 'Kanal Özeti', icon: Users, badge: null },
       ],
     },

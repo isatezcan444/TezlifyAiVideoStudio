@@ -1,11 +1,26 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
-from tezlify_studio.application.ports.channel_port import ChannelPort
+from tezlify_studio.application.dto.connection_dto import channel_context_payload
+from tezlify_studio.application.ports.channel_context_resolver_port import (
+    ChannelContextResolverPort,
+)
+from tezlify_studio.application.ports.creator_gateway_port import CreatorGatewayPort
 
 
 class GetChannelVideoUseCase:
-    def __init__(self, channel_port: ChannelPort):
-        self.channel_port = channel_port
+    def __init__(
+        self,
+        resolver: ChannelContextResolverPort,
+        gateway: CreatorGatewayPort,
+    ):
+        self.resolver = resolver
+        self.gateway = gateway
 
-    def execute(self, video_id: str) -> Dict[str, Any]:
-        return {"video": self.channel_port.get_video(video_id), "source": "youtube_data_api"}
+    def execute(self, video_id: str, channel_id: Optional[str] = None) -> Dict[str, Any]:
+        context = self.resolver.resolve(channel_id)
+        session = self.gateway.bind(context)
+        return {
+            "video": session.channel.get_video(video_id),
+            "context": channel_context_payload(context),
+            "source": "youtube_data_api",
+        }

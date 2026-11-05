@@ -31,6 +31,9 @@ class ScheduledPublishRepositoryImpl(ScheduledPublishRepositoryPort):
             id=model.id,
             media_asset_id=model.media_asset_id,
             social_account_id=model.social_account_id,
+            channel_id=model.channel_id,
+            platform_connection_id=model.platform_connection_id,
+            channel_attribution=model.channel_attribution or "unresolved",
             platform=SocialPlatform(model.platform),
             title=model.title,
             description=model.description,
@@ -78,6 +81,9 @@ class ScheduledPublishRepositoryImpl(ScheduledPublishRepositoryPort):
                 id=record.id,
                 media_asset_id=record.media_asset_id,
                 social_account_id=record.social_account_id,
+                channel_id=record.channel_id,
+                platform_connection_id=record.platform_connection_id,
+                channel_attribution=record.channel_attribution,
                 platform=record.platform.value,
                 title=record.title,
                 description=record.description,
@@ -101,6 +107,9 @@ class ScheduledPublishRepositoryImpl(ScheduledPublishRepositoryPort):
         else:
             model.media_asset_id = record.media_asset_id
             model.social_account_id = record.social_account_id
+            model.channel_id = record.channel_id
+            model.platform_connection_id = record.platform_connection_id
+            model.channel_attribution = record.channel_attribution
             model.platform = record.platform.value
             model.title = record.title
             model.description = record.description
@@ -157,21 +166,21 @@ class ScheduledPublishRepositoryImpl(ScheduledPublishRepositoryPort):
         self,
         media_id: str,
         platform: SocialPlatform,
+        channel_id: Optional[str] = None,
     ) -> Optional[ScheduledPublish]:
         active_statuses = [
             ScheduleStatus.SCHEDULED.value,
             ScheduleStatus.PROCESSING.value,
             ScheduleStatus.PAUSED.value,
         ]
-        model = (
-            self.db.query(ScheduledPublishModel)
-            .filter(
-                ScheduledPublishModel.media_asset_id == media_id,
-                ScheduledPublishModel.platform == platform.value,
-                ScheduledPublishModel.status.in_(active_statuses),
-            )
-            .first()
+        query = self.db.query(ScheduledPublishModel).filter(
+            ScheduledPublishModel.media_asset_id == media_id,
+            ScheduledPublishModel.platform == platform.value,
+            ScheduledPublishModel.status.in_(active_statuses),
         )
+        if channel_id:
+            query = query.filter(ScheduledPublishModel.channel_id == channel_id)
+        model = query.first()
         return self._to_domain(model) if model else None
 
     def list_all(
@@ -179,10 +188,13 @@ class ScheduledPublishRepositoryImpl(ScheduledPublishRepositoryPort):
         status: Optional[ScheduleStatus] = None,
         limit: int = 100,
         offset: int = 0,
+        channel_id: Optional[str] = None,
     ) -> List[ScheduledPublish]:
         query = self.db.query(ScheduledPublishModel)
         if status:
             query = query.filter(ScheduledPublishModel.status == status.value)
+        if channel_id:
+            query = query.filter(ScheduledPublishModel.channel_id == channel_id)
         models = (
             query.order_by(ScheduledPublishModel.scheduled_at_utc.asc())
             .offset(offset)
@@ -191,19 +203,46 @@ class ScheduledPublishRepositoryImpl(ScheduledPublishRepositoryPort):
         )
         return [self._to_domain(m) for m in models]
 
-    def list_upcoming(self, now_utc: datetime, limit: int = 20) -> List[ScheduledPublish]:
+    def list_upcoming(
+        self, now_utc: datetime, limit: int = 20, channel_id: Optional[str] = None
+    ) -> List[ScheduledPublish]:
         naive_now = now_utc.astimezone(timezone.utc).replace(tzinfo=None)
+        query = self.db.query(ScheduledPublishModel).filter(
+            ScheduledPublishModel.status == ScheduleStatus.SCHEDULED.value,
+            ScheduledPublishModel.scheduled_at_utc >= naive_now,
+        )
+        if channel_id:
+            query = query.filter(ScheduledPublishModel.channel_id == channel_id)
         models = (
-            self.db.query(ScheduledPublishModel)
-            .filter(
-                ScheduledPublishModel.status == ScheduleStatus.SCHEDULED.value,
-                ScheduledPublishModel.scheduled_at_utc >= naive_now,
-            )
-            .order_by(ScheduledPublishModel.scheduled_at_utc.asc())
+            query.order_by(ScheduledPublishModel.scheduled_at_utc.asc())
             .limit(limit)
             .all()
         )
         return [self._to_domain(m) for m in models]
+
+    def fail_pending_for_connection(
+        self, connection_id: str, error_code: str, error_message: str
+    ) -> int:
+        pending = [
+            ScheduleStatus.SCHEDULED.value,
+            ScheduleStatus.PROCESSING.value,
+            ScheduleStatus.PAUSED.value,
+        ]
+        models = (
+            self.db.query(ScheduledPublishModel)
+            .filter(
+                ScheduledPublishModel.platform_connection_id == connection_id,
+                ScheduledPublishModel.status.in_(pending),
+            )
+            .all()
+        )
+        for model in models:
+            model.status = ScheduleStatus.FAILED.value
+            model.last_error_code = error_code
+            model.last_error_message = error_message
+            model.version = (model.version or 1) + 1
+        self.db.commit()
+        return len(models)
 
     def claim_for_processing(self, schedule_id: str, expected_version: int) -> bool:
         now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -228,10 +267,16 @@ class ScheduledPublishRepositoryImpl(ScheduledPublishRepositoryPort):
         self.db.commit()
         return updated_rows > 0
 
-    def count(self, status: Optional[ScheduleStatus] = None) -> int:
+    def count(
+        self,
+        status: Optional[ScheduleStatus] = None,
+        channel_id: Optional[str] = None,
+    ) -> int:
         query = self.db.query(ScheduledPublishModel)
         if status:
             query = query.filter(ScheduledPublishModel.status == status.value)
+        if channel_id:
+            query = query.filter(ScheduledPublishModel.channel_id == channel_id)
         return query.count()
 
     def delete(self, schedule_id: str) -> bool:

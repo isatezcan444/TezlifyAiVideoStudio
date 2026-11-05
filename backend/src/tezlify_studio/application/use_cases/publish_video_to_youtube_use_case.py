@@ -12,18 +12,20 @@ from tezlify_studio.domain.exceptions.media_exceptions import (
     InvalidMediaFileException,
 )
 from tezlify_studio.domain.exceptions.publish_exceptions import (
-    SocialAccountNotFoundException,
     DuplicatePublishException,
-    AuthenticationRequiredException,
     QuotaExceededException,
     UploadSessionExpiredException,
 )
+from tezlify_studio.application.ports.channel_access_provider_port import ChannelAccessProviderPort
+from tezlify_studio.application.ports.channel_context_resolver_port import ChannelContextResolverPort
 from tezlify_studio.application.ports.media_repository_port import MediaRepositoryPort
 from tezlify_studio.application.ports.media_storage_port import MediaStoragePort
-from tezlify_studio.application.ports.social_account_repository_port import SocialAccountRepositoryPort
 from tezlify_studio.application.ports.publish_record_repository_port import PublishRecordRepositoryPort
-from tezlify_studio.application.ports.token_storage_port import TokenStoragePort
 from tezlify_studio.application.ports.youtube_publisher_port import YouTubePublisherPort
+from tezlify_studio.domain.exceptions.creator_exceptions import (
+    ChannelBindingMismatchException,
+    PlatformNotSupportedException,
+)
 from tezlify_studio.application.dto.publish_dto import PublishRecordDTO, StartPublishRequestDTO
 from tezlify_studio.application.dto.mappers import publish_record_to_dto
 
@@ -35,9 +37,9 @@ class PublishVideoToYouTubeUseCase:
         self,
         media_repo: MediaRepositoryPort,
         storage: MediaStoragePort,
-        account_repo: SocialAccountRepositoryPort,
+        resolver: ChannelContextResolverPort,
+        access_provider: ChannelAccessProviderPort,
         publish_repo: PublishRecordRepositoryPort,
-        token_storage: TokenStoragePort,
         publisher: YouTubePublisherPort,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
         repo_factory: Optional[Callable[[], Tuple[PublishRecordRepositoryPort, Any]]] = None,
@@ -47,9 +49,9 @@ class PublishVideoToYouTubeUseCase:
     ):
         self.media_repo = media_repo
         self.storage = storage
-        self.account_repo = account_repo
+        self.resolver = resolver
+        self.access_provider = access_provider
         self.publish_repo = publish_repo
-        self.token_storage = token_storage
         self.publisher = publisher
         self.chunk_size = chunk_size
         self.repo_factory = repo_factory
@@ -57,27 +59,18 @@ class PublishVideoToYouTubeUseCase:
         self.poll_processing_attempts = poll_processing_attempts
         self.poll_processing_interval = poll_processing_interval
 
-    def _get_valid_access_token(self, account_id: str) -> str:
-        account = self.account_repo.get_by_id(account_id)
-        if not account or not account.is_active:
-            raise AuthenticationRequiredException("YouTube hesabı aktif değil.")
+    def _assert_token_binding(
+        self, access_token: str, external_channel_id: str, local_channel_id: str
+    ) -> None:
+        """Refuses to start an upload if the token cannot see the target channel.
 
-        access_token = self.token_storage.get_access_token(account_id)
-        if account.is_token_expired() or not access_token:
-            refresh_token = self.token_storage.get_refresh_token(account_id)
-            if not refresh_token:
-                raise AuthenticationRequiredException("Refresh token bulunamadı, lütfen YouTube hesabını tekrar bağlayın.")
-            try:
-                refreshed = self.publisher.refresh_access_token(refresh_token)
-                access_token = refreshed.get("access_token")
-                expires_in = refreshed.get("expires_in", 3600)
-                account.token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
-                self.account_repo.save(account)
-                self.token_storage.store_tokens(account_id, access_token, refresh_token)
-            except Exception as e:
-                raise AuthenticationRequiredException(f"Token yenilenemedi: {str(e)}")
-
-        return access_token
+        YouTube's resumable upload has no channelId parameter; content lands in
+        whichever channel the token is authorized for. This check makes that
+        implicit binding explicit before any bytes are sent.
+        """
+        authorized = self.publisher.list_authorized_channel_ids(access_token)
+        if authorized is not None and external_channel_id not in authorized:
+            raise ChannelBindingMismatchException(local_channel_id)
 
     def execute(self, req: StartPublishRequestDTO, async_upload: bool = False) -> PublishRecordDTO:
         # 1. Validate MediaAsset
@@ -95,13 +88,19 @@ class PublishVideoToYouTubeUseCase:
         if file_size <= 0:
             raise InvalidMediaFileException("Video dosyası boş (0 bytes).")
 
-        # 2. Validate Connected YouTube Account
-        account = self.account_repo.get_active_by_platform(SocialPlatform.YOUTUBE)
-        if not account:
-            raise SocialAccountNotFoundException("youtube")
+        # 2. Resolve + validate the target channel server-side
+        context = self.resolver.resolve(req.channel_id)
+        if context.channel.platform != SocialPlatform.YOUTUBE:
+            raise PlatformNotSupportedException(context.channel.platform.value)
+        access = self.access_provider.get_access(context)
+        self._assert_token_binding(
+            access.access_token, context.channel.channel_external_id, context.channel.id
+        )
 
-        # 3. Check for concurrent active publish jobs
-        existing = self.publish_repo.get_active_by_media(media.id, SocialPlatform.YOUTUBE)
+        # 3. Check for concurrent active publish jobs on this channel only
+        existing = self.publish_repo.get_active_by_media(
+            media.id, SocialPlatform.YOUTUBE, channel_id=context.channel_id
+        )
         if existing and existing.status in (
             PublishStatus.PENDING,
             PublishStatus.UPLOADING,
@@ -115,6 +114,9 @@ class PublishVideoToYouTubeUseCase:
             id=str(uuid.uuid4()),
             media_asset_id=media.id,
             platform=SocialPlatform.YOUTUBE,
+            channel_id=context.channel_id,
+            platform_connection_id=context.connection_id,
+            channel_attribution="exact",
             title=req.title.strip() or media.original_filename,
             description=req.description.strip(),
             tags=req.tags or [],
@@ -126,15 +128,8 @@ class PublishVideoToYouTubeUseCase:
         )
         record = self.publish_repo.save(record)
 
-        # 5. Acquire access token
-        try:
-            access_token = self._get_valid_access_token(account.id)
-        except AuthenticationRequiredException as e:
-            record.transition_to(PublishStatus.REQUIRES_REAUTH, error_code="REQUIRES_REAUTH", error_message=str(e))
-            self.publish_repo.save(record)
-            raise
-
-        # 6. Initiate Resumable Upload session
+        # 5. Initiate Resumable Upload session with this connection's token
+        access_token = access.access_token
         try:
             session_uri = self.publisher.initiate_resumable_upload(
                 access_token=access_token,
@@ -157,7 +152,7 @@ class PublishVideoToYouTubeUseCase:
             self.publish_repo.save(record)
             raise
 
-        # 7. Perform chunked upload
+        # 6. Perform chunked upload
         if async_upload:
             thread = threading.Thread(
                 target=self._run_async_chunks,

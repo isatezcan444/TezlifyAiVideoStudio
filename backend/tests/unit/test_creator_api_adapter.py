@@ -17,7 +17,9 @@ from tezlify_studio.domain.exceptions.creator_exceptions import (
     CreatorApiException,
     InsufficientScopeException,
 )
+from tezlify_studio.domain.enums.publish_status import SocialPlatform
 from tezlify_studio.domain.exceptions.publish_exceptions import QuotaExceededException
+from tezlify_studio.domain.value_objects.channel_access import ChannelAccess
 from tezlify_studio.domain.value_objects.creator_models import DateRange
 from tezlify_studio.infrastructure.youtube.youtube_creator_api import (
     YouTubeCreatorApi,
@@ -25,14 +27,18 @@ from tezlify_studio.infrastructure.youtube.youtube_creator_api import (
 )
 
 
-class StaticTokenProvider:
-    def get_access_token(self) -> str:
-        return "mock_access_token"
+CHANNEL_ACCESS = ChannelAccess(
+    platform=SocialPlatform.YOUTUBE,
+    channel_id="local_ch_1",
+    external_channel_id="UC_REAL",
+    connection_id="conn_1",
+    access_token="mock_access_token",
+)
 
 
 def build_api(handler: Callable[[httpx.Request], httpx.Response]) -> YouTubeCreatorApi:
     client = httpx.Client(transport=httpx.MockTransport(handler))
-    return YouTubeCreatorApi(StaticTokenProvider(), client=client)
+    return YouTubeCreatorApi(CHANNEL_ACCESS, client=client)
 
 
 CHANNEL = {
@@ -145,7 +151,7 @@ def test_analytics_uses_dimensionless_query_for_period_totals() -> None:
         "estimatedMinutesWatched": 13.0,
     }
     assert [row.dimensions["day"] for row in result.rows] == ["2026-10-01", "2026-10-02"]
-    assert calls[0]["ids"] == "channel==MINE"
+    assert calls[0]["ids"] == "channel==UC_REAL"
     assert "dimensions" not in calls[0]
     assert calls[1]["dimensions"] == "day"
 
@@ -194,6 +200,12 @@ def test_update_video_sends_snippet_and_only_requested_privacy() -> None:
     captured: Dict[str, Any] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/channels"):
+            return httpx.Response(200, json=CHANNEL)
+        if request.url.path.endswith("/playlistItems"):
+            return httpx.Response(
+                200, json={"items": [{"contentDetails": {"videoId": "vid_1"}}]}
+            )
         if request.method == "GET":
             return httpx.Response(200, json=VIDEOS)
         captured.update(json.loads(request.content))

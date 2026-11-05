@@ -14,6 +14,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { apiService } from '../services/api';
+import { useChannelContext } from '../context/ChannelContext';
 import { DashboardSnapshot } from '../types/creator';
 import { StatsCard } from '../components/ui/StatsCard';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -44,24 +45,27 @@ const SourceBadge: React.FC<{ source?: string }> = ({ source }) => {
 };
 
 export const DashboardPage: React.FC<{ onNavigate: (tab: string) => void }> = ({ onNavigate }) => {
+  const { activeChannel } = useChannelContext();
   const [range, setRange] = useState('28');
   const [data, setData] = useState<DashboardSnapshot | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const channelId = activeChannel?.id;
 
   const load = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      setData(await apiService.getDashboard(range));
+      setData(await apiService.getDashboard(range, channelId));
     } catch (err: any) {
       setError(err.message || 'Panel verisi alınamadı.');
     } finally {
       setIsLoading(false);
     }
-  }, [range]);
+  }, [range, channelId]);
 
   useEffect(() => {
+    setData(null);
     load();
   }, [load]);
 

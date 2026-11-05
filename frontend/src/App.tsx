@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Layout/Sidebar';
 import { TopHeader } from './components/Layout/TopHeader';
 import { DashboardPage } from './pages/DashboardPage';
+import { GlobalDashboardPage } from './pages/GlobalDashboardPage';
 import { ChannelOverviewPage } from './pages/ChannelOverviewPage';
 import { YouTubeVideosPage } from './pages/YouTubeVideosPage';
 import { UploadVideoPage } from './pages/UploadVideoPage';
@@ -14,13 +15,15 @@ import { ConnectedAccountsPage } from './pages/ConnectedAccountsPage';
 import { PlatformSettingsPage } from './pages/PlatformSettingsPage';
 import { ApplicationSettingsPage } from './pages/ApplicationSettingsPage';
 import { VideoDetailsModal } from './components/video/VideoDetailsModal';
-import { YouTubePublishModal } from './components/youtube/YouTubePublishModal';
+import { ChannelPublishModal } from './components/youtube/ChannelPublishModal';
 import { ConfirmDialog } from './components/ui/ConfirmDialog';
 import { useTheme } from './hooks/useTheme';
+import { ChannelProvider } from './context/ChannelContext';
 import { apiService } from './services/api';
 import { MediaAsset, SystemStatus } from './types/media';
 
 type TabId =
+  | 'global-dashboard'
   | 'dashboard'
   | 'channel-overview'
   | 'videos'
@@ -90,6 +93,8 @@ export const App: React.FC = () => {
 
   const getHeaderInfo = () => {
     switch (activeTab) {
+      case 'global-dashboard':
+        return { title: 'Genel Panel', subtitle: 'Bağlı platformlar, hesaplar, kanallar ve yayın özeti' };
       case 'dashboard':
         return { title: 'Creator Panel', subtitle: 'Kanal durumu, büyüme ve yayın akışı — gerçek verilerle' };
       case 'channel-overview':
@@ -123,6 +128,7 @@ export const App: React.FC = () => {
   const navigate = (tab: string) => setActiveTab(tab as TabId);
 
   return (
+    <ChannelProvider>
     <div className="flex h-screen overflow-hidden bg-[#F8F7FA] dark:bg-[#25293C] text-[#4B465C] dark:text-[#DBD7EC]">
       <Sidebar
         activeTab={activeTab}
@@ -141,9 +147,12 @@ export const App: React.FC = () => {
           onToggleTheme={toggleTheme}
           onToggleMobileMenu={() => setIsMobileMenuOpen(true)}
           onQuickUpload={() => setActiveTab('upload-video')}
+          onManageAccounts={() => setActiveTab('connected-accounts')}
         />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+          {activeTab === 'global-dashboard' && <GlobalDashboardPage onNavigate={navigate} />}
+
           {activeTab === 'dashboard' && <DashboardPage onNavigate={navigate} />}
 
           {activeTab === 'channel-overview' && <ChannelOverviewPage onNavigate={navigate} />}
@@ -151,7 +160,11 @@ export const App: React.FC = () => {
           {activeTab === 'videos' && <YouTubeVideosPage />}
 
           {activeTab === 'upload-video' && (
-            <UploadVideoPage videos={videos} onNavigateLibrary={() => setActiveTab('media-library')} />
+            <UploadVideoPage
+              videos={videos}
+              onNavigateLibrary={() => setActiveTab('media-library')}
+              onNavigateAccounts={() => setActiveTab('connected-accounts')}
+            />
           )}
 
           {activeTab === 'scheduled-videos' && (
@@ -212,7 +225,7 @@ export const App: React.FC = () => {
         }}
       />
 
-      <YouTubePublishModal
+      <ChannelPublishModal
         asset={videoToPublish}
         isOpen={Boolean(videoToPublish)}
         onClose={() => setVideoToPublish(null)}
@@ -234,5 +247,6 @@ export const App: React.FC = () => {
         isLoading={isDeleting}
       />
     </div>
+    </ChannelProvider>
   );
 };

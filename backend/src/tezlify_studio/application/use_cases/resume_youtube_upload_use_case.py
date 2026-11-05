@@ -2,10 +2,12 @@ import threading
 from tezlify_studio.domain.enums.publish_status import PublishStatus
 from tezlify_studio.domain.exceptions.media_exceptions import EntityNotFoundException, InvalidMediaFileException
 from tezlify_studio.domain.exceptions.publish_exceptions import UploadSessionExpiredException
+from tezlify_studio.application.ports.channel_access_provider_port import ChannelAccessProviderPort
+from tezlify_studio.application.ports.channel_context_resolver_port import ChannelContextResolverPort
 from tezlify_studio.application.ports.media_repository_port import MediaRepositoryPort
-from tezlify_studio.application.ports.social_account_repository_port import SocialAccountRepositoryPort
 from tezlify_studio.application.ports.publish_record_repository_port import PublishRecordRepositoryPort
 from tezlify_studio.application.ports.youtube_publisher_port import YouTubePublisherPort
+from tezlify_studio.domain.exceptions.creator_exceptions import CreatorStudioException
 from tezlify_studio.application.dto.publish_dto import PublishRecordDTO
 from tezlify_studio.application.dto.mappers import publish_record_to_dto
 from tezlify_studio.application.use_cases.publish_video_to_youtube_use_case import PublishVideoToYouTubeUseCase
@@ -16,13 +18,15 @@ class ResumeYouTubeUploadUseCase:
         publish_use_case: PublishVideoToYouTubeUseCase,
         publish_repo: PublishRecordRepositoryPort,
         media_repo: MediaRepositoryPort,
-        account_repo: SocialAccountRepositoryPort,
+        resolver: ChannelContextResolverPort,
+        access_provider: ChannelAccessProviderPort,
         publisher: YouTubePublisherPort,
     ):
         self.publish_use_case = publish_use_case
         self.publish_repo = publish_repo
         self.media_repo = media_repo
-        self.account_repo = account_repo
+        self.resolver = resolver
+        self.access_provider = access_provider
         self.publisher = publisher
 
     def execute(self, publish_id: str, async_upload: bool = False) -> PublishRecordDTO:
@@ -37,13 +41,28 @@ class ResumeYouTubeUploadUseCase:
         if not media or not self.publish_use_case.storage.exists(media.file_path):
             raise InvalidMediaFileException("Video dosyası diskte bulunamadı.")
 
-        account = self.account_repo.get_active_by_platform(record.platform)
-        if not account:
-            record.transition_to(PublishStatus.REQUIRES_REAUTH)
+        if not record.channel_id:
+            record.transition_to(
+                PublishStatus.REQUIRES_REAUTH,
+                error_code="CHANNEL_UNRESOLVED",
+                error_message=(
+                    "Bu kaydın hangi kanala ait olduğu kesin değil. Yanlış kanala yükleme "
+                    "yapmamak için devam ettirilmedi; videoyu hedef kanalı seçerek yeniden yayınlayın."
+                ),
+            )
             self.publish_repo.save(record)
-            raise EntityNotFoundException("SocialAccount", record.platform.value)
+            raise CreatorStudioException(
+                "Bu yayın kaydının kanalı belirsiz (unresolved). Güvenli devam için kanal seçerek "
+                "yeniden yayınlayın.",
+                "CHANNEL_UNRESOLVED",
+            )
 
-        access_token = self.publish_use_case._get_valid_access_token(account.id)
+        context = self.resolver.resolve(record.channel_id)
+        access = self.access_provider.get_access(context)
+        self.publish_use_case._assert_token_binding(
+            access.access_token, context.channel.channel_external_id, context.channel.id
+        )
+        access_token = access.access_token
 
         # 1. Query Google for last uploaded byte position
         if record.upload_session_uri:

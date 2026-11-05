@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, Loader2, MessageSquare, RefreshCw, Send, ShieldCheck, ThumbsUp } from 'lucide-react';
 import { apiService } from '../services/api';
+import { useChannelContext } from '../context/ChannelContext';
 import { ChannelVideo, VideoComment } from '../types/creator';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -8,6 +9,8 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { formatDate, formatNumber } from '../lib/utils';
 
 export const CommentsPage: React.FC = () => {
+  const { activeChannel } = useChannelContext();
+  const channelId = activeChannel?.id;
   const [videos, setVideos] = useState<ChannelVideo[]>([]);
   const [videoId, setVideoId] = useState('');
   const [comments, setComments] = useState<VideoComment[]>([]);
@@ -22,7 +25,11 @@ export const CommentsPage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await apiService.listComments({ videoId: selectedVideoId || undefined, maxResults: 50 });
+      const res = await apiService.listComments({
+        videoId: selectedVideoId || undefined,
+        maxResults: 50,
+        channelId,
+      });
       setComments(res.items);
     } catch (err: any) {
       setError(err.message || 'Yorumlar alınamadı.');
@@ -32,19 +39,22 @@ export const CommentsPage: React.FC = () => {
   };
 
   useEffect(() => {
+    setVideoId('');
+    setVideos([]);
+    setComments([]);
     apiService
-      .listChannelVideos(50)
+      .listChannelVideos(50, undefined, channelId)
       .then((res) => setVideos(res.items))
       .catch(() => setVideos([]));
     loadComments();
-  }, []);
+  }, [channelId]);
 
   const handleReply = async (commentId: string) => {
     if (!replyText.trim()) return;
     setIsSending(true);
     setActionError(null);
     try {
-      await apiService.replyToComment(commentId, replyText.trim());
+      await apiService.replyToComment(commentId, replyText.trim(), channelId);
       setReplyTarget(null);
       setReplyText('');
       await loadComments(videoId);
@@ -58,7 +68,7 @@ export const CommentsPage: React.FC = () => {
   const handleModeration = async (commentId: string, status: string) => {
     setActionError(null);
     try {
-      await apiService.moderateComment(commentId, status);
+      await apiService.moderateComment(commentId, status, channelId);
       await loadComments(videoId);
     } catch (err: any) {
       setActionError(err.message || 'Yorum durumu değiştirilemedi.');

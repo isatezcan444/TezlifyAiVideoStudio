@@ -5,12 +5,15 @@ import { apiService } from '../../services/api';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/button';
 import { Spinner } from '../ui/Spinner';
+import { Youtube } from 'lucide-react';
 
 interface YouTubePublishModalProps {
   asset: MediaAsset | null;
   isOpen: boolean;
   onClose: () => void;
   onPublishStarted: (record: PublishRecord) => void;
+  channelId?: string | null;
+  channelName?: string | null;
 }
 
 const YOUTUBE_CATEGORIES = [
@@ -29,6 +32,8 @@ export const YouTubePublishModal: React.FC<YouTubePublishModalProps> = ({
   isOpen,
   onClose,
   onPublishStarted,
+  channelId = null,
+  channelName = null,
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -41,7 +46,6 @@ export const YouTubePublishModal: React.FC<YouTubePublishModalProps> = ({
 
   useEffect(() => {
     if (asset) {
-      // Default title without file extension
       const defaultTitle = asset.original_filename.replace(/\.[^/.]+$/, '');
       setTitle(defaultTitle.slice(0, 100));
       setDescription(`Tezlify Creator Studio ile hazırlandı.\n\nDosya: ${asset.original_filename}`);
@@ -56,6 +60,10 @@ export const YouTubePublishModal: React.FC<YouTubePublishModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!channelId) {
+      setError('Hedef kanal seçili değil. Önce Bağlı Hesaplar ekranından bir kanal seçin.');
+      return;
+    }
     if (!title.trim()) {
       setError('Lütfen bir video başlığı girin.');
       return;
@@ -78,6 +86,7 @@ export const YouTubePublishModal: React.FC<YouTubePublishModalProps> = ({
         category_id: categoryId,
         privacy_status: privacyStatus,
         thumbnail_path: asset.thumbnail_path,
+        channel_id: channelId,
       });
 
       onPublishStarted(record);
@@ -97,18 +106,31 @@ export const YouTubePublishModal: React.FC<YouTubePublishModalProps> = ({
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="YouTube'da Yayınla"
-      maxWidth="lg"
-    >
+    <Modal isOpen={isOpen} onClose={onClose} title="YouTube'da Yayınla" maxWidth="lg">
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs text-rose-600 dark:text-rose-400">
             {error}
           </div>
         )}
+
+        {/* Target channel */}
+        <div className="flex items-center gap-2.5 rounded-xl border border-[#7367F0]/25 bg-[#7367F0]/5 p-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#7367F0]/15 text-[#7367F0]">
+            <Youtube className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[#7367F0]">Hedef Kanal</p>
+            <p className="truncate text-xs font-semibold text-[#4B465C] dark:text-[#DBD7EC]">
+              {channelName || 'Kanal seçilmedi'}
+            </p>
+          </div>
+          {!channelId && (
+            <span className="ml-auto rounded-md bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold text-rose-500">
+              Kanal yok
+            </span>
+          )}
+        </div>
 
         {/* Video Info Summary Box */}
         <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-[#25293C] border border-slate-200 dark:border-slate-800">
@@ -131,12 +153,8 @@ export const YouTubePublishModal: React.FC<YouTubePublishModalProps> = ({
             </h5>
             <div className="flex items-center gap-3 text-[11px] text-[#828092] dark:text-[#908DA1] mt-0.5">
               <span>{formatFileSize(asset.file_size_bytes)}</span>
-              {asset.metadata?.resolution_label && (
-                <span>• {asset.metadata.resolution_label}</span>
-              )}
-              {asset.metadata?.duration_seconds && (
-                <span>• {Math.round(asset.metadata.duration_seconds)}s</span>
-              )}
+              {asset.metadata?.resolution_label && <span>• {asset.metadata.resolution_label}</span>}
+              {asset.metadata?.duration_seconds && <span>• {Math.round(asset.metadata.duration_seconds)}s</span>}
             </div>
           </div>
         </div>
@@ -144,12 +162,8 @@ export const YouTubePublishModal: React.FC<YouTubePublishModalProps> = ({
         {/* Title Input */}
         <div>
           <div className="flex items-center justify-between mb-1">
-            <label className="text-xs font-medium text-[#4B465C] dark:text-[#DBD7EC]">
-              Video Başlığı *
-            </label>
-            <span className="text-[11px] text-[#828092] dark:text-[#908DA1]">
-              {title.length}/100
-            </span>
+            <label className="text-xs font-medium text-[#4B465C] dark:text-[#DBD7EC]">Video Başlığı *</label>
+            <span className="text-[11px] text-[#828092] dark:text-[#908DA1]">{title.length}/100</span>
           </div>
           <input
             type="text"
@@ -165,12 +179,8 @@ export const YouTubePublishModal: React.FC<YouTubePublishModalProps> = ({
         {/* Description Input */}
         <div>
           <div className="flex items-center justify-between mb-1">
-            <label className="text-xs font-medium text-[#4B465C] dark:text-[#DBD7EC]">
-              Açıklama (Description)
-            </label>
-            <span className="text-[11px] text-[#828092] dark:text-[#908DA1]">
-              {description.length}/5000
-            </span>
+            <label className="text-xs font-medium text-[#4B465C] dark:text-[#DBD7EC]">Açıklama (Description)</label>
+            <span className="text-[11px] text-[#828092] dark:text-[#908DA1]">{description.length}/5000</span>
           </div>
           <textarea
             value={description}
@@ -199,9 +209,7 @@ export const YouTubePublishModal: React.FC<YouTubePublishModalProps> = ({
         {/* Category & Privacy Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-medium text-[#4B465C] dark:text-[#DBD7EC] mb-1">
-              Kategori
-            </label>
+            <label className="block text-xs font-medium text-[#4B465C] dark:text-[#DBD7EC] mb-1">Kategori</label>
             <select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
@@ -216,9 +224,7 @@ export const YouTubePublishModal: React.FC<YouTubePublishModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-[#4B465C] dark:text-[#DBD7EC] mb-1">
-              Gizlilik Durumu
-            </label>
+            <label className="block text-xs font-medium text-[#4B465C] dark:text-[#DBD7EC] mb-1">Gizlilik Durumu</label>
             <select
               value={privacyStatus}
               onChange={(e) => setPrivacyStatus(e.target.value as PrivacyStatus)}
@@ -233,18 +239,12 @@ export const YouTubePublishModal: React.FC<YouTubePublishModalProps> = ({
 
         {/* Action Buttons */}
         <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="text-xs"
-          >
+          <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting} className="text-xs">
             Vazgeç
           </Button>
           <Button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !channelId}
             className="bg-red-600 hover:bg-red-700 text-white text-xs gap-2"
           >
             {isSubmitting ? (

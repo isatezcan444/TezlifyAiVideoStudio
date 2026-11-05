@@ -3,6 +3,10 @@ from pydantic import BaseModel, Field
 
 class CreateScheduledPublishRequest(BaseModel):
     media_asset_id: str = Field(..., min_length=1)
+    channel_id: Optional[str] = Field(
+        default=None,
+        description="Target channel. Omit to use the currently selected channel.",
+    )
     title: str = Field(..., min_length=1, max_length=100)
     description: str = Field(default="", max_length=5000)
     tags: List[str] = Field(default_factory=list)
@@ -26,7 +30,7 @@ class RetryScheduledPublishRequest(BaseModel):
 class ScheduledPublishResponse(BaseModel):
     id: str
     media_asset_id: str
-    social_account_id: str
+    social_account_id: Optional[str] = None
     platform: str
     title: str
     description: str
@@ -45,6 +49,9 @@ class ScheduledPublishResponse(BaseModel):
     created_at: str
     updated_at: str
     version: int
+    channel_id: Optional[str] = None
+    platform_connection_id: Optional[str] = None
+    channel_attribution: str = "unresolved"
 
 class ScheduledPublishListResponse(BaseModel):
     items: List[ScheduledPublishResponse]

@@ -40,7 +40,13 @@ from tezlify_studio.application.use_cases.set_comment_moderation_use_case import
 from tezlify_studio.application.use_cases.update_channel_video_use_case import (
     UpdateChannelVideoUseCase,
 )
+from tezlify_studio.application.ports.creator_gateway_port import CreatorSession
+from tezlify_studio.domain.entities.platform_channel import PlatformChannel
+from tezlify_studio.domain.entities.platform_connection import PlatformConnection
+from tezlify_studio.domain.enums.publish_status import SocialPlatform
 from tezlify_studio.domain.exceptions.creator_exceptions import InsufficientScopeException
+from tezlify_studio.domain.value_objects.channel_access import ChannelAccess
+from tezlify_studio.domain.value_objects.channel_context import ChannelContext
 from tezlify_studio.domain.value_objects.creator_models import (
     AnalyticsResult,
     AnalyticsRow,
@@ -184,6 +190,49 @@ class FakeCommentPort:
         )
 
 
+class FakeResolver:
+    def resolve(self, channel_id: Optional[str] = None) -> ChannelContext:
+        return ChannelContext(
+            channel=PlatformChannel(
+                id="local_ch_1",
+                platform_connection_id="conn_1",
+                platform=SocialPlatform.YOUTUBE,
+                channel_external_id="UC_FAKE",
+                channel_name="Test Kanalı",
+            ),
+            connection=PlatformConnection(
+                id="conn_1",
+                platform=SocialPlatform.YOUTUBE,
+                account_external_id="google_1",
+                account_display_name="Test Hesabı",
+            ),
+        )
+
+
+class FakeGateway:
+    def __init__(self, channel: FakeChannelPort, analytics: FakeAnalyticsPort, comments: FakeCommentPort) -> None:
+        self.channel = channel
+        self.analytics = analytics
+        self.comments = comments
+
+    def list_platforms(self) -> List[PlatformDescriptor]:
+        return FakeCatalogPort().list_platforms()
+
+    def bind(self, context: ChannelContext) -> CreatorSession:
+        return CreatorSession(
+            channel=self.channel,
+            analytics=self.analytics,
+            comments=self.comments,
+            access=ChannelAccess(
+                platform=SocialPlatform.YOUTUBE,
+                channel_id=context.channel_id,
+                external_channel_id=context.external_channel_id,
+                connection_id=context.connection_id,
+                access_token="mock_access_token",
+            ),
+        )
+
+
 @pytest.fixture()
 def analytics_port() -> FakeAnalyticsPort:
     return FakeAnalyticsPort()
@@ -193,22 +242,24 @@ def analytics_port() -> FakeAnalyticsPort:
 def client(analytics_port: FakeAnalyticsPort) -> TestClient:
     channel = FakeChannelPort()
     comments = FakeCommentPort()
+    resolver = FakeResolver()
+    gateway = FakeGateway(channel, analytics_port, comments)
 
     overrides = {
         container.get_list_platforms_use_case: lambda: ListPlatformsUseCase(FakeCatalogPort()),
-        container.get_channel_overview_use_case: lambda: GetChannelOverviewUseCase(channel),
-        container.get_list_channel_videos_use_case: lambda: ListChannelVideosUseCase(channel),
-        container.get_channel_video_use_case: lambda: GetChannelVideoUseCase(channel),
-        container.get_update_channel_video_use_case: lambda: UpdateChannelVideoUseCase(channel),
-        container.get_list_channel_playlists_use_case: lambda: ListChannelPlaylistsUseCase(channel),
-        container.get_list_video_categories_use_case: lambda: ListVideoCategoriesUseCase(channel),
+        container.get_channel_overview_use_case: lambda: GetChannelOverviewUseCase(resolver, gateway),
+        container.get_list_channel_videos_use_case: lambda: ListChannelVideosUseCase(resolver, gateway),
+        container.get_channel_video_use_case: lambda: GetChannelVideoUseCase(resolver, gateway),
+        container.get_update_channel_video_use_case: lambda: UpdateChannelVideoUseCase(resolver, gateway),
+        container.get_list_channel_playlists_use_case: lambda: ListChannelPlaylistsUseCase(resolver, gateway),
+        container.get_list_video_categories_use_case: lambda: ListVideoCategoriesUseCase(resolver, gateway),
         container.get_channel_analytics_use_case: lambda: GetChannelAnalyticsUseCase(
-            analytics_port, max_range_days=365
+            resolver, gateway, max_range_days=365
         ),
-        container.get_list_comments_use_case: lambda: ListCommentsUseCase(comments),
-        container.get_reply_to_comment_use_case: lambda: ReplyToCommentUseCase(comments),
+        container.get_list_comments_use_case: lambda: ListCommentsUseCase(resolver, gateway),
+        container.get_reply_to_comment_use_case: lambda: ReplyToCommentUseCase(resolver, gateway),
         container.get_set_comment_moderation_use_case: lambda: SetCommentModerationUseCase(
-            comments
+            resolver, gateway
         ),
     }
     app.dependency_overrides.update(overrides)

@@ -24,6 +24,12 @@ from tezlify_studio.infrastructure.persistence.repositories.media_repository_imp
 from tezlify_studio.infrastructure.persistence.repositories.social_account_repository_impl import (
     SocialAccountRepositoryImpl,
 )
+from tezlify_studio.infrastructure.persistence.repositories.platform_connection_repository_impl import (
+    PlatformConnectionRepositoryImpl,
+)
+from tezlify_studio.infrastructure.persistence.repositories.platform_channel_repository_impl import (
+    PlatformChannelRepositoryImpl,
+)
 from tezlify_studio.domain.entities.scheduled_publish import ScheduledPublish
 from tezlify_studio.domain.entities.media_asset import MediaAsset
 from tezlify_studio.domain.entities.social_account import SocialAccount
@@ -31,6 +37,10 @@ from tezlify_studio.domain.entities.publish_record import PublishRecord
 from tezlify_studio.domain.enums.schedule_status import ScheduleStatus
 from tezlify_studio.domain.enums.publish_status import SocialPlatform, PrivacyStatus, PublishStatus
 from tezlify_studio.domain.enums.media_status import MediaStatus
+from tezlify_studio.domain.entities.platform_channel import PlatformChannel
+from tezlify_studio.domain.entities.platform_connection import PlatformConnection
+from tezlify_studio.domain.value_objects.channel_access import ChannelAccess
+from tezlify_studio.domain.value_objects.channel_context import ChannelContext
 from tezlify_studio.domain.exceptions.schedule_exceptions import InvalidScheduleTimeException
 from tezlify_studio.application.ports.youtube_publisher_port import (
     YouTubePublisherPort,
@@ -69,6 +79,39 @@ class ReliableTestStorage(MediaStoragePort):
         return True
     def open_range_stream(self, file_path, start, end, chunk_size=524288):
         yield b"0" * (end - start + 1)
+
+class FakeResolver:
+    def __init__(self, channel_id: str, connection_id: str, external_channel_id: str):
+        self.context = ChannelContext(
+            channel=PlatformChannel(
+                id=channel_id,
+                platform_connection_id=connection_id,
+                platform=SocialPlatform.YOUTUBE,
+                channel_external_id=external_channel_id,
+                channel_name="Recovery Channel",
+            ),
+            connection=PlatformConnection(
+                id=connection_id,
+                platform=SocialPlatform.YOUTUBE,
+                account_external_id="google_recovery",
+                account_display_name="Recovery Account",
+            ),
+        )
+
+    def resolve(self, channel_id=None) -> ChannelContext:
+        return self.context
+
+
+class FakeAccessProvider:
+    def get_access(self, context: ChannelContext) -> ChannelAccess:
+        return ChannelAccess(
+            platform=SocialPlatform.YOUTUBE,
+            channel_id=context.channel_id,
+            external_channel_id=context.external_channel_id,
+            connection_id=context.connection_id,
+            access_token="access_recovery",
+        )
+
 
 class CrashMockPublisher(YouTubePublisherPort):
     def __init__(self):
@@ -139,16 +182,50 @@ def setup_prereqs(db):
     token_storage = InMemoryTokenStorageAdapter()
     token_storage.store_tokens(acc_id, "access_recovery", "refresh_recovery")
 
+    connection_repo = PlatformConnectionRepositoryImpl(db)
+    channel_repo = PlatformChannelRepositoryImpl(db)
+    connection_id = f"conn_{acc_id}"
+    channel_id = f"ch_{acc_id}"
+    connection_repo.save(
+        PlatformConnection(
+            id=connection_id,
+            platform=SocialPlatform.YOUTUBE,
+            account_external_id=f"google_{acc_id}",
+            account_display_name="Recovery Account",
+        )
+    )
+    channel_repo.save(
+        PlatformChannel(
+            id=channel_id,
+            platform_connection_id=connection_id,
+            platform=SocialPlatform.YOUTUBE,
+            channel_external_id=account.channel_id,
+            channel_name="Recovery Channel",
+            is_primary=True,
+        )
+    )
+
     def cleanup():
         try:
             if os.path.exists(file_path):
                 os.remove(file_path)
+            channel_repo.delete(channel_id)
+            connection_repo.delete(connection_id)
             account_repo.delete(acc_id)
             media_repo.delete(media_id)
         except Exception:
             pass
 
-    return media_id, acc_id, file_path, token_storage, cleanup
+    return (
+        media_id,
+        acc_id,
+        file_path,
+        token_storage,
+        cleanup,
+        channel_id,
+        connection_id,
+        account.channel_id,
+    )
 
 # -----------------------------------------------------------------------------
 # 1. YouTube Upload Success, DB Update Failure Scenario
@@ -161,7 +238,16 @@ def test_youtube_upload_success_db_update_failure_recovery():
     and resolves the schedule without triggering a duplicate upload!
     """
     db = SessionLocal()
-    media_id, acc_id, _, token_storage, cleanup = setup_prereqs(db)
+    (
+        media_id,
+        acc_id,
+        _,
+        token_storage,
+        cleanup,
+        channel_id,
+        connection_id,
+        external_channel_id,
+    ) = setup_prereqs(db)
     try:
         sched_repo = ScheduledPublishRepositoryImpl(db)
         pub_repo = PublishRecordRepositoryImpl(db)
@@ -171,9 +257,9 @@ def test_youtube_upload_success_db_update_failure_recovery():
         publish_use_case = PublishVideoToYouTubeUseCase(
             media_repo=MediaRepositoryImpl(db),
             storage=storage,
-            account_repo=SocialAccountRepositoryImpl(db),
+            resolver=FakeResolver(channel_id, connection_id, external_channel_id),
+            access_provider=FakeAccessProvider(),
             publish_repo=pub_repo,
-            token_storage=token_storage,
             publisher=publisher,
         )
 
@@ -183,6 +269,9 @@ def test_youtube_upload_success_db_update_failure_recovery():
             id=sched_id,
             media_asset_id=media_id,
             social_account_id=acc_id,
+            channel_id=channel_id,
+            platform_connection_id=connection_id,
+            channel_attribution="exact",
             title="Crash Recovery Schedule",
             scheduled_at_utc=datetime.now(timezone.utc) - timedelta(minutes=2),
             status=ScheduleStatus.PROCESSING,
@@ -200,6 +289,9 @@ def test_youtube_upload_success_db_update_failure_recovery():
             category_id="22",
             privacy_status=PrivacyStatus.PRIVATE,
             status=PublishStatus.PUBLISHED,
+            channel_id=channel_id,
+            platform_connection_id=connection_id,
+            channel_attribution="exact",
             progress_percentage=100,
             uploaded_bytes=4096,
             total_bytes=4096,
@@ -240,7 +332,16 @@ def test_youtube_completed_no_response_received_resume_recovers_id():
     upload (200 + video ID), captures video ID, and marks record PUBLISHED.
     """
     db = SessionLocal()
-    media_id, acc_id, _, token_storage, cleanup = setup_prereqs(db)
+    (
+        media_id,
+        acc_id,
+        _,
+        token_storage,
+        cleanup,
+        channel_id,
+        connection_id,
+        external_channel_id,
+    ) = setup_prereqs(db)
     try:
         pub_repo = PublishRecordRepositoryImpl(db)
         publisher = CrashMockPublisher()
@@ -249,9 +350,9 @@ def test_youtube_completed_no_response_received_resume_recovers_id():
         publish_use_case = PublishVideoToYouTubeUseCase(
             media_repo=MediaRepositoryImpl(db),
             storage=storage,
-            account_repo=SocialAccountRepositoryImpl(db),
+            resolver=FakeResolver(channel_id, connection_id, external_channel_id),
+            access_provider=FakeAccessProvider(),
             publish_repo=pub_repo,
-            token_storage=token_storage,
             publisher=publisher,
         )
 
@@ -259,7 +360,8 @@ def test_youtube_completed_no_response_received_resume_recovers_id():
             publish_use_case=publish_use_case,
             publish_repo=pub_repo,
             media_repo=MediaRepositoryImpl(db),
-            account_repo=SocialAccountRepositoryImpl(db),
+            resolver=FakeResolver(channel_id, connection_id, external_channel_id),
+            access_provider=FakeAccessProvider(),
             publisher=publisher,
         )
 
@@ -273,6 +375,9 @@ def test_youtube_completed_no_response_received_resume_recovers_id():
             category_id="22",
             privacy_status=PrivacyStatus.PRIVATE,
             status=PublishStatus.PAUSED,
+            channel_id=channel_id,
+            platform_connection_id=connection_id,
+            channel_attribution="exact",
             upload_session_uri="https://upload.youtube.com/uncertain_session",
             uploaded_bytes=4096,  # End of file reached
             total_bytes=4096,
@@ -300,7 +405,16 @@ def test_youtube_completed_no_response_received_resume_recovers_id():
 # -----------------------------------------------------------------------------
 def test_schedule_re_executed_when_successful_publish_record_already_exists():
     db = SessionLocal()
-    media_id, acc_id, _, token_storage, cleanup = setup_prereqs(db)
+    (
+        media_id,
+        acc_id,
+        _,
+        token_storage,
+        cleanup,
+        channel_id,
+        connection_id,
+        external_channel_id,
+    ) = setup_prereqs(db)
     try:
         sched_repo = ScheduledPublishRepositoryImpl(db)
         pub_repo = PublishRecordRepositoryImpl(db)
@@ -310,9 +424,9 @@ def test_schedule_re_executed_when_successful_publish_record_already_exists():
         publish_use_case = PublishVideoToYouTubeUseCase(
             media_repo=MediaRepositoryImpl(db),
             storage=storage,
-            account_repo=SocialAccountRepositoryImpl(db),
+            resolver=FakeResolver(channel_id, connection_id, external_channel_id),
+            access_provider=FakeAccessProvider(),
             publish_repo=pub_repo,
-            token_storage=token_storage,
             publisher=publisher,
         )
 
@@ -326,6 +440,9 @@ def test_schedule_re_executed_when_successful_publish_record_already_exists():
             category_id="22",
             privacy_status=PrivacyStatus.PRIVATE,
             status=PublishStatus.PUBLISHED,
+            channel_id=channel_id,
+            platform_connection_id=connection_id,
+            channel_attribution="exact",
             progress_percentage=100,
             uploaded_bytes=4096,
             total_bytes=4096,
@@ -338,6 +455,9 @@ def test_schedule_re_executed_when_successful_publish_record_already_exists():
             id=sched_id,
             media_asset_id=media_id,
             social_account_id=acc_id,
+            channel_id=channel_id,
+            platform_connection_id=connection_id,
+            channel_attribution="exact",
             title="Already Published",
             scheduled_at_utc=datetime.now(timezone.utc) - timedelta(minutes=1),
             status=ScheduleStatus.SCHEDULED,
@@ -366,7 +486,16 @@ def test_schedule_re_executed_when_successful_publish_record_already_exists():
 # -----------------------------------------------------------------------------
 def test_scheduler_clean_shutdown_while_processing_pauses_gracefully():
     db = SessionLocal()
-    media_id, acc_id, _, token_storage, cleanup = setup_prereqs(db)
+    (
+        media_id,
+        acc_id,
+        _,
+        token_storage,
+        cleanup,
+        channel_id,
+        connection_id,
+        external_channel_id,
+    ) = setup_prereqs(db)
     try:
         pub_repo = PublishRecordRepositoryImpl(db)
         publisher = CrashMockPublisher()
@@ -378,9 +507,9 @@ def test_scheduler_clean_shutdown_while_processing_pauses_gracefully():
         publish_use_case = PublishVideoToYouTubeUseCase(
             media_repo=MediaRepositoryImpl(db),
             storage=storage,
-            account_repo=SocialAccountRepositoryImpl(db),
+            resolver=FakeResolver(channel_id, connection_id, external_channel_id),
+            access_provider=FakeAccessProvider(),
             publish_repo=pub_repo,
-            token_storage=token_storage,
             publisher=publisher,
             chunk_size=1024,
             stop_checker=lambda: is_server_stopping,
@@ -418,7 +547,7 @@ def test_scheduler_clean_shutdown_while_processing_pauses_gracefully():
 def test_two_scheduler_instances_attempting_same_task():
     db1 = SessionLocal()
     db2 = SessionLocal()
-    media_id, acc_id, _, _, cleanup = setup_prereqs(db1)
+    media_id, acc_id, _, _, cleanup, *_ = setup_prereqs(db1)
     try:
         sched_repo1 = ScheduledPublishRepositoryImpl(db1)
         sched_repo2 = ScheduledPublishRepositoryImpl(db2)
@@ -458,7 +587,7 @@ def test_two_scheduler_instances_attempting_same_task():
 # -----------------------------------------------------------------------------
 def test_stale_processing_task_recovery():
     db = SessionLocal()
-    media_id, acc_id, _, _, cleanup = setup_prereqs(db)
+    media_id, acc_id, _, _, cleanup, *_ = setup_prereqs(db)
     try:
         sched_repo = ScheduledPublishRepositoryImpl(db)
         pub_repo = PublishRecordRepositoryImpl(db)
@@ -526,7 +655,7 @@ def test_dst_ambiguous_local_time_validation():
 # -----------------------------------------------------------------------------
 def test_sqlite_transaction_rollback_preserves_consistency():
     db = SessionLocal()
-    media_id, acc_id, _, _, cleanup = setup_prereqs(db)
+    media_id, acc_id, _, _, cleanup, *_ = setup_prereqs(db)
     sched_repo = ScheduledPublishRepositoryImpl(db)
     sched_id = f"s_rb_{uuid.uuid4().hex[:8]}"
 
@@ -569,7 +698,7 @@ def test_sqlite_transaction_rollback_preserves_consistency():
 # -----------------------------------------------------------------------------
 def test_startup_reconciliation_runs_strictly_before_worker_starts():
     db = SessionLocal()
-    media_id, acc_id, _, _, cleanup = setup_prereqs(db)
+    media_id, acc_id, _, _, cleanup, *_ = setup_prereqs(db)
     order_log = []
 
     class OrderTrackingReconcile(ReconcileScheduledPublishesUseCase):

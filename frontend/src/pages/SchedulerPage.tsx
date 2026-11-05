@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { MediaAsset } from '../types/media';
 import { ScheduledPublish, SchedulerStatusResponse } from '../types/schedule';
 import { apiService } from '../services/api';
+import { useChannelContext } from '../context/ChannelContext';
 import { SchedulerStatusCard } from '../components/schedule/SchedulerStatusCard';
 import { PublishCalendarView } from '../components/schedule/PublishCalendarView';
 import { PublishListView } from '../components/schedule/PublishListView';
@@ -21,6 +22,8 @@ export const SchedulerPage: React.FC<SchedulerPageProps> = ({
   initialAssetToSchedule = null,
   onClearInitialAsset = () => {},
 }) => {
+  const { activeChannel } = useChannelContext();
+  const channelId = activeChannel?.id;
   const [schedules, setSchedules] = useState<ScheduledPublish[]>([]);
   const [schedulerStatus, setSchedulerStatus] = useState<SchedulerStatusResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,7 +45,7 @@ export const SchedulerPage: React.FC<SchedulerPageProps> = ({
     try {
       setPageError(null);
       const [listRes, statusRes] = await Promise.all([
-        apiService.listSchedules(undefined, 100),
+        apiService.listSchedules(undefined, 100, 0, channelId),
         apiService.getSchedulerStatus(),
       ]);
       setSchedules(listRes.items);
@@ -53,9 +56,10 @@ export const SchedulerPage: React.FC<SchedulerPageProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [channelId]);
 
   useEffect(() => {
+    setSchedules([]);
     fetchSchedulerData();
 
     // Auto refresh every 15 seconds
@@ -169,6 +173,13 @@ export const SchedulerPage: React.FC<SchedulerPageProps> = ({
         </div>
       </div>
 
+      <div className="flex items-center gap-2 rounded-xl border border-[#7367F0]/25 bg-[#7367F0]/5 px-3 py-2 text-[11px] font-semibold text-[#7367F0]">
+        <span className="h-1.5 w-1.5 rounded-full bg-[#7367F0]" />
+        {activeChannel
+          ? `Hedef kanal: ${activeChannel.channel_name}`
+          : 'Hedef kanal seçili değil — Bağlı Hesaplar ekranından bir kanal seçin.'}
+      </div>
+
       {pageError && (
         <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-600 dark:text-red-400 text-sm flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
@@ -214,6 +225,8 @@ export const SchedulerPage: React.FC<SchedulerPageProps> = ({
         initialAsset={preselectedAsset}
         availableAssets={videos.filter((v) => v.status === 'ready')}
         editingSchedule={editingSchedule}
+        channelId={channelId || null}
+        channelName={activeChannel?.channel_name || null}
       />
 
       {/* Cancel Confirmation Dialog */}

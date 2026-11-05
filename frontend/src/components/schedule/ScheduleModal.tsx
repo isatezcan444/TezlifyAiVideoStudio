@@ -15,6 +15,8 @@ interface ScheduleModalProps {
   initialAsset?: MediaAsset | null;
   availableAssets?: MediaAsset[];
   editingSchedule?: ScheduledPublish | null;
+  channelId?: string | null;
+  channelName?: string | null;
 }
 
 const COMMON_TIMEZONES = [
@@ -40,6 +42,8 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   initialAsset = null,
   availableAssets = [],
   editingSchedule = null,
+  channelId = null,
+  channelName = null,
 }) => {
   const [selectedAssetId, setSelectedAssetId] = useState<string>('');
   const [title, setTitle] = useState('');
@@ -126,6 +130,10 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
       setError('Lütfen yayınlanacak bir video seçin.');
       return;
     }
+    if (!channelId && !editingSchedule) {
+      setError('Hedef kanal seçili değil. Önce Bağlı Hesaplar ekranından bir kanal seçin.');
+      return;
+    }
     if (!title.trim()) {
       setError('Lütfen bir video başlığı girin.');
       return;
@@ -178,6 +186,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
           scheduled_at: isoString,
           timezone,
           max_attempts: maxAttempts,
+          channel_id: channelId || undefined,
         });
         onSuccess(created);
       }
@@ -203,6 +212,16 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
             <span>{error}</span>
           </div>
         )}
+
+        {/* Target channel */}
+        <div className="flex items-center gap-2 rounded-xl border border-[#7367F0]/25 bg-[#7367F0]/5 px-3 py-2 text-[11px] font-semibold text-[#7367F0]">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#7367F0]" />
+          {editingSchedule
+            ? `Bu plan mevcut kanal bağlamında düzenlenir.`
+            : channelName
+              ? `Hedef kanal: ${channelName}`
+              : 'Hedef kanal seçili değil — Bağlı Hesaplar ekranından bir kanal seçin.'}
+        </div>
 
         {/* Video Selection (if creating) */}
         {!editingSchedule && (
@@ -371,7 +390,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
           </Button>
           <Button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || (!editingSchedule && !channelId)}
             className="bg-[#7367F0] hover:bg-[#685dd8] text-white flex items-center gap-2"
           >
             {isSubmitting ? (

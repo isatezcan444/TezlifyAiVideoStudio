@@ -58,6 +58,9 @@ ALLOWED_TRANSITIONS = {
 class PublishRecord:
     id: str
     media_asset_id: str
+    channel_id: Optional[str] = None
+    platform_connection_id: Optional[str] = None
+    channel_attribution: str = "unresolved"
     platform: SocialPlatform = SocialPlatform.YOUTUBE
     external_video_id: Optional[str] = None
     external_video_url: Optional[str] = None

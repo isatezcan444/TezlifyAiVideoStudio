@@ -10,6 +10,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 from tezlify_studio.infrastructure.configuration.settings import settings
 from tezlify_studio.infrastructure.persistence.models.media_models import Base
 import tezlify_studio.infrastructure.persistence.models.publish_models  # noqa: F401
+import tezlify_studio.infrastructure.persistence.models.schedule_models  # noqa: F401
+import tezlify_studio.infrastructure.persistence.models.connection_models  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

@@ -12,7 +12,10 @@ export type ScheduleStatus =
 export interface ScheduledPublish {
   id: string;
   media_asset_id: string;
-  social_account_id: string;
+  social_account_id?: string | null;
+  channel_id?: string | null;
+  platform_connection_id?: string | null;
+  channel_attribution?: string;
   platform: SocialPlatform | string;
   title: string;
   description: string;
@@ -35,6 +38,7 @@ export interface ScheduledPublish {
 
 export interface CreateScheduledPublishPayload {
   media_asset_id: string;
+  channel_id?: string;
   title: string;
   description?: string;
   tags?: string[];

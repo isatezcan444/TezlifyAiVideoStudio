@@ -11,6 +11,7 @@ from tezlify_studio.domain.exceptions.schedule_exceptions import (
     InvalidScheduleTimeException,
 )
 from tezlify_studio.application.dto.schedule_dto import ScheduledPublishDTO
+from tezlify_studio.domain.exceptions.creator_exceptions import CreatorStudioException
 from tezlify_studio.application.dto.mappers import scheduled_publish_to_dto
 
 class RetryFailedScheduledPublishUseCase:
@@ -31,6 +32,13 @@ class RetryFailedScheduledPublishUseCase:
             raise InvalidScheduleStateTransitionException(
                 schedule.status.value,
                 ScheduleStatus.SCHEDULED.value,
+            )
+
+        if not schedule.channel_id:
+            raise CreatorStudioException(
+                "Bu planın kanalı belirsiz (unresolved). Yanlış kanala yayınlamamak için "
+                "tekrar deneme yapılmadı; videoyu hedef kanalı seçerek yeniden planlayın.",
+                "CHANNEL_UNRESOLVED",
             )
 
         now_utc = datetime.now(timezone.utc)

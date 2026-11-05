@@ -1,7 +1,9 @@
 import time
+from types import SimpleNamespace
+
 import httpx
+
 from tezlify_studio.infrastructure.security.oauth_desktop_listener import DesktopOAuthListener
-from tezlify_studio.application.dto.publish_dto import SocialAccountDTO
 
 def test_desktop_oauth_listener_success_callback():
     received_code = None
@@ -11,16 +13,7 @@ def test_desktop_oauth_listener_success_callback():
         nonlocal received_code, received_state
         received_code = code
         received_state = state
-        return SocialAccountDTO(
-            id="acc_123",
-            platform="youtube",
-            account_name="Test Channel",
-            channel_id="UC_123",
-            channel_avatar_url="https://example.com/avatar.png",
-            is_active=True,
-            is_token_valid=True,
-            created_at="2026-11-03T12:00:00Z",
-        )
+        return SimpleNamespace(account_display_name="Test Channel")
 
     listener = DesktopOAuthListener.start_new(oauth_handler_cb=fake_handler, timeout_seconds=10)
     try:

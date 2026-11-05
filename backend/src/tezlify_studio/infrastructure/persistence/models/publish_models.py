@@ -22,6 +22,19 @@ class PublishRecordModel(Base):
 
     id = Column(String(64), primary_key=True, index=True)
     media_asset_id = Column(String(64), ForeignKey("media_assets.id", ondelete="CASCADE"), nullable=False, index=True)
+    channel_id = Column(
+        String(64),
+        ForeignKey("platform_channels.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    platform_connection_id = Column(
+        String(64),
+        ForeignKey("platform_connections.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    channel_attribution = Column(String(32), default="unresolved", nullable=False)
     platform = Column(String(32), default="youtube", index=True, nullable=False)
     external_video_id = Column(String(128), index=True, nullable=True)
     external_video_url = Column(Text, nullable=True)

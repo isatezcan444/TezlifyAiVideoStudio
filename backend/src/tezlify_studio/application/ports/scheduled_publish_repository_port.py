@@ -27,7 +27,12 @@ class ScheduledPublishRepositoryPort(ABC):
         pass
 
     @abstractmethod
-    def get_active_by_media(self, media_id: str, platform: SocialPlatform) -> Optional[ScheduledPublish]:
+    def get_active_by_media(
+        self,
+        media_id: str,
+        platform: SocialPlatform,
+        channel_id: Optional[str] = None,
+    ) -> Optional[ScheduledPublish]:
         """Checks if an active schedule exists for the media on this platform (SCHEDULED or PROCESSING)."""
         pass
 
@@ -37,13 +42,23 @@ class ScheduledPublishRepositoryPort(ABC):
         status: Optional[ScheduleStatus] = None,
         limit: int = 100,
         offset: int = 0,
+        channel_id: Optional[str] = None,
     ) -> List[ScheduledPublish]:
         """Lists records with optional status filter, ordered by scheduled_at_utc ASC."""
         pass
 
     @abstractmethod
-    def list_upcoming(self, now_utc: datetime, limit: int = 20) -> List[ScheduledPublish]:
+    def list_upcoming(
+        self, now_utc: datetime, limit: int = 20, channel_id: Optional[str] = None
+    ) -> List[ScheduledPublish]:
         """Returns future SCHEDULED records ordered by scheduled_at_utc ASC."""
+        pass
+
+    @abstractmethod
+    def fail_pending_for_connection(
+        self, connection_id: str, error_code: str, error_message: str
+    ) -> int:
+        """Fails only the pending schedules owned by a disconnected connection."""
         pass
 
     @abstractmethod
@@ -55,8 +70,12 @@ class ScheduledPublishRepositoryPort(ABC):
         pass
 
     @abstractmethod
-    def count(self, status: Optional[ScheduleStatus] = None) -> int:
-        """Returns total count of records matching optional status."""
+    def count(
+        self,
+        status: Optional[ScheduleStatus] = None,
+        channel_id: Optional[str] = None,
+    ) -> int:
+        """Returns total count of records matching optional status and channel."""
         pass
 
     @abstractmethod

@@ -53,7 +53,11 @@ class _OAuthCallbackHandler(BaseHTTPRequestHandler):
         # Complete authentication via server callback
         try:
             account_dto = self.server.handle_oauth_code(code=code, state=state)
-            channel_name = account_dto.account_name if account_dto else "YouTube Kanalı"
+            channel_name = (
+                account_dto.account_display_name
+                if account_dto and getattr(account_dto, "account_display_name", None)
+                else "YouTube Kanalı"
+            )
             self._render_response(
                 status_code=200,
                 title="Yetkilendirme Başarılı",

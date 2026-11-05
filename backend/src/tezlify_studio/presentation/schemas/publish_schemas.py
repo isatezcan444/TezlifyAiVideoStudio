@@ -18,6 +18,10 @@ class YouTubeAuthUrlResponse(BaseModel):
 
 class StartPublishRequest(BaseModel):
     media_asset_id: str
+    channel_id: Optional[str] = Field(
+        default=None,
+        description="Target channel. Omit to use the currently selected channel.",
+    )
     title: str = Field(..., min_length=1, max_length=100)
     description: str = Field(default="", max_length=5000)
     tags: List[str] = Field(default_factory=list)
@@ -46,6 +50,9 @@ class PublishRecordResponse(BaseModel):
     created_at: str
     updated_at: str
     published_at: Optional[str] = None
+    channel_id: Optional[str] = None
+    platform_connection_id: Optional[str] = None
+    channel_attribution: str = "unresolved"
 
 class PublishListResponse(BaseModel):
     items: List[PublishRecordResponse]

@@ -6,18 +6,17 @@ import httpx
 from tezlify_studio.application.ports.analytics_port import AnalyticsPort
 from tezlify_studio.application.ports.channel_port import ChannelPort
 from tezlify_studio.application.ports.comment_port import CommentPort
-from tezlify_studio.application.ports.platform_catalog_port import PlatformCatalogPort
-from tezlify_studio.application.services.youtube_token_provider import YouTubeTokenProvider
 from tezlify_studio.domain.exceptions.creator_exceptions import (
     AnalyticsUnavailableException,
+    ChannelBindingMismatchException,
     CreatorApiException,
     InsufficientScopeException,
 )
 from tezlify_studio.domain.exceptions.publish_exceptions import (
     AuthenticationRequiredException,
     QuotaExceededException,
-    SocialAccountNotFoundException,
 )
+from tezlify_studio.domain.value_objects.channel_access import ChannelAccess
 from tezlify_studio.domain.value_objects.creator_models import (
     AnalyticsResult,
     AnalyticsRow,
@@ -25,12 +24,14 @@ from tezlify_studio.domain.value_objects.creator_models import (
     ChannelProfile,
     ChannelVideo,
     DateRange,
-    PlatformDescriptor,
     VideoComment,
     YOUTUBE_ANALYTICS_METRICS,
 )
 
 YOUTUBE_SCOPES = [
+    "openid",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/userinfo.profile",
     "https://www.googleapis.com/auth/youtube",
     "https://www.googleapis.com/auth/youtube.upload",
     "https://www.googleapis.com/auth/youtube.readonly",
@@ -59,54 +60,32 @@ def parse_iso_duration(value: Optional[str]) -> Optional[int]:
     return int(seconds)
 
 
-class YouTubeCreatorApi(PlatformCatalogPort, ChannelPort, AnalyticsPort, CommentPort):
-    """YouTube Data API v3 + YouTube Analytics API v2 adapter.
+class YouTubeCreatorApi(ChannelPort, AnalyticsPort, CommentPort):
+    """Channel-bound YouTube Data API v3 + Analytics API v2 adapter.
 
-    Read operations use the already-granted `youtube.readonly` token. Analytics
-    and comment writes need scopes that older grants do not have; those calls
-    surface an explicit insufficient-scope error instead of a fabricated value.
+    Every request carries the access token of one connection and is scoped to
+    one channel id. ``mine=true`` / ``channel==MINE`` are deliberately not used:
+    a Google account can own several channels, so "mine" would silently operate
+    on whichever channel YouTube considers default.
     """
 
     API_BASE = "https://www.googleapis.com/youtube/v3"
     ANALYTICS_BASE = "https://youtubeanalytics.googleapis.com/v2/reports"
 
-    CAPABILITIES = {
-        "connect_oauth": True,
-        "upload_video": True,
-        "read_channel": True,
-        "read_videos": True,
-        "update_video_metadata": True,
-        "manage_playlists": True,
-        "analytics": True,
-        "read_comments": True,
-        "write_comments": True,
-        "monetization_revenue": False,
-    }
-
     def __init__(
         self,
-        token_provider: YouTubeTokenProvider,
+        access: ChannelAccess,
         client: Optional[httpx.Client] = None,
     ) -> None:
-        self.token_provider = token_provider
+        if not access.external_channel_id:
+            raise ChannelBindingMismatchException(access.channel_id)
+        self.access = access
         self._client = client or httpx.Client(timeout=30.0)
-
-    # ------------------------------------------------------------------ catalog
-
-    def list_platforms(self) -> List[PlatformDescriptor]:
-        return [
-            PlatformDescriptor(
-                id="youtube",
-                display_name="YouTube",
-                implemented=True,
-                capabilities=dict(self.CAPABILITIES),
-            )
-        ]
 
     # ------------------------------------------------------------------ helpers
 
     def _headers(self) -> Dict[str, str]:
-        return {"Authorization": f"Bearer {self.token_provider.get_access_token()}"}
+        return {"Authorization": f"Bearer {self.access.access_token}"}
 
     def _request(
         self,
@@ -177,12 +156,15 @@ class YouTubeCreatorApi(PlatformCatalogPort, ChannelPort, AnalyticsPort, Comment
         data = self._request(
             "GET",
             f"{self.API_BASE}/channels",
-            params={"part": "snippet,statistics,contentDetails", "mine": "true"},
+            params={
+                "part": "snippet,statistics,contentDetails",
+                "id": self.access.external_channel_id,
+            },
             action="Kanal bilgisi alınamadı",
         )
         items = data.get("items", [])
         if not items:
-            raise SocialAccountNotFoundException("youtube")
+            raise ChannelBindingMismatchException(self.access.channel_id)
         return items[0]
 
     def get_channel(self) -> ChannelProfile:
@@ -254,6 +236,27 @@ class YouTubeCreatorApi(PlatformCatalogPort, ChannelPort, AnalyticsPort, Comment
         )
         return [self._map_video(item) for item in data.get("items", [])]
 
+    def _assert_video_owned(self, video_id: str) -> None:
+        channel = self._channel_payload()
+        uploads = channel.get("contentDetails", {}).get("relatedPlaylists", {}).get("uploads")
+        if not uploads:
+            raise ChannelBindingMismatchException(self.access.channel_id)
+        data = self._request(
+            "GET",
+            f"{self.API_BASE}/playlistItems",
+            params={
+                "part": "contentDetails",
+                "playlistId": uploads,
+                "videoId": video_id,
+                "maxResults": 1,
+            },
+            action="Video sahipliği doğrulanamadı",
+        )
+        for item in data.get("items", []):
+            if item.get("contentDetails", {}).get("videoId") == video_id:
+                return
+        raise ChannelBindingMismatchException(self.access.channel_id)
+
     def _map_video(self, item: Dict[str, Any]) -> ChannelVideo:
         snippet = item.get("snippet", {})
         status = item.get("status", {})
@@ -276,6 +279,7 @@ class YouTubeCreatorApi(PlatformCatalogPort, ChannelPort, AnalyticsPort, Comment
         )
 
     def get_video(self, video_id: str) -> ChannelVideo:
+        self._assert_video_owned(video_id)
         items = self._fetch_videos([video_id])
         if not items:
             raise CreatorApiException("Video bulunamadı.", status_code=404)
@@ -313,7 +317,7 @@ class YouTubeCreatorApi(PlatformCatalogPort, ChannelPort, AnalyticsPort, Comment
             f"{self.API_BASE}/playlists",
             params={
                 "part": "snippet,contentDetails",
-                "mine": "true",
+                "channelId": self.access.external_channel_id,
                 "maxResults": min(max(max_results, 1), 50),
             },
             action="Oynatma listeleri alınamadı",
@@ -376,7 +380,7 @@ class YouTubeCreatorApi(PlatformCatalogPort, ChannelPort, AnalyticsPort, Comment
                 metrics=requested,
                 dimensions=dimension_list,
             )
-        except (SocialAccountNotFoundException, AuthenticationRequiredException):
+        except AuthenticationRequiredException:
             raise
 
         revenue: Optional[Dict[str, Any]] = None
@@ -414,7 +418,7 @@ class YouTubeCreatorApi(PlatformCatalogPort, ChannelPort, AnalyticsPort, Comment
         date_range: DateRange,
     ) -> Dict[str, Any]:
         params: Dict[str, Any] = {
-            "ids": "channel==MINE",
+            "ids": f"channel=={self.access.external_channel_id}",
             "startDate": date_range.start_date.isoformat(),
             "endDate": date_range.end_date.isoformat(),
             "metrics": ",".join(metrics),
@@ -488,6 +492,20 @@ class YouTubeCreatorApi(PlatformCatalogPort, ChannelPort, AnalyticsPort, Comment
 
     # ------------------------------------------------------------------ comments
 
+    def _assert_comment_owned(self, comment_id: str) -> None:
+        data = self._request(
+            "GET",
+            f"{self.API_BASE}/comments",
+            params={"part": "snippet", "id": comment_id},
+            action="Yorum sahipliği doğrulanamadı",
+        )
+        items = data.get("items", [])
+        if not items:
+            raise CreatorApiException("Yorum bulunamadı.", status_code=404)
+        channel_id = items[0].get("snippet", {}).get("channelId")
+        if channel_id != self.access.external_channel_id:
+            raise ChannelBindingMismatchException(self.access.channel_id)
+
     def list_comments(
         self,
         video_id: Optional[str] = None,
@@ -500,9 +518,10 @@ class YouTubeCreatorApi(PlatformCatalogPort, ChannelPort, AnalyticsPort, Comment
             "order": "time",
         }
         if video_id:
+            self._assert_video_owned(video_id)
             params["videoId"] = video_id
         else:
-            params["allThreadsRelatedToChannelId"] = self.get_channel().channel_id
+            params["allThreadsRelatedToChannelId"] = self.access.external_channel_id
         if page_token:
             params["pageToken"] = page_token
 
@@ -531,6 +550,7 @@ class YouTubeCreatorApi(PlatformCatalogPort, ChannelPort, AnalyticsPort, Comment
         return comments
 
     def reply_to_comment(self, parent_comment_id: str, text: str) -> VideoComment:
+        self._assert_comment_owned(parent_comment_id)
         data = self._request(
             "POST",
             f"{self.API_BASE}/comments",
@@ -553,9 +573,10 @@ class YouTubeCreatorApi(PlatformCatalogPort, ChannelPort, AnalyticsPort, Comment
         allowed = {"published", "heldForReview", "rejected"}
         if status not in allowed:
             raise CreatorApiException(
-                f"Geçersiz moderasyon durumu '{status}'. Geçerli: {', '.join(sorted(allowed))}",
+                f"Geçersiz moderasyon durumu '{status}'. Geçerli: {', '.join(sorted(allowed))}'",
                 400,
             )
+        self._assert_comment_owned(comment_id)
         self._request(
             "POST",
             f"{self.API_BASE}/comments/setModerationStatus",

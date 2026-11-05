@@ -4,10 +4,10 @@ from datetime import datetime, timezone, timedelta
 from tezlify_studio.application.ports.scheduled_publish_repository_port import (
     ScheduledPublishRepositoryPort,
 )
-from tezlify_studio.application.ports.media_repository_port import MediaRepositoryPort
-from tezlify_studio.application.ports.social_account_repository_port import (
-    SocialAccountRepositoryPort,
+from tezlify_studio.application.ports.channel_context_resolver_port import (
+    ChannelContextResolverPort,
 )
+from tezlify_studio.application.ports.media_repository_port import MediaRepositoryPort
 from tezlify_studio.application.ports.publish_record_repository_port import (
     PublishRecordRepositoryPort,
 )
@@ -20,7 +20,6 @@ from tezlify_studio.domain.exceptions.media_exceptions import (
     InvalidMediaFileException,
 )
 from tezlify_studio.domain.exceptions.publish_exceptions import (
-    SocialAccountNotFoundException,
     DuplicatePublishException,
 )
 from tezlify_studio.domain.exceptions.schedule_exceptions import (
@@ -40,12 +39,12 @@ class CreateScheduledPublishUseCase:
         self,
         schedule_repo: ScheduledPublishRepositoryPort,
         media_repo: MediaRepositoryPort,
-        account_repo: SocialAccountRepositoryPort,
+        resolver: ChannelContextResolverPort,
         publish_repo: PublishRecordRepositoryPort,
     ):
         self.schedule_repo = schedule_repo
         self.media_repo = media_repo
-        self.account_repo = account_repo
+        self.resolver = resolver
         self.publish_repo = publish_repo
 
     def execute(self, dto: CreateScheduledPublishDTO) -> ScheduledPublishDTO:
@@ -56,22 +55,24 @@ class CreateScheduledPublishUseCase:
         if media.status != MediaStatus.READY:
             raise InvalidMediaFileException("Video henüz işlenmedi veya hazır durumda değil.")
 
-        # 2. Validate Connected Social Account
-        account = self.account_repo.get_active_by_platform(SocialPlatform.YOUTUBE)
-        if not account or not account.is_active:
-            raise SocialAccountNotFoundException("youtube")
+        # 2. Resolve and validate the target channel server-side
+        context = self.resolver.resolve(dto.channel_id)
 
         # 3. Validate & Normalize Timezone & DateTime (including DST edge cases)
         tz_name = (dto.timezone or "UTC").strip()
         sched_utc = validate_and_normalize_schedule_time(dto.scheduled_at_iso, tz_name)
 
         # 4. Check for active schedule conflict (idempotency)
-        existing_schedule = self.schedule_repo.get_active_by_media(media.id, SocialPlatform.YOUTUBE)
+        existing_schedule = self.schedule_repo.get_active_by_media(
+            media.id, SocialPlatform.YOUTUBE, channel_id=context.channel_id
+        )
         if existing_schedule:
             raise DuplicateScheduleException(media.id, "youtube", existing_schedule.id)
 
         # 6. Check for active live publish conflict
-        active_publish = self.publish_repo.get_active_by_media(media.id, SocialPlatform.YOUTUBE)
+        active_publish = self.publish_repo.get_active_by_media(
+            media.id, SocialPlatform.YOUTUBE, channel_id=context.channel_id
+        )
         if active_publish and active_publish.status in (
             PublishStatus.PENDING,
             PublishStatus.AUTHENTICATING,
@@ -84,7 +85,9 @@ class CreateScheduledPublishUseCase:
         schedule = ScheduledPublish(
             id=str(uuid.uuid4()),
             media_asset_id=media.id,
-            social_account_id=account.id,
+            channel_id=context.channel_id,
+            platform_connection_id=context.connection_id,
+            channel_attribution="exact",
             platform=SocialPlatform.YOUTUBE,
             title=dto.title.strip() or media.original_filename,
             description=dto.description.strip(),

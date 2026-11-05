@@ -43,9 +43,12 @@ VALID_TRANSITIONS = {
 class ScheduledPublish:
     id: str
     media_asset_id: str
-    social_account_id: str
     title: str
     scheduled_at_utc: datetime
+    social_account_id: Optional[str] = None
+    channel_id: Optional[str] = None
+    platform_connection_id: Optional[str] = None
+    channel_attribution: str = "unresolved"
     platform: SocialPlatform = SocialPlatform.YOUTUBE
     description: str = ""
     tags: List[str] = field(default_factory=list)

@@ -15,8 +15,11 @@ class ListScheduledPublishesUseCase:
         status: Optional[str] = None,
         limit: int = 100,
         offset: int = 0,
+        channel_id: Optional[str] = None,
     ) -> Tuple[List[ScheduledPublishDTO], int]:
         sched_status = ScheduleStatus(status) if status else None
-        items = self.schedule_repo.list_all(status=sched_status, limit=limit, offset=offset)
-        total = self.schedule_repo.count(status=sched_status)
+        items = self.schedule_repo.list_all(
+            status=sched_status, limit=limit, offset=offset, channel_id=channel_id
+        )
+        total = self.schedule_repo.count(status=sched_status, channel_id=channel_id)
         return [scheduled_publish_to_dto(s) for s in items], total

@@ -128,7 +128,18 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
         return resp.json()
 
     def get_channel_profile(self, access_token: str) -> Dict[str, Any]:
-        url = f"{self.API_BASE}/channels?part=snippet&mine=true"
+        profiles = self.list_channel_profiles(access_token)
+        if not profiles:
+            raise PublishDomainException("Bu Google hesabına bağlı bir YouTube kanalı bulunamadı. Lütfen önce YouTube Studio üzerinde bir kanal oluşturun.")
+        first = profiles[0]
+        return {
+            "channel_id": first.get("channel_id"),
+            "channel_title": first.get("channel_title", "My YouTube Channel"),
+            "avatar_url": first.get("avatar_url"),
+        }
+
+    def list_channel_profiles(self, access_token: str) -> List[Dict[str, Any]]:
+        url = f"{self.API_BASE}/channels?part=snippet,statistics,contentDetails&mine=true"
         headers = {"Authorization": f"Bearer {access_token}"}
         try:
             resp = self._client.get(url, headers=headers)
@@ -142,21 +153,59 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
         if resp.status_code != 200:
             raise PublishDomainException(f"Failed to fetch channel profile: {resp.text}")
 
-        data = resp.json()
-        items = data.get("items", [])
-        if not items:
-            raise PublishDomainException("Bu Google hesabına bağlı bir YouTube kanalı bulunamadı. Lütfen önce YouTube Studio üzerinde bir kanal oluşturun.")
+        profiles: List[Dict[str, Any]] = []
+        for channel in resp.json().get("items", []):
+            snippet = channel.get("snippet", {})
+            stats = channel.get("statistics", {})
+            thumbs = snippet.get("thumbnails", {})
+            avatar = (
+                (thumbs.get("medium") or {}).get("url")
+                or (thumbs.get("default") or {}).get("url")
+            )
+            hidden = bool(stats.get("hiddenSubscriberCount", False))
+            profiles.append(
+                {
+                    "channel_id": channel.get("id"),
+                    "channel_title": snippet.get("title", "My YouTube Channel"),
+                    "avatar_url": avatar,
+                    "description": snippet.get("description", ""),
+                    "custom_url": snippet.get("customUrl"),
+                    "subscriber_count": (
+                        None if hidden or stats.get("subscriberCount") in (None, "")
+                        else int(stats.get("subscriberCount"))
+                    ),
+                    "uploads_playlist_id": channel.get("contentDetails", {})
+                    .get("relatedPlaylists", {})
+                    .get("uploads"),
+                }
+            )
+        return profiles
 
-        channel = items[0]
-        snippet = channel.get("snippet", {})
-        thumbs = snippet.get("thumbnails", {})
-        avatar = thumbs.get("default", {}).get("url") or thumbs.get("medium", {}).get("url")
-
+    def get_account_identity(self, access_token: str) -> Dict[str, Any]:
+        url = "https://openidconnect.googleapis.com/v1/userinfo"
+        headers = {"Authorization": f"Bearer {access_token}"}
+        try:
+            resp = self._client.get(url, headers=headers)
+        except Exception:
+            return {}
+        if resp.status_code != 200:
+            return {}
+        try:
+            data = resp.json()
+        except ValueError:
+            return {}
         return {
-            "channel_id": channel.get("id"),
-            "channel_title": snippet.get("title", "My YouTube Channel"),
-            "avatar_url": avatar,
+            "sub": data.get("sub"),
+            "email": data.get("email"),
+            "name": data.get("name"),
         }
+
+    def list_authorized_channel_ids(self, access_token: str) -> List[str]:
+        return [
+            profile["channel_id"]
+            for profile in self.list_channel_profiles(access_token)
+            if profile.get("channel_id")
+        ]
 
     def initiate_resumable_upload(
         self,

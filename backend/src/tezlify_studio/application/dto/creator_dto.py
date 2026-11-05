@@ -11,6 +11,7 @@ class DashboardSnapshot:
     range_days: int
     channel: Optional[ChannelProfile] = None
     analytics: Optional[AnalyticsResult] = None
+    channel_context: Dict[str, Any] = field(default_factory=dict)
     recent_videos: List[ChannelVideo] = field(default_factory=list)
     local_counts: Dict[str, Any] = field(default_factory=dict)
     upcoming_schedules: List[Dict[str, Any]] = field(default_factory=list)

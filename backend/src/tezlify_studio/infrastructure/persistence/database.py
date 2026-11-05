@@ -8,6 +8,7 @@ from tezlify_studio.infrastructure.persistence.models.media_models import Base
 # stays untouched in existing databases, but no runtime code creates or reads them.
 import tezlify_studio.infrastructure.persistence.models.publish_models  # noqa: F401
 import tezlify_studio.infrastructure.persistence.models.schedule_models  # noqa: F401
+import tezlify_studio.infrastructure.persistence.models.connection_models  # noqa: F401
 
 # Create SQLite engine with WAL mode and foreign key constraints enabled
 engine = create_engine(

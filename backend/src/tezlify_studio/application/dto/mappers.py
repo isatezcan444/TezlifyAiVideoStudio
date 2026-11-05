@@ -72,6 +72,9 @@ def publish_record_to_dto(record: PublishRecord) -> PublishRecordDTO:
         created_at=record.created_at.isoformat(),
         updated_at=record.updated_at.isoformat(),
         published_at=record.published_at.isoformat() if record.published_at else None,
+        channel_id=record.channel_id,
+        platform_connection_id=record.platform_connection_id,
+        channel_attribution=record.channel_attribution,
     )
 
 def scheduled_publish_to_dto(schedule: ScheduledPublish) -> ScheduledPublishDTO:
@@ -97,6 +100,9 @@ def scheduled_publish_to_dto(schedule: ScheduledPublish) -> ScheduledPublishDTO:
         created_at=schedule.created_at.isoformat(),
         updated_at=schedule.updated_at.isoformat(),
         version=schedule.version,
+        channel_id=schedule.channel_id,
+        platform_connection_id=schedule.platform_connection_id,
+        channel_attribution=schedule.channel_attribution,
     )
 
 

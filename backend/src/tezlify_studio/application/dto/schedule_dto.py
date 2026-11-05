@@ -5,7 +5,7 @@ from typing import Optional, List
 class ScheduledPublishDTO:
     id: str
     media_asset_id: str
-    social_account_id: str
+    social_account_id: Optional[str]
     platform: str
     title: str
     description: str
@@ -24,6 +24,9 @@ class ScheduledPublishDTO:
     created_at: str
     updated_at: str
     version: int
+    channel_id: Optional[str] = None
+    platform_connection_id: Optional[str] = None
+    channel_attribution: str = "unresolved"
 
 @dataclass
 class CreateScheduledPublishDTO:
@@ -35,6 +38,7 @@ class CreateScheduledPublishDTO:
     tags: List[str] = field(default_factory=list)
     privacy_status: str = "private"
     max_attempts: int = 3
+    channel_id: Optional[str] = None
 
 @dataclass
 class UpdateScheduledPublishDTO:

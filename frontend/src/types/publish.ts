@@ -27,10 +27,14 @@ export interface SocialAccount {
 export interface YouTubeStatusResponse {
   connected: boolean;
   account: SocialAccount | null;
+  connections: import('./account').PlatformConnection[];
+  channels: import('./account').PlatformChannel[];
+  selected_channel_id: string | null;
 }
 
 export interface StartPublishRequest {
   media_asset_id: string;
+  channel_id?: string;
   title: string;
   description?: string;
   tags?: string[];
@@ -61,6 +65,9 @@ export interface PublishRecord {
   created_at: string;
   updated_at: string;
   published_at?: string | null;
+  channel_id?: string | null;
+  platform_connection_id?: string | null;
+  channel_attribution?: string;
 }
 
 export interface PublishListResponse {

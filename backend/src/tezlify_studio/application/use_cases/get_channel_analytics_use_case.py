@@ -1,7 +1,11 @@
 from datetime import date
 from typing import Any, Dict, List, Optional
 
-from tezlify_studio.application.ports.analytics_port import AnalyticsPort
+from tezlify_studio.application.dto.connection_dto import channel_context_payload
+from tezlify_studio.application.ports.channel_context_resolver_port import (
+    ChannelContextResolverPort,
+)
+from tezlify_studio.application.ports.creator_gateway_port import CreatorGatewayPort
 from tezlify_studio.application.services.analytics_range import resolve_date_range
 from tezlify_studio.domain.value_objects.creator_models import (
     YOUTUBE_ANALYTICS_METRICS,
@@ -23,8 +27,14 @@ _REASON_TEXT = {
 
 
 class GetChannelAnalyticsUseCase:
-    def __init__(self, analytics_port: AnalyticsPort, max_range_days: int = 365):
-        self.analytics_port = analytics_port
+    def __init__(
+        self,
+        resolver: ChannelContextResolverPort,
+        gateway: CreatorGatewayPort,
+        max_range_days: int = 365,
+    ):
+        self.resolver = resolver
+        self.gateway = gateway
         self.max_range_days = max_range_days
 
     def execute(
@@ -34,6 +44,7 @@ class GetChannelAnalyticsUseCase:
         end_date: Optional[date] = None,
         dimensions: Optional[List[str]] = None,
         include_revenue: bool = False,
+        channel_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         date_range = resolve_date_range(
             range_key=range_key,
@@ -47,14 +58,16 @@ class GetChannelAnalyticsUseCase:
         if invalid:
             raise ValueError(f"Desteklenmeyen boyutlar: {', '.join(invalid)}")
 
-        result = self.analytics_port.query(
+        context = self.resolver.resolve(channel_id)
+        session = self.gateway.bind(context)
+        result = session.analytics.query(
             date_range=date_range,
             metrics=list(YOUTUBE_ANALYTICS_METRICS),
             dimensions=selected_dimensions,
             include_revenue=include_revenue,
         )
 
-        payload = {
+        return {
             "range": {
                 "key": date_range.label,
                 "start_date": date_range.start_date.isoformat(),
@@ -62,6 +75,7 @@ class GetChannelAnalyticsUseCase:
                 "days": date_range.days,
             },
             "analytics": result,
+            "context": channel_context_payload(context),
             "source": "youtube_analytics_api" if result.available else None,
             "explanation": None if result.available else _REASON_TEXT.get(
                 result.reason or "", "Analitik verisi şu anda kullanılamıyor."
@@ -79,4 +93,3 @@ class GetChannelAnalyticsUseCase:
                 ),
             },
         }
-        return payload
