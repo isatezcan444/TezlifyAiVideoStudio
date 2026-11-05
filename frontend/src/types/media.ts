@@ -38,7 +38,6 @@ export interface SystemStatus {
   python_version: string;
   ffmpeg_installed: boolean;
   ffprobe_installed: boolean;
-  blender_installed: boolean;
   data_dir: string;
   disk_total_gb: number;
   disk_free_gb: number;

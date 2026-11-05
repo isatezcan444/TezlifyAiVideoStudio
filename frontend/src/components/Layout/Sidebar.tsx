@@ -1,16 +1,21 @@
 import React from 'react';
 import {
   LayoutDashboard,
-  Film,
+  Youtube,
+  Video,
   UploadCloud,
-  Settings,
-  Sparkles,
+  CalendarClock,
+  BarChart3,
+  MessageSquare,
+  Film,
   Radio,
   X,
   Server,
-  Youtube,
-  Calendar,
-  Clapperboard,
+  Sparkles,
+  Users,
+  Link2,
+  SlidersHorizontal,
+  Settings,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -32,70 +37,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const sections = [
     {
-      title: 'AI STUDIO',
+      title: 'GENEL BAKIŞ',
+      items: [
+        { id: 'dashboard', label: 'Panel', icon: LayoutDashboard, badge: null },
+        { id: 'channel-overview', label: 'Kanal Özeti', icon: Users, badge: null },
+      ],
+    },
+    {
+      title: 'YOUTUBE',
+      items: [
+        { id: 'videos', label: 'Videolar', icon: Video, badge: null },
+        { id: 'upload-video', label: 'Video Yükle', icon: UploadCloud, badge: null },
+        { id: 'scheduled-videos', label: 'Planlanan Videolar', icon: CalendarClock, badge: null },
+        { id: 'analytics', label: 'Analitik', icon: BarChart3, badge: null },
+        { id: 'comments', label: 'Yorumlar', icon: MessageSquare, badge: null },
+      ],
+    },
+    {
+      title: 'MEDYA',
       items: [
         {
-          id: 'studio',
-          label: 'AI Video Studio',
-          icon: LayoutDashboard,
-          badge: '4.6',
-          badgeColor: 'bg-[#7367F0]/15 text-[#7367F0] dark:bg-[#7367F0]/25 dark:text-[#A59DF8]',
-        },
-        {
           id: 'media-library',
-          label: 'Medya Kütüphanesi',
+          label: 'Yerel Medya Kütüphanesi',
           icon: Film,
           badge: totalVideosCount > 0 ? `${totalVideosCount}` : null,
           badgeColor: 'bg-[#7367F0]/15 text-[#7367F0] dark:bg-[#7367F0]/25 dark:text-[#A59DF8]',
         },
-        {
-          id: 'import-video',
-          label: 'Video İçe Aktar',
-          icon: UploadCloud,
-          badge: null,
-        },
       ],
     },
     {
-      title: 'YAYIN',
+      title: 'AYARLAR',
       items: [
-        {
-          id: 'youtube-publisher',
-          label: 'YouTube Publisher',
-          icon: Youtube,
-          badge: null,
-        },
-        {
-          id: 'scheduler',
-          label: 'Yayın Takvimi',
-          icon: Calendar,
-          badge: null,
-        },
-      ],
-    },
-    {
-      title: 'GELİŞMİŞ ARAÇLAR',
-      items: [
-        {
-          id: 'character-studio',
-          label: 'Karakter & Animasyon',
-          icon: Sparkles,
-          badge: '4.3',
-          badgeColor: 'bg-emerald-500/15 text-emerald-600 dark:bg-emerald-500/25 dark:text-emerald-400',
-        },
-        {
-          id: 'composition-studio',
-          label: 'Video Kompozisyon',
-          icon: Clapperboard,
-          badge: '4.5',
-          badgeColor: 'bg-purple-500/15 text-purple-600 dark:bg-purple-500/25 dark:text-purple-400',
-        },
-        {
-          id: 'settings',
-          label: 'Sistem Durumu',
-          icon: Settings,
-          badge: null,
-        },
+        { id: 'connected-accounts', label: 'Bağlı Hesaplar', icon: Link2, badge: null },
+        { id: 'platform-settings', label: 'Platform Ayarları', icon: SlidersHorizontal, badge: null },
+        { id: 'app-settings', label: 'Uygulama Ayarları', icon: Settings, badge: null },
       ],
     },
   ];
@@ -107,7 +82,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const sidebarContent = (
     <aside className="w-64 h-screen bg-white dark:bg-[#2F3349] border-r border-slate-200/80 dark:border-white/[0.08] flex flex-col transition-colors duration-200 select-none z-40">
-      {/* Brand Header */}
       <div className="h-16 px-6 flex items-center justify-between border-b border-slate-100 dark:border-white/[0.08] shrink-0">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#7367F0] to-[#9E95F5] text-white flex items-center justify-center shadow-md shadow-[#7367F0]/30">
@@ -115,20 +89,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
           <div>
             <div className="flex items-center space-x-1.5">
-              <span className="font-extrabold text-base tracking-tight text-slate-800 dark:text-white">
-                Tezlify
-              </span>
+              <span className="font-extrabold text-base tracking-tight text-slate-800 dark:text-white">Tezlify</span>
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#7367F0]/15 text-[#7367F0] dark:bg-[#7367F0]/25 dark:text-[#A59DF8]">
-                STUDIO
+                CREATOR
               </span>
             </div>
-            <p className="text-[10px] text-slate-400 dark:text-[#7E7F96] font-medium">
-              AI Video & 2.5D Engine
-            </p>
+            <p className="text-[10px] text-slate-400 dark:text-[#7E7F96] font-medium">YouTube Channel Studio</p>
           </div>
         </div>
 
-        {/* Mobile Close Button */}
         <button
           onClick={onCloseMobile}
           className="lg:hidden p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.05]"
@@ -137,7 +106,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
       </div>
 
-      {/* Backend Engine Status Pill */}
       <div className="px-4 py-2.5 mx-3 my-3 rounded-lg bg-slate-50 dark:bg-white/[0.03] border border-slate-200/60 dark:border-white/[0.05] flex items-center justify-between shrink-0">
         <div className="flex items-center space-x-2 truncate">
           <span
@@ -149,14 +117,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {isBackendConnected ? 'Yerel Motor Aktif' : 'Motor Bağlantısı Yok'}
           </span>
         </div>
-        <Radio
-          className={`w-3.5 h-3.5 shrink-0 ${
-            isBackendConnected ? 'text-[#28C76F]' : 'text-slate-400'
-          }`}
-        />
+        <Radio className={`w-3.5 h-3.5 shrink-0 ${isBackendConnected ? 'text-[#28C76F]' : 'text-slate-400'}`} />
       </div>
 
-      {/* Navigation Links */}
       <nav className="flex-1 px-3 space-y-4 overflow-y-auto pt-1">
         {sections.map((section, sIdx) => (
           <div key={sIdx} className="space-y-1">
@@ -183,9 +146,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   {item.badge && (
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                        isActive
-                          ? 'bg-white/20 text-white'
-                          : item.badgeColor || 'bg-slate-100 text-slate-600'
+                        isActive ? 'bg-white/20 text-white' : item.badgeColor || 'bg-slate-100 text-slate-600'
                       }`}
                     >
                       {item.badge}
@@ -198,11 +159,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ))}
       </nav>
 
-      {/* Footer Info */}
       <div className="p-4 border-t border-slate-100 dark:border-white/[0.08] text-center">
         <div className="flex items-center justify-center space-x-1.5 text-[11px] text-slate-400 dark:text-[#7E7F96]">
           <Server className="w-3.5 h-3.5" />
-          <span>v1.0.0 · Local-First Core</span>
+          <span>v2.0.0 · Local-First Core</span>
+        </div>
+        <div className="mt-1 flex items-center justify-center gap-1 text-[10px] text-slate-300 dark:text-[#5D5F72]">
+          <Youtube className="h-3 w-3" /> Yalnızca YouTube
         </div>
       </div>
     </aside>
@@ -210,22 +173,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* Desktop Sidebar */}
       <div className="hidden lg:block shrink-0">{sidebarContent}</div>
 
-      {/* Mobile Drawer */}
       {isOpenMobile && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
-            onClick={onCloseMobile}
-          />
-          <div className="fixed inset-y-0 left-0 w-64 shadow-2xl">
-            {sidebarContent}
-          </div>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity" onClick={onCloseMobile} />
+          <div className="fixed inset-y-0 left-0 w-64 shadow-2xl">{sidebarContent}</div>
         </div>
       )}
     </>
   );
 };
-

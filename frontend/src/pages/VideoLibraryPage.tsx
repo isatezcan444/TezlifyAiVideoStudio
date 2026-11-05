@@ -2,11 +2,9 @@ import React, { useState } from 'react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { MediaAsset } from '../types/media';
-import { RenderJob, StudioProject } from '../types/studio';
 import { formatBytes, formatDuration, formatDate } from '../lib/utils';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { EmptyState } from '../components/ui/EmptyState';
-import { StudioMediaLibrary } from '../components/studio/StudioMediaLibrary';
 import {
   Film,
   Search,
@@ -18,16 +16,11 @@ import {
   Clock,
   HardDrive,
   Calendar,
-  Clapperboard,
-  UploadCloud,
 } from 'lucide-react';
 
 interface VideoLibraryPageProps {
   videos: MediaAsset[];
   isLoading: boolean;
-  studioRenders?: RenderJob[];
-  studioProjects?: StudioProject[];
-  onOpenProject?: (projectId: string) => void;
   onSelectVideo: (asset: MediaAsset) => void;
   onRequestDelete: (asset: MediaAsset) => void;
   onNavigateImport: () => void;
@@ -38,9 +31,6 @@ interface VideoLibraryPageProps {
 export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
   videos,
   isLoading,
-  studioRenders = [],
-  studioProjects = [],
-  onOpenProject,
   onSelectVideo,
   onRequestDelete,
   onNavigateImport,
@@ -49,7 +39,6 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [libraryTab, setLibraryTab] = useState<'uploads' | 'studio'>('uploads');
 
   const filteredVideos = videos.filter((v) => {
     const q = searchQuery.toLowerCase();
@@ -62,66 +51,6 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 dark:border-white/[0.08] dark:bg-[#2F3349]">
-          <button
-            type="button"
-            onClick={() => setLibraryTab('uploads')}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition ${
-              libraryTab === 'uploads'
-                ? 'bg-[#7367F0] text-white shadow-sm'
-                : 'text-slate-500 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.05]'
-            }`}
-          >
-            <UploadCloud className="h-3.5 w-3.5" />
-            Yüklenen medya
-          </button>
-          <button
-            type="button"
-            onClick={() => setLibraryTab('studio')}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition ${
-              libraryTab === 'studio'
-                ? 'bg-[#7367F0] text-white shadow-sm'
-                : 'text-slate-500 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.05]'
-            }`}
-          >
-            <Clapperboard className="h-3.5 w-3.5" />
-            Studio çıktıları
-            {studioRenders.length > 0 && (
-              <span
-                className={`rounded-full px-1.5 py-0.5 text-[9px] ${
-                  libraryTab === 'studio' ? 'bg-white/20' : 'bg-slate-100 dark:bg-white/[0.08]'
-                }`}
-              >
-                {studioRenders.length}
-              </span>
-            )}
-          </button>
-        </div>
-        {libraryTab === 'studio' && (
-          <div className="relative w-full sm:max-w-xs">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Proje, format veya codec ara..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              aria-label="Studio çıktısı ara"
-              className="vuexy-input h-9 w-full pl-9 pr-3 text-xs"
-            />
-          </div>
-        )}
-      </div>
-
-      {libraryTab === 'studio' ? (
-        <StudioMediaLibrary
-          renders={studioRenders}
-          projects={studioProjects}
-          searchQuery={searchQuery}
-          onOpenProject={(projectId) => onOpenProject?.(projectId)}
-        />
-      ) : (
-        <>
       {/* Search and Toolbar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 rounded-xl bg-white dark:bg-[#2F3349] border border-slate-200/80 dark:border-white/[0.08] shadow-xs">
         <div className="relative flex-1 max-w-md">
@@ -161,12 +90,7 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
             </button>
           </div>
 
-          <Button
-            variant="default"
-            size="sm"
-            onClick={onNavigateImport}
-            className="gap-1.5"
-          >
+          <Button variant="default" size="sm" onClick={onNavigateImport} className="gap-1.5">
             <span>Video Aktar</span>
           </Button>
         </div>
@@ -188,14 +112,12 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
           "{searchQuery}" aramasıyla eşleşen video bulunamadı.
         </div>
       ) : viewMode === 'grid' ? (
-        /* GRID VIEW */
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredVideos.map((asset) => (
             <Card
               key={asset.id}
               className="group overflow-hidden hover:shadow-lg transition-all border border-slate-200/80 dark:border-white/[0.08]"
             >
-              {/* Thumbnail / Video Banner */}
               <div
                 onClick={() => onSelectVideo(asset)}
                 className="relative aspect-video bg-slate-900 overflow-hidden cursor-pointer flex items-center justify-center group/thumb"
@@ -204,13 +126,11 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
                   <Play className="w-5 h-5 ml-0.5" />
                 </div>
 
-                {/* Duration Badge */}
                 <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-xs text-[11px] font-bold text-white flex items-center space-x-1">
                   <Clock className="w-3 h-3 text-[#7367F0]" />
                   <span>{formatDuration(asset.metadata?.duration_seconds)}</span>
                 </div>
 
-                {/* Resolution Pill */}
                 {asset.metadata?.resolution_label && (
                   <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-[10px] font-bold text-white">
                     {asset.metadata.resolution_label}
@@ -218,7 +138,6 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
                 )}
               </div>
 
-              {/* Card Body */}
               <CardContent className="p-4 space-y-3">
                 <div className="truncate">
                   <h3
@@ -238,7 +157,6 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
                   </div>
                 </div>
 
-                {/* Actions */}
                 <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-white/[0.06]">
                   <StatusBadge status={asset.status} />
 
@@ -259,7 +177,7 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
                         variant="ghost"
                         size="icon"
                         onClick={() => onPublishVideo(asset)}
-                        title="YouTube'da Yayınla"
+                        title="YouTube'a Yükle"
                         className="h-7 w-7 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
                       >
                         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
@@ -292,7 +210,6 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
           ))}
         </div>
       ) : (
-        /* LIST VIEW */
         <Card>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
@@ -309,20 +226,14 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-white/[0.05]">
                 {filteredVideos.map((asset) => (
-                  <tr
-                    key={asset.id}
-                    className="hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors"
-                  >
+                  <tr key={asset.id} className="hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors">
                     <td className="py-3 px-4 font-semibold text-slate-800 dark:text-white max-w-xs truncate">
                       <div className="flex items-center space-x-2.5">
                         <Play
                           onClick={() => onSelectVideo(asset)}
                           className="w-4 h-4 text-[#7367F0] cursor-pointer shrink-0"
                         />
-                        <span
-                          onClick={() => onSelectVideo(asset)}
-                          className="truncate cursor-pointer hover:underline"
-                        >
+                        <span onClick={() => onSelectVideo(asset)} className="truncate cursor-pointer hover:underline">
                           {asset.original_filename}
                         </span>
                       </div>
@@ -339,9 +250,7 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
                     <td className="py-3 px-4">
                       <StatusBadge status={asset.status} />
                     </td>
-                    <td className="py-3 px-4 text-slate-400 dark:text-[#7E7F96]">
-                      {formatDate(asset.created_at)}
-                    </td>
+                    <td className="py-3 px-4 text-slate-400 dark:text-[#7E7F96]">{formatDate(asset.created_at)}</td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end space-x-1">
                         {onScheduleVideo && (
@@ -360,7 +269,7 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
                             variant="ghost"
                             size="icon"
                             onClick={() => onPublishVideo(asset)}
-                            title="YouTube'da Yayınla"
+                            title="YouTube'a Yükle"
                             className="h-7 w-7 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
                           >
                             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
@@ -392,8 +301,6 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
             </table>
           </div>
         </Card>
-      )}
-        </>
       )}
     </div>
   );

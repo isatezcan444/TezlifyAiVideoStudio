@@ -1,117 +1,98 @@
+import type { ComponentProps } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VideoLibraryPage } from './VideoLibraryPage';
+import type { MediaAsset } from '../types/media';
 
-const apiMock = vi.hoisted(() => ({
-  getRenderVideoUrl: vi.fn((jobId: string) => `/api/v1/studio/renders/${jobId}/video`),
-  getRenderSubtitlesUrl: vi.fn(
-    (jobId: string) => `/api/v1/studio/renders/${jobId}/subtitles`
-  ),
-}));
+vi.mock('../services/api', () => ({ apiService: {} }));
 
-vi.mock('../services/api', () => ({ apiService: apiMock }));
-
-const project = {
-  id: 'proj_demo',
-  title: 'Ali ve Ayşe Kafe Buluşması',
-  description: 'Kafe hikâyesi',
-  status: 'completed',
-  scene_graph: null,
-  total_duration_seconds: 9,
-  scene_count: 2,
-  character_count: 2,
+const asset: MediaAsset = {
+  id: 'media_demo',
+  filename: 'kafe.mp4',
+  original_filename: 'kafe-bulusmasi.mp4',
+  file_path: '/tmp/kafe.mp4',
+  file_size_bytes: 2048,
+  mime_type: 'video/mp4',
+  sha256_hash: 'demo',
+  status: 'ready',
+  thumbnail_path: null,
   created_at: '2026-11-04T10:00:00',
-  updated_at: '2026-11-04T10:10:00',
-};
-
-const job = {
-  id: 'comp_render_completed',
-  project_id: 'proj_demo',
-  status: 'completed' as const,
-  progress_percent: 100,
-  current_step: 'Completed',
-  output_video_path: '/tmp/video.mp4',
-  output_metadata: {
-    video_file_path: '/tmp/video.mp4',
-    file_size_bytes: 2048,
+  updated_at: '2026-11-04T10:00:00',
+  metadata: {
     duration_seconds: 9,
     width: 1080,
     height: 1920,
     fps: 30,
     video_codec: 'h264',
-    pixel_format: 'yuv420p',
-    container: 'mp4',
-    frame_count: 270,
-    render_duration_seconds: 12,
-    engine: 'FFMPEG_COMPOSITION',
-    composition_name: 'Dikey Kompozisyon',
-    format: '9:16',
-    subtitle_file_path: '/tmp/subtitles.srt',
-    subtitle_cue_count: 2,
+    audio_codec: 'aac',
+    aspect_ratio: '9:16',
+    probe_source: 'ffprobe',
+    resolution_label: '1080x1920',
   },
-  error_message: null,
-  created_at: '2026-11-04T10:20:00',
-  started_at: '2026-11-04T10:20:01',
-  completed_at: '2026-11-04T10:21:00',
 };
 
-describe('VideoLibraryPage studio outputs', () => {
+function renderLibrary(overrides: Partial<ComponentProps<typeof VideoLibraryPage>> = {}) {
+  const props = {
+    videos: [asset],
+    isLoading: false,
+    onSelectVideo: vi.fn(),
+    onRequestDelete: vi.fn(),
+    onNavigateImport: vi.fn(),
+    onPublishVideo: vi.fn(),
+    onScheduleVideo: vi.fn(),
+    ...overrides,
+  };
+  render(<VideoLibraryPage {...props} />);
+  return props;
+}
+
+describe('VideoLibraryPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('lists real studio renders with project relation and export actions', async () => {
-    const user = userEvent.setup();
-    const onOpenProject = vi.fn();
-    render(
-      <VideoLibraryPage
-        videos={[]}
-        isLoading={false}
-        studioRenders={[job]}
-        studioProjects={[project]}
-        onOpenProject={onOpenProject}
-        onSelectVideo={vi.fn()}
-        onRequestDelete={vi.fn()}
-        onNavigateImport={vi.fn()}
-      />
-    );
+  it('renders the local media library grid with probe metadata', () => {
+    renderLibrary();
 
-    expect(screen.getByText('Yüklenen medya')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Studio çıktıları/i }));
-
-    expect(screen.getAllByText('Ali ve Ayşe Kafe Buluşması').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('1080 × 1920').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('9:16').length).toBeGreaterThan(0);
-
-    const download = screen.getByRole('link', { name: /MP4 indir/i });
-    expect(download).toHaveAttribute('href', '/api/v1/studio/renders/comp_render_completed/video');
-    expect(screen.getByRole('link', { name: /SRT indir/i })).toHaveAttribute(
-      'href',
-      '/api/v1/studio/renders/comp_render_completed/subtitles'
-    );
-
-    await user.click(screen.getByRole('button', { name: /Projeye dön/i }));
-    expect(onOpenProject).toHaveBeenCalledWith('proj_demo');
+    expect(screen.getByText('kafe-bulusmasi.mp4')).toBeInTheDocument();
+    expect(screen.getByText('1080x1920')).toBeInTheDocument();
+    expect(screen.getByText('00:09')).toBeInTheDocument();
   });
 
-  it('keeps the uploaded media empty state and supports switching back', async () => {
+  it('opens the details action and publish/schedule callbacks', async () => {
     const user = userEvent.setup();
-    render(
-      <VideoLibraryPage
-        videos={[]}
-        isLoading={false}
-        studioRenders={[job]}
-        studioProjects={[project]}
-        onSelectVideo={vi.fn()}
-        onRequestDelete={vi.fn()}
-        onNavigateImport={vi.fn()}
-      />
-    );
+    const props = renderLibrary();
 
-    expect(await screen.findByText('Henüz Video Bulunmuyor')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Studio çıktıları/i }));
-    await user.click(screen.getByRole('button', { name: /Yüklenen medya/i }));
+    await user.click(screen.getByTitle('Detay & Oynat'));
+    expect(props.onSelectVideo).toHaveBeenCalledWith(asset);
+
+    await user.click(screen.getByTitle("YouTube'a Yükle"));
+    expect(props.onPublishVideo).toHaveBeenCalledWith(asset);
+
+    await user.click(screen.getByTitle('Yayın Takvimine Ekle'));
+    expect(props.onScheduleVideo).toHaveBeenCalledWith(asset);
+  });
+
+  it('filters by search query and supports the list view', async () => {
+    const user = userEvent.setup();
+    renderLibrary();
+
+    await user.click(screen.getByTitle('Liste Görünümü'));
+    expect(screen.getByRole('table')).toBeInTheDocument();
+
+    await user.type(screen.getByPlaceholderText('Video adı veya çözünürlükle ara...'), 'yok-boyle-video');
+    expect(
+      screen.getByText(/"yok-boyle-video"\s*aramasıyla eşleşen video bulunamadı\./)
+    ).toBeInTheDocument();
+  });
+
+  it('shows the empty state with the import action', async () => {
+    const user = userEvent.setup();
+    const props = renderLibrary({ videos: [] });
+
     expect(screen.getByText('Henüz Video Bulunmuyor')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /İlk Videoyu İçe Aktar/i }));
+    expect(props.onNavigateImport).toHaveBeenCalled();
   });
 });

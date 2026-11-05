@@ -10,16 +10,15 @@ import {
   RefreshCw,
   Terminal,
   Activity,
-  Layers,
   Film,
 } from 'lucide-react';
 
-interface SettingsPageProps {
+interface ApplicationSettingsPageProps {
   systemStatus: SystemStatus | null;
   onRefreshStatus: () => void;
 }
 
-export const SettingsPage: React.FC<SettingsPageProps> = ({
+export const ApplicationSettingsPage: React.FC<ApplicationSettingsPageProps> = ({
   systemStatus,
   onRefreshStatus,
 }) => {
@@ -48,7 +47,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           <div>
             <CardTitle>Sistem ve Çevre Durumu</CardTitle>
             <p className="text-xs text-slate-500 dark:text-[#7E7F96]">
-              Tezlify AI Video Studio yerel çalışma ortamı ve donanım denetimi
+              Yerel YouTube Creator Studio çalışma ortamı ve araç denetimi
             </p>
           </div>
           <Button
@@ -134,39 +133,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               </div>
             </div>
 
-            {/* Blender 2.5D */}
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-white/[0.08] bg-slate-50/50 dark:bg-white/[0.01] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="flex items-start space-x-3">
-                <div className="p-2 rounded-lg bg-[#FF9F43]/10 text-[#FF9F43] shrink-0 mt-0.5">
-                  <Layers className="w-5 h-5" />
-                </div>
-                <div>
-                  <h5 className="text-xs font-bold text-slate-800 dark:text-white flex items-center space-x-2">
-                    <span>Blender 2.5D Motoru</span>
-                    {systemStatus?.blender_installed ? (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#28C76F]/15 text-[#28C76F] font-bold">
-                        Algılandı
-                      </span>
-                    ) : (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-white/[0.08] text-slate-500 font-bold">
-                        Aşama 6 İçin Planlandı
-                      </span>
-                    )}
-                  </h5>
-                  <p className="text-[11px] text-slate-500 dark:text-[#7E7F96] mt-0.5">
-                    {systemStatus?.blender_installed
-                      ? 'Blender sistemde mevcut. Aşama 6-8 tamamlandığında otomatik subprocess olarak bağlanacak.'
-                      : 'Aşama 1 (Local Core) için zorunlu değildir. Aşama 6-8 (Blender 2.5D Scene Builder) aşamasına geçildiğinde kurulması yeterlidir.'}
-                  </p>
-                  {!systemStatus?.blender_installed && (
-                    <div className="mt-2 flex items-center space-x-2 font-mono text-[11px] bg-slate-200 dark:bg-black/40 px-2.5 py-1 rounded-md text-slate-800 dark:text-slate-200 select-all">
-                      <Terminal className="w-3.5 h-3.5" />
-                      <span>brew install --cask blender</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Storage Paths Information */}

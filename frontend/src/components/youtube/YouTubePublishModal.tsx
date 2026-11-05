@@ -44,7 +44,7 @@ export const YouTubePublishModal: React.FC<YouTubePublishModalProps> = ({
       // Default title without file extension
       const defaultTitle = asset.original_filename.replace(/\.[^/.]+$/, '');
       setTitle(defaultTitle.slice(0, 100));
-      setDescription(`Tezlify AI Video Studio ile hazırlandı.\n\nDosya: ${asset.original_filename}`);
+      setDescription(`Tezlify Creator Studio ile hazırlandı.\n\nDosya: ${asset.original_filename}`);
       setTagsInput('tezlify, animation, ai video');
       setCategoryId('22');
       setPrivacyStatus('private');
@@ -191,7 +191,7 @@ export const YouTubePublishModal: React.FC<YouTubePublishModalProps> = ({
             type="text"
             value={tagsInput}
             onChange={(e) => setTagsInput(e.target.value)}
-            placeholder="ör. animasyon, 2d, blender, hikaye"
+            placeholder="ör. vlog, eğitim, teknoloji"
             className="w-full px-3 py-2 text-sm rounded-lg bg-white dark:bg-[#25293C] border border-slate-200 dark:border-slate-700 text-[#4B465C] dark:text-[#DBD7EC] focus:outline-none focus:ring-2 focus:ring-[#7367F0]/40 focus:border-[#7367F0]"
           />
         </div>

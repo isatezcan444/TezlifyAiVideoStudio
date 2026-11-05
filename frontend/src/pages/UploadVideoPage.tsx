@@ -9,12 +9,12 @@ import { YouTubePublishModal } from '../components/youtube/YouTubePublishModal';
 import { Button } from '../components/ui/button';
 import { Spinner } from '../components/ui/Spinner';
 
-interface YouTubePublisherPageProps {
+interface UploadVideoPageProps {
   videos: MediaAsset[];
   onNavigateLibrary: () => void;
 }
 
-export const YouTubePublisherPage: React.FC<YouTubePublisherPageProps> = ({
+export const UploadVideoPage: React.FC<UploadVideoPageProps> = ({
   videos,
   onNavigateLibrary,
 }) => {
@@ -84,10 +84,10 @@ export const YouTubePublisherPage: React.FC<YouTubePublisherPageProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-white dark:bg-[#2F3349] border border-slate-200/80 dark:border-slate-800 shadow-sm">
             <div>
               <h3 className="text-sm font-semibold text-[#4B465C] dark:text-[#DBD7EC]">
-                Videoyu YouTube'a Gönder
+                Yerel videoyu YouTube'a yükle
               </h3>
               <p className="text-xs text-[#828092] dark:text-[#908DA1] mt-0.5">
-                Kütüphanenizde bulunan hazır bir videoyu seçin ve otomatik chunked yükleme başlatın.
+                Kütüphanenizdeki bir videoyu seçin; başlık, açıklama, etiket, kategori, kapak ve gizlilik bilgilerini girip resumable yükleme başlatın. İleri tarihli yayın için Yayın Takvimi sayfasını kullanın.
               </p>
             </div>
 

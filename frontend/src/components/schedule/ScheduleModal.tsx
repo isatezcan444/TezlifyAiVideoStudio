@@ -99,7 +99,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
         setSelectedAssetId(asset.id);
         const defaultTitle = asset.original_filename.replace(/\.[^/.]+$/, '');
         setTitle(defaultTitle.slice(0, 100));
-        setDescription(`Tezlify AI Video Studio ile hazırlandı.\n\nDosya: ${asset.original_filename}`);
+        setDescription(`Tezlify Creator Studio ile hazırlandı.\n\nDosya: ${asset.original_filename}`);
         setTagsInput('tezlify, youtube, scheduled video');
       } else {
         setSelectedAssetId('');
