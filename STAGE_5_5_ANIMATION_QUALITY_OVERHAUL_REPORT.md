@@ -27,11 +27,11 @@ Gerçek depo yolu (oturum çalışma klasörü `TezlifyAiVideoStudio` değil):
 | Alan | Başlangıç | Bitiş |
 |---|---|---|
 | Branch | `main` | `main` |
-| HEAD | `21e87bf0e88518e921ba93a077cae6d4f8cb2aae` | bu aşamanın feat commit'i (aşağıda) |
+| HEAD | `21e87bf0e88518e921ba93a077cae6d4f8cb2aae` | `08d2a1fcfd0af1157772894c70f4262bd7bf40e3` |
 | Çalışma ağacı | temiz (yalnızca önceki aşamaların untracked kanıtları) | Stage 5.5 dosyaları + commit |
 | Push / deploy | yok | **yok** |
 
-Commit mesajı: `feat(studio): upgrade character animation quality` (yalnızca lokal; push/deploy yapılmadı). Önceki aşama pratiği izlenerek commit SHA'sı ayrı bir `docs(studio): record Stage 5.5 commit SHA` commit'i ile bu rapora yazılır.
+Commit mesajı: `feat(studio): upgrade character animation quality` (`08d2a1fcfd0af1157772894c70f4262bd7bf40e3`, yalnızca lokal; push/deploy yapılmadı). SHA, önceki aşama pratiği izlenerek `docs(studio): record Stage 5.5 commit SHA` commit'i ile bu rapora yazıldı.
 
 Değişiklik özeti (`git diff --stat` + yeni dosyalar): **18 izlenen dosya değişti, 1.086 satır eklendi / 290 satır silindi**, ayrıca 12 yeni kod/test/kanıt dosyası.
 
