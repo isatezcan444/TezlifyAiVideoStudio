@@ -35,6 +35,28 @@ const SOURCE_LABEL: Record<string, string> = {
   local_database: 'Yerel veritabanı',
 };
 
+const ANALYTICS_REASON_LABEL: Record<string, string> = {
+  api_not_enabled: 'YouTube Analytics API kapalı',
+  insufficient_scope: 'Analitik izni gerekli',
+  quota_exceeded: 'Analitik kotası aşıldı',
+};
+
+const analyticsReasonLabel = (reason?: string | null): string =>
+  (reason && ANALYTICS_REASON_LABEL[reason]) || 'Analitik kullanılamıyor';
+
+const analyticsReasonDetail = (reason?: string | null): string => {
+  if (reason === 'api_not_enabled') {
+    return 'YouTube Analytics API bu Google Cloud projesinde etkin değil. Google Cloud Console üzerinden API\'yi etkinleştirmeniz gerekir.';
+  }
+  if (reason === 'insufficient_scope') {
+    return 'Analitik verisi için gerekli yetki yok. Bağlı Hesaplar sayfasından YouTube bağlantısını yeniden yetkilendirebilirsiniz.';
+  }
+  if (reason === 'quota_exceeded') {
+    return 'YouTube Analytics API kotası aşıldı. Kota sıfırlandığında veri yeniden yüklenecek.';
+  }
+  return 'Analitik verisi şu anda kullanılamıyor.';
+};
+
 const SourceBadge: React.FC<{ source?: string }> = ({ source }) => {
   if (!source) return null;
   return (
@@ -203,7 +225,7 @@ export const DashboardPage: React.FC<{ onNavigate: (tab: string) => void }> = ({
             <StatsCard
               title={`${range} gün görüntüleme`}
               value={analytics?.available ? formatNumber(analytics.totals.views) : 'Kullanılamıyor'}
-              subtitle={analytics?.available ? 'YouTube Analytics API' : 'Analitik izni gerekli'}
+              subtitle={analytics?.available ? 'YouTube Analytics API' : analyticsReasonLabel(analytics?.reason)}
               icon={ArrowUpRight}
               variant="warning"
             />
@@ -226,7 +248,7 @@ export const DashboardPage: React.FC<{ onNavigate: (tab: string) => void }> = ({
               <CardContent>
                 {!analytics?.available ? (
                   <p className="py-12 text-center text-xs text-slate-400">
-                    Analitik verisi kullanılamıyor. Bağlı Hesaplar sayfasından yetkileri genişletebilirsiniz.
+                    {analyticsReasonDetail(analytics?.reason)}
                   </p>
                 ) : dayRows.length === 0 ? (
                   <p className="py-12 text-center text-xs text-slate-400">Seçilen aralıkta günlük veri yok.</p>
