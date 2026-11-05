@@ -14,11 +14,15 @@ import httpx
 import pytest
 
 from tezlify_studio.domain.exceptions.creator_exceptions import (
+    ChannelBindingMismatchException,
     CreatorApiException,
     InsufficientScopeException,
 )
 from tezlify_studio.domain.enums.publish_status import SocialPlatform
-from tezlify_studio.domain.exceptions.publish_exceptions import QuotaExceededException
+from tezlify_studio.domain.exceptions.publish_exceptions import (
+    AuthenticationRequiredException,
+    QuotaExceededException,
+)
 from tezlify_studio.domain.value_objects.channel_access import ChannelAccess
 from tezlify_studio.domain.value_objects.creator_models import DateRange
 from tezlify_studio.infrastructure.youtube.youtube_creator_api import (
@@ -193,6 +197,75 @@ def test_quota_error_surfaces_as_quota_exception() -> None:
 
     api = build_api(handler)
     with pytest.raises(QuotaExceededException):
+        api.get_channel()
+
+
+def test_analytics_api_not_enabled_returns_structured_reason() -> None:
+    """A disabled Analytics API is a project setting, not a permission problem."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            403,
+            json={
+                "error": {
+                    "message": (
+                        "YouTube Analytics API has not been used in project 123 "
+                        "before or it is disabled."
+                    ),
+                    "errors": [{"reason": "accessNotConfigured"}],
+                }
+            },
+        )
+
+    api = build_api(handler)
+    result = api.query(
+        date_range=DateRange(date(2026, 10, 9), date(2026, 11, 5), "28"),
+    )
+
+    assert result.available is False
+    assert result.reason == "api_not_enabled"
+    assert result.totals == {}
+    assert result.rows == []
+    assert result.start_date == "2026-10-09"
+    assert result.end_date == "2026-11-05"
+
+
+def test_analytics_401_requires_reauthentication_instead_of_empty_data() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(401, json={"error": {"message": "Invalid Credentials"}})
+
+    api = build_api(handler)
+    with pytest.raises(AuthenticationRequiredException):
+        api.query(
+            date_range=DateRange(date(2026, 10, 9), date(2026, 11, 5), "28"),
+        )
+
+
+def test_get_channel_maps_real_discovery_payload() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.params["id"] == "UC_REAL"
+        assert "mine" not in request.url.params
+        return httpx.Response(200, json=CHANNEL)
+
+    api = build_api(handler)
+    channel = api.get_channel()
+
+    assert channel.channel_id == "UC_REAL"
+    assert channel.title == "Kanal"
+    assert channel.description == "Aciklama"
+    assert channel.subscriber_count == 1234
+    assert channel.video_count == 12
+    assert channel.view_count == 98765
+    assert channel.hidden_subscriber_count is False
+    assert channel.uploads_playlist_id == "UU_REAL"
+
+
+def test_get_channel_without_items_is_a_binding_mismatch() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"items": []})
+
+    api = build_api(handler)
+    with pytest.raises(ChannelBindingMismatchException):
         api.get_channel()
 
 
