@@ -1,48 +1,38 @@
-# Tezlify AI Video Studio
+# Tezlify YouTube Creator Studio
 
-> **Local-First, Clean Architecture tabanlı Profesyonel Video Üretim ve Yayın Stüdyosu**
+> **Yerel öncelikli (local-first), Clean Architecture tabanlı YouTube kanal yönetimi ve yayın stüdyosu**
 
-Tezlify AI Video Studio; Python merkezli, yerel bilgisayarda çalışan, gelecekte Blender 2.5D ve yapay zekâ destekli modüler animasyon üretimini sosyal medya yayıncılığıyla birleştirecek bağımsız bir stüdyo yazılımıdır.
-
----
-
-## 🚀 Aşama 1: Local Studio Core (Mevcut Yetenekler)
-
-- **Temiz Mimari (Clean Architecture):** Domain, Application, Infrastructure ve Presentation katmanları birbirinden tamamen izoledir.
-- **Güvenli Manuel Video İçe Aktarma:** Büyük dosyalar belleğe alınmadan chunked stream ile diske yazılır.
-- **SHA-256 İçerik Özeti & Duplicate Kontrolü:** Aynı dosyanın kütüphaneye tekrar tekrar yüklenmesi anında engellenir.
-- **Video Analizi & Fallback Desteği:** FFprobe mevcutsa donanım hızlandırmalı analiz yapar; FFprobe kurulu değilse saf Python ISO BMFF başlık ayrıştırıcısıyla (duration, width, height, aspect ratio) kesintisiz çalışmaya devam eder.
-- **HTML5 Seekable Streaming (HTTP Range):** Video oynatıcıda ileri ve geri sarma işlemleri HTTP 206 Partial Content akışı ile desteklenir.
-- **Tezlify Tasarım Sistemi:** Vuexy renk paleti, koyu/açık tema (Dark/Light), duyarlı kartlar, istatistikler ve modal yapısı.
-- **Tek Komutla Başlatma:** `python scripts/start.py` ile FastAPI backend ve Vite frontend tek komutla ayağa kaldırılır.
+Tezlify Creator Studio; macOS üzerinde çalışan, YouTube kanalınızı bağlayıp videolarınızı yönetmenizi, zamanlamanızı ve analitiklerinizi takip etmenizi sağlayan bağımsız bir masaüstü web uygulamasıdır. 2.0 sürümüyle birlikte video üretimi (sahne grafiği, karakter/rig, animasyon, seslendirme, render hattı) üründen tamamen çıkarılmış; odak YouTube içerik yönetimine taşınmıştır.
 
 ---
 
-## 📺 Aşama 2: YouTube Publisher (Yeni Yetenekler)
+## 📺 Mevcut Yetenekler
 
-- **Google OAuth 2.0 PKCE Entegrasyonu:** RFC 7636 uyumlu S256 PKCE anahtar değişimi ve yerel loopback yönlendirmesiyle güvenli Google yetkilendirmesi.
-- **macOS Keychain Token Güvenliği:** OAuth erişim anahtarları veritabanında düz metin olarak değil, işletim sisteminin güvenli kasası olan **macOS Keychain** (`/usr/bin/security`) içinde şifreli saklanır. Frontend'e hiçbir token sızdırılmaz.
-- **Google Resumable Upload Protokolü:** Büyük video dosyaları 4 MB bloklar halinde yüklenir; ağ kesintilerinde veya uygulama yeniden başlatıldığında Google'ın HTTP 308 Resume Incomplete yanıtı üzerinden kaldığı byte'tan otomatik devam eder.
-- **Gelişmiş Durum Makinesi:** Pending, Authenticating, Uploading, Paused, Processing, Published, Failed, Cancelled durumları kontrollü geçişlerle yönetilir.
-- **Yayın Yönetim Arayüzü:** Başlık, açıklama, etiketler, YouTube standart kategorileri (Gaming, Film, Tech vb.), gizlilik seçimi (Public, Unlisted, Private) ve canlı yükleme ilerleme takibi.
+- **YouTube OAuth 2.0 PKCE:** RFC 7636 uyumlu S256 PKCE ve yerel loopback yönlendirmesiyle güvenli Google yetkilendirmesi. Mevcut bağlantılar korunur; token yalnızca süresi dolduğunda yenilenir.
+- **macOS Keychain Token Güvenliği:** Erişim ve yenileme anahtarları veritabanında düz metin tutulmaz; macOS Keychain içinde saklanır.
+- **Resumable Upload:** Videolar 4 MB bloklar halinde yüklenir; kesintide Google'ın HTTP 308 yanıtı üzerinden kaldığı byte'tan devam eder.
+- **Kanal Yönetimi:** Kanal profili, video listesi ve detayları, başlık/açıklama/etiket/kategori/gizlilik düzenleme, oynatma listeleri.
+- **Zamanlama ve Yayın Kayıtları:** İleri tarihli yayın planı, arka plan zamanlayıcı, retry/recovery ve yerel yayın geçmişi.
+- **Gerçek Dashboard:** Abone, görüntüleme ve video sayıları YouTube Data API'den; günlük analitik YouTube Analytics API'den; planlama ve yayın geçmişi yerel SQLite'tan. Kaynak kullanılamadığında değer uydurulmaz.
+- **Analytics:** 7/28/90/365 gün ve özel aralık; görüntüleme, izlenme süresi, ortalama süre/yüzde, abone kazanım/kaybı, trafik kaynağı, ülke, cihaz, video kırılımı. Gelir yalnızca parasal analitik izni varsa raporlanır.
+- **Yorumlar:** Kanal/video yorumlarını listeleme, yanıtlama ve moderasyon (API'nin izin verdiği ölçüde).
+- **Yerel Medya Kütüphanesi:** Chunked import, SHA-256 duplicate kontrolü, FFprobe/fallback metadata, HTTP Range streaming ve thumbnail. FFmpeg yalnızca mevcut medyanın analizi ve oynatımı için kullanılır.
+- **Platform Katmanı:** `platforms`, `channels`, `videos`, `publishing`, `scheduling`, `analytics`, `comments`, `media_library` alanları platformdan bağımsız portlarla tanımlıdır; bu sürümde yalnızca YouTube uygulanmıştır.
+- **Vuexy Tasarım Sistemi:** #7367F0 paleti, koyu/açık tema, duyarlı kartlar ve tutarlı bileşenler.
 
 ---
 
 ## 🛠 Sistem Gereksinimleri ve Kurulum
 
 ### 1. Ön Koşullar
-- **İşletim Sistemi:** macOS (Apple Silicon M serisi veya Intel) ya da Linux/Windows
+- **İşletim Sistemi:** macOS (Apple Silicon veya Intel) ya da Linux/Windows
 - **Python:** 3.10 veya üzeri
 - **Node.js:** 20.x veya üzeri
 - **npm:** 10.x veya üzeri
+- **FFmpeg (isteğe bağlı):** Video metadata analizi ve thumbnail üretimi için. Blender veya başka bir 3D aracı gerekmez.
 
-*(İsteğe Bağlı) FFmpeg ve Blender Kurulumu:*
 ```bash
-# Video analizinde tam performans ve thumbnail üretimi için:
-brew install ffmpeg
-
-# Gelecekteki 2.5D animasyon sahneleri için:
-brew install --cask blender
+brew install ffmpeg   # isteğe bağlı
 ```
 
 ---
@@ -50,62 +40,55 @@ brew install --cask blender
 ### 2. Kurulum Adımları
 
 ```bash
-# 1. Proje dizinine girin
 cd /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio
 
-# 2. Python sanal ortamı oluşturun ve bağımlılıkları yükleyin
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 pip install -e backend
 
-# 3. Frontend bağımlılıklarını kurun
 cd frontend
 npm install
 cd ..
 
-# 4. Ortam dosyasını hazırlayın
 cp .env.example .env
 ```
+
+`.env` içine Google Cloud Console > OAuth 2.0 Client ID bilgilerinizi girin:
+
+```bash
+GOOGLE_CLIENT_ID="..."
+GOOGLE_CLIENT_SECRET="..."
+```
+
+Google Cloud projesinde **YouTube Data API v3** ve **YouTube Analytics API** etkin olmalıdır. Kanal bağlantısı Ayarlar > Bağlı Hesaplar ekranından yapılır.
 
 ---
 
 ## 🏁 Uygulamayı Başlatma
 
-Uygulamayı hem backend hem frontend olarak tek bir komutla başlatmak için:
-
 ```bash
 python scripts/start.py
 ```
 
-Bu komut:
-1. SQLite veritabanı şemasını hazırlar,
-2. FastAPI backend sunucusunu `http://127.0.0.1:8000` portunda başlatır,
-3. Vite + React frontend sunucusunu `http://127.0.0.1:5173` portunda çalıştırır,
-4. Sağlık kontrollerini tamamladıktan sonra tarayıcınızda uygulamayı açar.
-5. Durdurmak için terminalde `Ctrl + C` tuşlamanız yeterlidir; tüm arka plan süreçleri temiz bir şekilde sonlandırılır.
+Bu komut SQLite şemasını hazırlar, FastAPI backend'i `http://127.0.0.1:8000`, Vite + React frontend'i `http://127.0.0.1:5173` üzerinde başlatır ve tarayıcıyı açar. Durdurmak için `Ctrl + C`.
 
 ---
 
 ## 🩺 Sistem Teşhisi ve Testler
 
-### Sistem Denetimi (Doctor Script)
-Donanım, işletim sistemi, Python, Node, FFmpeg ve Blender durumunu tek bakışta görmek için:
 ```bash
+# Çevre ve bağımlılık denetimi
 python scripts/doctor.py
+
+# Backend birim + entegrasyon testleri
+.venv/bin/python -m pytest backend/tests -q
+
+# Frontend testleri ve üretim derlemesi
+cd frontend && npx vitest run && npm run build
 ```
 
-### Otomatik Testleri Çalıştırma
-```bash
-# Backend pytest birim ve entegrasyon testleri (10 test):
-.venv/bin/pytest backend/tests -v
-
-# Uçtan uca video yükleme, streaming, duplicate ve silme testi:
-.venv/bin/python scripts/verify_e2e.py
-
-# Frontend derleme (build) testi:
-cd frontend && npm run build
-```
+Testler izole bir `DATA_DIR` kullanır; gerçek kullanıcı verisine dokunmaz. YouTube çağrıları mock/sandbox transport ile doğrulanır.
 
 ---
 
@@ -115,44 +98,32 @@ cd frontend && npm run build
 Tezlify-AI-Video-Studio/
 ├── backend/
 │   ├── src/tezlify_studio/
-│   │   ├── domain/               # Saf Python: Entities, Value Objects, Enums, Exceptions
-│   │   ├── application/          # Use Cases, DTOs, Ports/Interfaces
-│   │   ├── infrastructure/       # SQLite, SQLAlchemy ORM, Storage, FFmpeg/Probe, Config
-│   │   └── presentation/         # FastAPI, Schemas, Dependency Injection Container
-│   ├── tests/                    # Unit ve Integration testleri
-│   └── alembic/                  # Veritabanı şema versiyonlama
+│   │   ├── domain/               # Entities, Value Objects, Enums, Exceptions
+│   │   ├── application/          # Use Cases, DTOs, Ports (channel/analytics/comment/platform)
+│   │   ├── infrastructure/       # SQLite, SQLAlchemy, Storage, FFmpeg probe, YouTube adapter
+│   │   └── presentation/         # FastAPI routes, schemas, DI container
+│   ├── tests/                    # Unit ve integration testleri
+│   └── alembic/                  # Şema versiyonlama
 ├── frontend/
 │   ├── src/
-│   │   ├── components/ui/        # Tezlify tasarım bileşenleri (Button, Card, Badge, Modal, vb.)
-│   │   ├── components/Layout/    # Sidebar, TopHeader
-│   │   ├── components/video/     # VideoDetailsModal, HTML5 Range Player
-│   │   ├── pages/                # Dashboard, VideoLibrary, ImportVideo, Settings
-│   │   ├── services/             # Typed API Client
-│   │   └── hooks/                # useTheme (Dark/Light modu)
-├── scripts/
-│   ├── start.py                  # Tek komutla backend + frontend başlatıcı
-│   ├── doctor.py                 # Çevre ve bağımlılık analiz aracı
-│   ├── verify_e2e.py             # Uçtan uca otomatik doğrulama testi
-│   └── generate_sample_video.py  # Test için gerçek MP4 üretici
-└── data/                         # Local storage (Git tarafından yok sayılır)
-    ├── database/                 # SQLite veritabanı dosyası
-    ├── media/                    # Kalıcı video deposu
-    └── temp/                     # Geçici yükleme dizini
+│   │   ├── components/           # ui, Layout, video, youtube, schedule
+│   │   ├── pages/                # Dashboard, ChannelOverview, Videos, Analytics, Comments...
+│   │   ├── services/             # Typed API client
+│   │   └── types/                # creator.ts, media.ts
+├── scripts/                      # start, doctor, verify_e2e, sample video
+└── data/                         # Yerel depo (git dışı)
+    ├── database/
+    ├── media/
+    └── temp/
 ```
 
 ---
 
-## 🗺️ Yol Haritası
+## 🗺️ Sürüm Durumu
 
-- [x] **Aşama 0:** Altyapı, çevre ve Tezlify UI analizleri
-- [x] **Aşama 1:** Local Studio Core & Manuel Video İçe Aktarma
-- [x] **Aşama 2:** YouTube Publisher (Google OAuth 2.0 PKCE, macOS Keychain & Resumable Upload)
-- [ ] **Aşama 3:** Scheduler ve İçerik Takvimi
-- [ ] **Aşama 4:** LLM Provider Center (GLM, OpenAI, Ollama)
-- [ ] **Aşama 5:** Story Director & Pydantic Scene JSON Doğrulayıcı
-- [ ] **Aşama 6:** Asset, Puppet ve Rig Kütüphanesi
-- [ ] **Aşama 7:** Blender 2.5D Scene Builder (Subprocess)
-- [ ] **Aşama 8:** Render Worker (Per-Scene Chunking) & FFmpeg Montaj
-- [ ] **Aşama 9:** Ses, TTS ve Lip-Sync
-- [ ] **Aşama 10:** Instagram, TikTok ve Gelir Merkezi
-
+- [x] **Aşama 1:** Local Studio Core & manuel video içe aktarma
+- [x] **Aşama 2:** YouTube Publisher (OAuth PKCE, Keychain, resumable upload)
+- [x] **Aşama 3:** Zamanlama, yayın kayıtları ve retry/recovery
+- [x] **Aşama 4:** YouTube Creator Studio pivotu (dashboard, analytics, comments, kanal yönetimi)
+- [x] **Aşama 5.0 – 5.5:** Video üretim/animasyon hattının kaldırılması ve ürün sadeleştirmesi
+- [ ] **Sonraki:** Instagram/TikTok adaptörleri, gelir merkezi (yalnızca API izinleriyle)
