@@ -54,6 +54,8 @@ class YouTubeAuthUrlResponseDTO:
     auth_url: str
     state: str
     loopback_port: int
+    capabilities: List[str] = None
+    requested_scopes: List[str] = None
 
 @dataclass
 class PublishListResponseDTO:

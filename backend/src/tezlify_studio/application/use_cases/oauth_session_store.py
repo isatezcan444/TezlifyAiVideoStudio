@@ -3,8 +3,8 @@ import secrets
 import hashlib
 import base64
 import threading
-from dataclasses import dataclass
-from typing import Dict, Optional, Tuple
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Tuple
 
 from tezlify_studio.domain.exceptions.creator_exceptions import (
     DuplicateOAuthCallbackException,
@@ -22,6 +22,8 @@ class OAuthSession:
     intent: str
     connection_id: Optional[str]
     created_at: float
+    capabilities: List[str] = field(default_factory=list)
+    requested_scopes: List[str] = field(default_factory=list)
 
 
 class OAuthSessionStore:
@@ -52,6 +54,8 @@ class OAuthSessionStore:
         redirect_uri: Optional[str] = None,
         intent: str = INTENT_ADD_ACCOUNT,
         connection_id: Optional[str] = None,
+        capabilities: Optional[List[str]] = None,
+        requested_scopes: Optional[List[str]] = None,
     ) -> Tuple[str, str]:
         """
         Creates a new OAuth state and PKCE pair with optional dynamic redirect_uri.
@@ -66,6 +70,8 @@ class OAuthSessionStore:
             intent=intent,
             connection_id=connection_id,
             created_at=time.time(),
+            capabilities=list(capabilities or []),
+            requested_scopes=list(requested_scopes or []),
         )
         with self._lock:
             self._cleanup_expired_locked()

@@ -27,33 +27,41 @@ from tezlify_studio.domain.value_objects.creator_models import (
     VideoComment,
     YOUTUBE_ANALYTICS_METRICS,
 )
+from tezlify_studio.domain.value_objects.youtube_capabilities import (
+    BASE_CAPABILITIES,
+    CAPABILITY_SCOPE_MAP,
+    SCOPE_ANALYTICS as _SCOPE_ANALYTICS,
+    SCOPE_CHANNEL_READ as _SCOPE_CHANNEL_READ,
+    SCOPE_COMMENTS as _SCOPE_COMMENTS,
+    SCOPE_EMAIL,
+    SCOPE_OPENID,
+    SCOPE_PROFILE,
+    SCOPE_REVENUE as _SCOPE_REVENUE,
+    SCOPE_UPLOAD as _SCOPE_UPLOAD,
+)
 
-SCOPE_IDENTITY = [
-    "openid",
-    "https://www.googleapis.com/auth/userinfo.email",
-    "https://www.googleapis.com/auth/userinfo.profile",
-]
-SCOPE_CHANNEL_READ = ["https://www.googleapis.com/auth/youtube.readonly"]
-SCOPE_ANALYTICS = ["https://www.googleapis.com/auth/yt-analytics.readonly"]
-SCOPE_REVENUE = ["https://www.googleapis.com/auth/yt-analytics-monetary.readonly"]
-SCOPE_UPLOAD = ["https://www.googleapis.com/auth/youtube.upload"]
-SCOPE_COMMENTS = ["https://www.googleapis.com/auth/youtube.force-ssl"]
+SCOPE_IDENTITY = [SCOPE_OPENID, SCOPE_EMAIL, SCOPE_PROFILE]
+SCOPE_CHANNEL_READ = [_SCOPE_CHANNEL_READ]
+SCOPE_ANALYTICS = [_SCOPE_ANALYTICS]
+SCOPE_REVENUE = [_SCOPE_REVENUE]
+SCOPE_UPLOAD = [_SCOPE_UPLOAD]
+SCOPE_COMMENTS = [_SCOPE_COMMENTS]
 
-# Capability boundaries are explicit so a future incremental-authorization flow
-# can request only what a feature needs. The default consent request still
-# includes every implemented capability because upload and comment actions are
-# reachable from the main UI; narrowing it requires a user-facing re-consent.
+# Capability boundaries are explicit so incremental authorization can request
+# only what a feature needs. Revenue stays opt-in.
 SCOPE_CAPABILITIES = {
-    "identity": SCOPE_IDENTITY,
-    "channel_read": SCOPE_CHANNEL_READ,
-    "analytics": SCOPE_ANALYTICS,
-    "upload": SCOPE_UPLOAD,
-    "comments": SCOPE_COMMENTS,
+    capability: [scope for scope in scopes]
+    for capability, scopes in CAPABILITY_SCOPE_MAP.items()
+    if capability != "revenue"
 }
 
-# Opt-in only: revenue reporting needs a separate monetary scope and is not
-# requested by default because the rest of the product works without it.
 OPTIONAL_SCOPES = {"revenue": SCOPE_REVENUE}
+
+BASE_SCOPES = [
+    scope
+    for capability in BASE_CAPABILITIES
+    for scope in CAPABILITY_SCOPE_MAP[capability]
+]
 
 YOUTUBE_SCOPES = [
     *SCOPE_IDENTITY,

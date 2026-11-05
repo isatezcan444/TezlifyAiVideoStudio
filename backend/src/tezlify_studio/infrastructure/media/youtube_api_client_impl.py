@@ -24,12 +24,16 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
     TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
     API_BASE = "https://www.googleapis.com/youtube/v3"
     UPLOAD_BASE = "https://www.googleapis.com/upload/youtube/v3"
-    # Creator Studio needs channel management, analytics and comments on top of
-    # upload. Existing grants keep working for upload/read; the new scopes are
-    # only requested when the user chooses to reconnect.
-    from tezlify_studio.infrastructure.youtube.youtube_creator_api import YOUTUBE_SCOPES
+    # Existing grants keep working; extra capabilities are requested only when
+    # a feature is used. ``SCOPES`` stays the full implemented set for callers
+    # that need it, while the auth URL defaults to the base grant.
+    from tezlify_studio.infrastructure.youtube.youtube_creator_api import (
+        BASE_SCOPES,
+        YOUTUBE_SCOPES,
+    )
 
     SCOPES = YOUTUBE_SCOPES
+    DEFAULT_SCOPES = BASE_SCOPES
 
     def __init__(
         self,
@@ -54,14 +58,16 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
         state: str,
         code_challenge: str,
         redirect_uri: Optional[str] = None,
+        scopes: Optional[List[str]] = None,
     ) -> str:
         self._ensure_credentials()
         effective_redirect = redirect_uri or self.redirect_uri
+        effective_scopes = list(scopes) if scopes else list(self.DEFAULT_SCOPES)
         params = {
             "client_id": self.client_id,
             "redirect_uri": effective_redirect,
             "response_type": "code",
-            "scope": " ".join(self.SCOPES),
+            "scope": " ".join(effective_scopes),
             "access_type": "offline",
             "prompt": "consent",
             "include_granted_scopes": "true",

@@ -15,6 +15,8 @@ class YouTubeAuthUrlResponse(BaseModel):
     auth_url: str
     state: str
     loopback_port: int = 0
+    capabilities: List[str] = []
+    requested_scopes: List[str] = []
 
 class StartPublishRequest(BaseModel):
     media_asset_id: str

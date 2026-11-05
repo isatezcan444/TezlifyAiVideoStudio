@@ -13,8 +13,18 @@ class UploadStatusResult(int):
 
 class YouTubePublisherPort(ABC):
     @abstractmethod
-    def generate_auth_url(self, state: str, code_challenge: str, redirect_uri: Optional[str] = None) -> str:
-        """Constructs Google OAuth 2.0 PKCE desktop authorization URL."""
+    def generate_auth_url(
+        self,
+        state: str,
+        code_challenge: str,
+        redirect_uri: Optional[str] = None,
+        scopes: Optional[List[str]] = None,
+    ) -> str:
+        """Constructs Google OAuth 2.0 PKCE desktop authorization URL.
+
+        ``scopes`` defaults to the minimal base grant; callers request extra
+        capabilities incrementally.
+        """
         pass
 
     @abstractmethod

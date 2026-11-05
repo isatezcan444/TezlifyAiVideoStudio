@@ -30,6 +30,9 @@ from tezlify_studio.domain.exceptions.publish_exceptions import (
     AuthenticationRequiredException,
     PublishDomainException,
 )
+from tezlify_studio.domain.value_objects.youtube_capabilities import (
+    merge_capability_scopes,
+)
 
 
 class CompleteYouTubeAuthenticationUseCase:
@@ -110,19 +113,33 @@ class CompleteYouTubeAuthenticationUseCase:
         )
         connection.connection_status = ConnectionStatus.ACTIVE
         connection.token_expires_at = expires_at
-        connection.granted_scopes = self._scopes(tokens, connection)
+        actual_scopes = self._scopes(tokens)
+        if is_new:
+            # Google's response is authoritative for a new grant. Never assume
+            # requested == granted.
+            connection.granted_scopes = actual_scopes
+        else:
+            # Existing connections are never narrowed by a short/partial
+            # response; previously granted scopes stay valid.
+            connection.granted_scopes = merge_capability_scopes(
+                connection.granted_scopes, actual_scopes
+            )
         if not connection.token_reference:
             connection.token_reference = f"youtube.connection.{connection.id}"
-        connection.updated_at = datetime.now(timezone.utc)
-        saved = self.connection_repo.save(connection)
-
+        # Google may omit refresh_token when the grant already exists. Reuse the
+        # stored one instead of overwriting it with an empty value; fail before
+        # saving so a failed incremental grant cannot leave a tokenless
+        # connection behind.
         refresh_token = tokens.get("refresh_token")
         if not refresh_token:
-            refresh_token = self.token_storage.get_refresh_token(saved.token_reference)
+            refresh_token = self.token_storage.get_refresh_token(connection.token_reference)
         if not refresh_token:
             raise AuthenticationRequiredException(
                 "Google yenileme anahtarı döndürmedi. Hesabı yeniden bağlayın."
             )
+
+        connection.updated_at = datetime.now(timezone.utc)
+        saved = self.connection_repo.save(connection)
         self.token_storage.store_tokens(
             saved.token_reference, access_token, refresh_token
         )
@@ -166,13 +183,13 @@ class CompleteYouTubeAuthenticationUseCase:
         return str(profiles[0].get("channel_title") or "YouTube Account")
 
     @staticmethod
-    def _scopes(
-        tokens: Dict[str, Any], connection: PlatformConnection
-    ) -> List[str]:
+    def _scopes(tokens: Dict[str, Any]) -> List[str]:
         raw = tokens.get("scope")
         if isinstance(raw, str) and raw.strip():
             return [item for item in raw.split() if item]
-        return list(connection.granted_scopes)
+        if isinstance(raw, (list, tuple)):
+            return [str(item) for item in raw if item]
+        return []
 
     def _find_connection(
         self,

@@ -83,6 +83,7 @@ class _OAuthCallbackHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         color = "#ef4444" if is_error else "#10b981"
+        success_js = "false" if is_error else "true"
         html = f"""<!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -122,8 +123,16 @@ class _OAuthCallbackHandler(BaseHTTPRequestHandler):
     </style>
     <script>
         setTimeout(() => {{
+            try {{
+                if (window.opener) {{
+                    window.opener.postMessage(
+                        {{ type: 'TEZLIFY_YOUTUBE_CONNECTED', success: {success_js} }},
+                        '*'
+                    );
+                }}
+            }} catch(e) {{}}
             try {{ window.close(); }} catch(e) {{}}
-        }}, 3000);
+        }}, 800);
     </script>
 </head>
 <body>

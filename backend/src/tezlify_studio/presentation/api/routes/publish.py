@@ -111,6 +111,10 @@ def get_youtube_status(
 def connect_youtube(
     intent: str = Query("add_account", pattern="^(add_account|reconnect)$"),
     connection_id: Optional[str] = Query(None),
+    capabilities: Optional[str] = Query(
+        None,
+        description="Comma-separated extra capabilities for this consent, e.g. analytics,upload",
+    ),
     gen_auth_use_case: GenerateYouTubeAuthUrlUseCase = Depends(
         get_generate_youtube_auth_url_use_case
     ),
@@ -124,11 +128,17 @@ def connect_youtube(
         timeout_seconds=300,
     )
     try:
+        requested = (
+            [item.strip() for item in capabilities.split(",") if item.strip()]
+            if capabilities
+            else None
+        )
         dto = gen_auth_use_case.execute(
             redirect_uri=listener.redirect_uri,
             loopback_port=listener.port,
             intent=intent,
             connection_id=connection_id,
+            capabilities=requested,
         )
     except Exception:
         DesktopOAuthListener.stop_current()
@@ -138,6 +148,8 @@ def connect_youtube(
         auth_url=dto.auth_url,
         state=dto.state,
         loopback_port=dto.loopback_port,
+        capabilities=dto.capabilities or [],
+        requested_scopes=dto.requested_scopes or [],
     )
 
 
