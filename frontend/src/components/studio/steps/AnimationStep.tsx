@@ -9,9 +9,19 @@ import {
   RefreshCw,
   Volume2,
 } from 'lucide-react';
-import { RenderJob, StudioProject, VoiceStatusResponse } from '../../../types/studio';
+import {
+  RenderJob,
+  SceneGraphScene,
+  StudioProject,
+  VoiceStatusResponse,
+} from '../../../types/studio';
 import { apiService } from '../../../services/api';
-import { isActiveRender, isAnimationRender, latestRenderForProject } from '../../../lib/studioWorkspace';
+import {
+  isAnimationRender,
+  isLiveRender,
+  isStalePending,
+  latestRenderForProject,
+} from '../../../lib/studioWorkspace';
 import { Button } from '../../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
 import {
@@ -29,6 +39,138 @@ interface AnimationStepProps {
   onNext: () => void;
 }
 
+/**
+ * Pre-render checks are derived from the scene graph the renderer will actually
+ * receive, so this list can only ever show problems the worker would also hit.
+ */
+function sceneChecks(scene: SceneGraphScene): Array<{ ok: boolean; label: string }> {
+  const lines = scene.dialogues || [];
+  const missingAudio = lines.filter((line) => !line.audio_file).length;
+  const missingVisemes = lines.filter((line) => !(line.visemes && line.visemes.length)).length;
+  return [
+    { ok: lines.length > 0, label: lines.length ? `${lines.length} replik` : 'replik yok' },
+    {
+      ok: lines.length > 0 && missingAudio === 0,
+      label: lines.length === 0 ? 'ses yok' : missingAudio ? `${missingAudio} repliğin sesi yok` : 'ses hazır',
+    },
+    {
+      ok: lines.length > 0 && missingVisemes === 0,
+      label: lines.length === 0
+        ? 'viseme yok'
+        : missingVisemes
+          ? `${missingVisemes} replik ölçülmemiş (ağız tahmini)`
+          : 'ölçülmüş viseme',
+    },
+    { ok: scene.character_placements.length >= 2, label: `${scene.character_placements.length} karakter` },
+  ];
+}
+
+function ScenePlanCard({ scene, index, names, metadata }: {
+  scene: SceneGraphScene;
+  index: number;
+  names: Record<string, string>;
+  metadata: RenderJob['output_metadata'];
+}) {
+  const checks = sceneChecks(scene);
+  const speakerLines = scene.dialogues.map((line) => ({
+    speaker: names[line.character_id] || line.character_id,
+    listener: scene.character_placements
+      .map((placement) => placement.character_id)
+      .filter((id) => id !== line.character_id)
+      .map((id) => names[id] || id)
+      .join(', '),
+    text: line.text,
+    range: `${line.start_time.toFixed(1)}–${line.end_time.toFixed(1)}s`,
+  }));
+  const animated = (metadata?.animation?.scenes || []).filter(
+    (entry) => entry.scene_id === scene.scene_id
+  );
+  const lipModes = (metadata?.lip_sync?.scenes || [])
+    .filter((entry) => entry.scene_id === scene.scene_id)
+    .flatMap((entry) => Object.entries(entry.speakers || {}));
+
+  return (
+    <div className="rounded-xl border border-slate-200 p-3 dark:border-white/[0.08]">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-xs font-bold text-slate-700 dark:text-slate-200">
+          Sahne {index + 1} · <span className="font-mono text-[10px] text-slate-400">{scene.scene_id}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 dark:bg-white/[0.06]">
+            {scene.duration_seconds.toFixed(1)}s
+          </span>
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 dark:bg-white/[0.06]">
+            {scene.camera.angle} / {scene.camera.movement}
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-1">
+        {checks.map((check) => (
+          <span
+            key={check.label}
+            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+              check.ok
+                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+            }`}
+          >
+            {check.label}
+          </span>
+        ))}
+      </div>
+
+      <div className="mt-2 space-y-1.5">
+        {speakerLines.length === 0 ? (
+          <p className="text-[11px] text-slate-400">Bu sahnede diyalog yok.</p>
+        ) : (
+          speakerLines.map((line, lineIndex) => (
+            <div key={`${scene.scene_id}-${lineIndex}`} className="text-[11px] leading-snug">
+              <span className="font-bold text-slate-700 dark:text-slate-200">{line.speaker}</span>
+              <span className="text-slate-400"> → {line.listener || '—'} </span>
+              <span className="text-slate-400">({line.range})</span>
+              <div className="truncate text-slate-500 dark:text-slate-400">“{line.text}”</div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {animated.length > 0 && (
+        <div className="mt-2 space-y-1 border-t border-dashed border-slate-200 pt-2 dark:border-white/[0.08]">
+          {animated.map((entry) => (
+            <div key={`${entry.scene_id}-${entry.character_id}`} className="text-[10px] text-slate-500 dark:text-slate-400">
+              <span className="font-semibold text-slate-600 dark:text-slate-300">
+                {names[entry.character_id] || entry.character_id}
+              </span>{' '}
+              · {entry.clips} klip · {entry.keyed_channels} kanal · enerji{' '}
+              {entry.profile.energy.toFixed(2)} · jest{' '}
+              {entry.profile.gesture_rate.toFixed(2)} · önder el {entry.profile.leading_hand}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {lipModes.length > 0 && (
+        <div className="mt-1 flex flex-wrap gap-1">
+          {lipModes.map(([characterId, mode]) => (
+            <span
+              key={`${scene.scene_id}-${characterId}`}
+              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                mode.mode === 'viseme'
+                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                  : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+              }`}
+            >
+              {names[characterId] || characterId}:{' '}
+              {mode.mode === 'viseme' ? `ölçülmüş viseme (${mode.segments})` : 'basit ağız'}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export const AnimationStep: React.FC<AnimationStepProps> = ({
   project,
   renders,
@@ -36,7 +178,7 @@ export const AnimationStep: React.FC<AnimationStepProps> = ({
   onRefresh,
   onNext,
 }) => {
-  const [engine, setEngine] = useState<'BLENDER_WORKBENCH' | 'BLENDER_EEVEE'>('BLENDER_WORKBENCH');
+  const [engine, setEngine] = useState<'BLENDER_WORKBENCH' | 'BLENDER_EEVEE'>('BLENDER_EEVEE');
   const [synthesizeVoices, setSynthesizeVoices] = useState(true);
   const [currentJob, setCurrentJob] = useState<RenderJob | null>(null);
   const [isStarting, setIsStarting] = useState(false);
@@ -65,7 +207,7 @@ export const AnimationStep: React.FC<AnimationStepProps> = ({
   }, [animationRenders]);
 
   useEffect(() => {
-    if (!currentJob || !isActiveRender(currentJob)) return;
+    if (!currentJob || !isLiveRender(currentJob)) return;
     let active = true;
     const timer = setInterval(async () => {
       try {
@@ -117,7 +259,10 @@ export const AnimationStep: React.FC<AnimationStepProps> = ({
     }
   };
 
-  const isRendering = isActiveRender(currentJob);
+  // A `pending` job left behind by an earlier server run never dispatches, and
+  // reading it as "in progress" disabled this button forever.
+  const isRendering = isLiveRender(currentJob);
+  const isStalled = isStalePending(currentJob);
   const completed = animationRenders.some((job) => job.status === 'completed');
   const sceneCount = project.scene_graph?.scenes.length || 0;
   const dialogueCount =
@@ -126,6 +271,12 @@ export const AnimationStep: React.FC<AnimationStepProps> = ({
     project.scene_graph?.scenes.some((scene) =>
       scene.dialogues.some((dialogue) => Boolean(dialogue.audio_file))
     ) || false;
+  const sceneList = project.scene_graph?.scenes || [];
+  const characterNames = Object.fromEntries(
+    (project.scene_graph?.characters || []).map((character) => [character.id, character.name])
+  );
+  const animationSummary = (currentJob || latest)?.output_metadata?.animation?.summary;
+  const animationPlanned = (currentJob || latest)?.output_metadata?.animation?.planned;
 
   return (
     <div className="space-y-5">
@@ -191,9 +342,13 @@ export const AnimationStep: React.FC<AnimationStepProps> = ({
                   onChange={(event) => setEngine(event.target.value as 'BLENDER_WORKBENCH' | 'BLENDER_EEVEE')}
                   className="vuexy-input mt-1 h-9 w-full px-2 text-xs font-normal"
                 >
+                  <option value="BLENDER_EEVEE">Blender EEVEE (önerilen)</option>
                   <option value="BLENDER_WORKBENCH">Blender Workbench</option>
-                  <option value="BLENDER_EEVEE">Blender EEVEE</option>
                 </select>
+                <span className="mt-1 block text-[10px] font-normal leading-snug text-slate-400">
+                  EEVEE gerçek materyal renklerini, gölgeleri ve ışığı render eder. Workbench
+                  hızlıdır; renkleri görüntü katmanından alır ve daha düz görünür.
+                </span>
               </label>
               <div className="flex items-end">
                 <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
@@ -217,6 +372,14 @@ export const AnimationStep: React.FC<AnimationStepProps> = ({
               </StudioAlert>
             )}
 
+            {isStalled && (
+              <div className="rounded-xl border border-amber-300/60 bg-amber-50 p-3 text-xs leading-relaxed text-amber-800 dark:border-amber-700/50 dark:bg-amber-950/40 dark:text-amber-300">
+                <strong className="font-semibold">Bekleyen iş dispatch edilmemiş.</strong>{' '}
+                Sunucu yeniden başladığında kuyruktaki iş devam etmez; bu ekran onu
+                “render ediliyor” gibi göstermesin diye artık beklenmiyor. Render butonu
+                tekrar kullanılabilir.
+              </div>
+            )}
             <div className="flex gap-2">
               <Button
                 onClick={startRender}
@@ -312,6 +475,55 @@ export const AnimationStep: React.FC<AnimationStepProps> = ({
           </Button>
         </div>
       </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle>Sahne animasyon planı ve render öncesi kontrol</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {sceneList.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-xs text-slate-400 dark:border-white/[0.1]">
+              Bu projede sahne yok.
+            </p>
+          ) : (
+            sceneList.map((scene, index) => (
+              <ScenePlanCard
+                key={scene.scene_id}
+                scene={scene}
+                index={index}
+                names={characterNames}
+                metadata={(currentJob || latest)?.output_metadata || null}
+              />
+            ))
+          )}
+          {animationPlanned === false && (
+            <div className="rounded-xl border border-amber-300/60 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-800 dark:border-amber-700/50 dark:bg-amber-950/40 dark:text-amber-300">
+              Bu render’da senaryodan animasyon planı kurulamadı; karakterler eski
+              sabit idle hareketiyle render edildi. Hareketler metne göre üretilmedi.
+            </div>
+          )}
+          {animationSummary && (
+            <p className="pt-1 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">              Son render planı:{' '}
+              <span className="font-semibold text-slate-600 dark:text-slate-300">
+                {animationSummary.clips_total ?? 0} klip
+              </span>{' '}
+              · {animationSummary.distinct_clips ?? 0} farklı hareket ·{' '}
+              {animationSummary.gestures ?? 0} jest ·{' '}
+              {animationSummary.dropped_gestures ?? 0} bırakılan
+              {animationSummary.clip_usage && (
+                <>
+                  {' '}
+                  · kullanılan:{' '}
+                  {Object.entries(animationSummary.clip_usage)
+                    .filter(([name]) => !['breathing', 'idle_natural', 'scene_end_settle'].includes(name))
+                    .map(([name, count]) => `${name}×${count}`)
+                    .join(', ')}
+                </>
+              )}
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="pb-3">

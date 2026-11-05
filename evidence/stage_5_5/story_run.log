@@ -1,0 +1,20 @@
+1. Real Turkish dialogue audio (macOS say / Yelda tr_TR)
+   alignment provider: local CTC forced alignment (Baybars/wav2vec2-xls-r-300m-cv8-turkish) available=True
+
+2. 16x9 (1280x720) — building graph and aligning
+   {"engine": "local CTC forced alignment (Baybars/wav2vec2-xls-r-300m-cv8-turkish)", "enabled": true, "dialogues_total": 6, "dialogues_with_audio": 6, "dialogues_aligned": 6, "dialogues_fallback": 0, "segments_total": 196, "mean_confidence": 0.2827, "uses_real_alignment": true, "reasons": {}}
+   rendered in 325.9s -> /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_5/story/renders/16x9/stage55_story/renders/story_16x9/story_16x9.mp4
+   saturation mean 0.221, audio aac {'mean_volume': -22.3, 'max_volume': -6.7}
+
+2. 9x16 (720x1280) — building graph and aligning
+   {"engine": "local CTC forced alignment (Baybars/wav2vec2-xls-r-300m-cv8-turkish)", "enabled": true, "dialogues_total": 6, "dialogues_with_audio": 6, "dialogues_aligned": 6, "dialogues_fallback": 0, "segments_total": 196, "mean_confidence": 0.2827, "uses_real_alignment": true, "reasons": {}}
+   rendered in 333.0s -> /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_5/story/renders/9x16/stage55_story/renders/story_9x16/story_9x16.mp4
+   saturation mean 0.374, audio aac {'mean_volume': -22.3, 'max_volume': -6.7}
+
+2. 1x1 (900x900) — building graph and aligning
+   {"engine": "local CTC forced alignment (Baybars/wav2vec2-xls-r-300m-cv8-turkish)", "enabled": true, "dialogues_total": 6, "dialogues_with_audio": 6, "dialogues_aligned": 6, "dialogues_fallback": 0, "segments_total": 196, "mean_confidence": 0.2827, "uses_real_alignment": true, "reasons": {}}
+   rendered in 313.9s -> /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_5/story/renders/1x1/stage55_story/renders/story_1x1/story_1x1.mp4
+   saturation mean 0.311, audio aac {'mean_volume': -22.3, 'max_volume': -6.7}
+
+Wrote /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_5/story/story_evidence.json
+EXIT=0

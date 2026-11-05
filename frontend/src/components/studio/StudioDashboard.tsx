@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { RenderJob, StudioProject } from '../../types/studio';
 import { formatDate } from '../../lib/utils';
-import { isActiveRender } from '../../lib/studioWorkspace';
+import { isLiveRender } from '../../lib/studioWorkspace';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { EmptyState } from '../ui/EmptyState';
@@ -69,7 +69,10 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
     (project) => !['completed', 'archived'].includes(project.status)
   );
   const completedRenders = renders.filter((render) => render.status === 'completed');
-  const activeRenders = renders.filter(isActiveRender);
+  // Never-dispatched `pending` rows from earlier server runs used to be counted
+  // here, which is how the dashboard came to advertise 70 active renders against
+  // 8 completed ones.
+  const activeRenders = renders.filter((job) => isLiveRender(job));
   const recentProjects = [...projects]
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
     .slice(0, 4);
@@ -249,7 +252,7 @@ export const StudioDashboard: React.FC<StudioDashboardProps> = ({
                     </span>
                   </div>
                   <div className="mt-1 flex items-center gap-1.5 text-[10px] text-slate-400">
-                    {isActiveRender(render) ? (
+                    {isLiveRender(render) ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
                     ) : (
                       <Clock3 className="h-3 w-3" />

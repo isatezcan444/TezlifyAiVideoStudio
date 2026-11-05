@@ -88,7 +88,7 @@ class ExecuteCompositionRenderUseCase:
                     base_data_dir = getattr(
                         self.composition_engine,
                         "base_projects_dir",
-                        "data/studio_projects",
+                        settings.resolved_studio_projects_dir,
                     )
                     synth = SynthesizeDialogueAudioUseCase(self.voice_synthesizer)
                     updated_graph, _ = synth.execute(

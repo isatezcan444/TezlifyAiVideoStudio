@@ -270,7 +270,8 @@ def test_listener_mouth_stays_at_rest_while_the_partner_speaks(turkish_speech, p
     ayse_start_frame = 1 + int(round(ayse_dialogue.start_time * fps))
     ali_end_frame = 1 + int(round(ali_dialogue.end_time * fps))
 
-    # During Ayşe's line, Ali's mouth must be at his own rest transform.
+    # During Ayşe's line, Ali's mouth must hold the closed baseline the scene
+    # starts from, not the asset's parted rest mouth.
     boxes = worker_result["lip_sync"]["scenes"][0]["mouth_boxes"]
     mid_ayse = ayse_start_frame + 3
     key = str(mid_ayse)
@@ -284,7 +285,7 @@ def test_listener_mouth_stays_at_rest_while_the_partner_speaks(turkish_speech, p
         nearest = min(boxes, key=lambda k: abs(int(k) - ali_end_frame))
         rest_height = boxes[nearest]["char_ali"]["world_height_m"]
 
-    # A resting mouth is within a couple of millimetres of its built height.
+    # A closed mouth sits within a couple of millimetres of the scene baseline.
     assert abs(ali_height - rest_height) < 0.012, (
         f"Ali's mouth height during Ayşe's line ({ali_height}) differs from rest "
         f"({rest_height}) — the listener is animating"

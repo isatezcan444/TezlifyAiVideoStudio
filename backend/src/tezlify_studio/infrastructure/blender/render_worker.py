@@ -22,10 +22,25 @@ if _BACKEND_SRC not in sys.path:
     sys.path.insert(0, _BACKEND_SRC)
 
 from tezlify_studio.domain.enums.studio_status import MouthViseme
+from tezlify_studio.domain.services import animation_director, animation_layers
 from tezlify_studio.domain.services.mouth_poses import pose_for as mouth_pose_for
+from tezlify_studio.domain.value_objects.animation_plan import (  # noqa: E402
+    AnimationPlan,
+    CharacterAnimationProfile,
+    to_dict as animation_plan_to_dict,
+)
+from tezlify_studio.infrastructure.blender.character_rig import (  # noqa: E402
+    build_control_map,
+    capture_rest,
+    control_inventory,
+    prepare_joint_pivots,
+    set_interpolation,
+    write_pose,
+)
 from tezlify_studio.domain.value_objects.camera_framing import (  # noqa: E402
     SubjectBounds,
     intent_for_angle,
+    intent_by_key,
     profile_for_aspect,
     profile_for_dimensions,
     screen_box,
@@ -65,6 +80,20 @@ def append_blend_objects(blend_path: str, exclude_names=None, prefix=""):
 
     return imported_objects
 
+# Lights baked into the scene/prop .blend assets. The worker always installs its
+# own three-point rig, so every asset light has to be dropped on import; the
+# previous list missed NeonCyan/NeonPink/DaylightSun/SkyFill, which are exactly
+# the names blender_scene_asset_builder creates, so those four were being added
+# on top of the rig and double-lighting every shot.
+ASSET_LIGHT_NAMES = [
+    "AssetCamera", "StudioCamera",
+    "WarmKey", "WarmFill", "DayKey", "DayFill",
+    "NeonKey", "NeonFill", "NeonCyan", "NeonPink",
+    "DaylightSun", "SkyFill",
+    "KeyLight", "FillLight", "RimLight",
+]
+
+
 def setup_lighting():
     # 3-Point lighting rig
     key_light = bpy.data.lights.new(name="KeyLight", type='SUN')
@@ -90,6 +119,74 @@ def setup_lighting():
     rim_obj.location = (0.0, 3.0, 3.5)
     rim_obj.rotation_euler = (-0.8, 0.0, 3.14)
     bpy.context.collection.objects.link(rim_obj)
+
+
+def linear_to_srgb(c):
+    """Shader colours are scene-linear; viewport display colours are not.
+
+    Copying the Principled BSDF value straight into `viewport_display_color`
+    measured 4.0 mean saturation instead of EEVEE's 60.7, because the linear
+    numbers are both darker and less saturated than the sRGB encoding Workbench
+    expects. Converting first makes the two engines agree.
+    """
+    def one(v):
+        v = max(0.0, min(1.0, v))
+        return 12.92 * v if v <= 0.0031308 else 1.055 * (v ** (1.0 / 2.4)) - 0.055
+    return (one(c[0]), one(c[1]), one(c[2]), c[3] if len(c) > 3 else 1.0)
+
+
+def sync_material_display_colors():
+    """Copy each material's shader colour into the fields Workbench reads.
+
+    Workbench with `shading.color_type = 'MATERIAL'` does not evaluate the node
+    tree; it reads `viewport_display_color` (falling back to `diffuse_color`),
+    and both stay at Blender's default (0.8, 0.8, 0.8) unless something writes
+    them. The asset builder only ever sets Principled BSDF Base Color, which is
+    why every delivered MP4 came out as grey clay while Character Studio, which
+    shows a pre-rendered PNG, looked correctly coloured.
+
+    Doing this here rather than only in the builder also repairs the ~25 .blend
+    assets that already exist, without regenerating any of them.
+    """
+    report = {"materials": 0, "synced": 0, "no_base_color": []}
+    for mat in bpy.data.materials:
+        report["materials"] += 1
+        base = None
+        if mat.use_nodes and mat.node_tree:
+            for node in mat.node_tree.nodes:
+                if node.type == 'BSDF_PRINCIPLED':
+                    # A colour socket reports type 'RGBA', not 'VALUE'; the only
+                    # case with no constant to copy is a linked input.
+                    input_socket = node.inputs.get("Base Color")
+                    if input_socket is not None and not input_socket.is_linked:
+                        base = tuple(input_socket.default_value)
+                    break
+        if base is None:
+            # Linked or missing base colour: leave the asset's own colour alone.
+            report["no_base_color"].append(mat.name)
+            continue
+        mat.diffuse_color = linear_to_srgb(base)
+        try:
+            mat.viewport_display_color = linear_to_srgb(base)
+        except Exception:
+            # Not every Blender build exposes the viewport colour; diffuse is
+            # what Workbench actually falls back to, so the sync still holds.
+            pass
+        report["synced"] += 1
+    return report
+
+
+def setup_world_ambient(strength: float = 0.35, color=(0.92, 0.95, 1.0)):
+    """Soft ambient fill so EEVEE does not flatten the characters into silhouettes."""
+    world = bpy.context.scene.world or bpy.data.worlds.new("StudioWorld")
+    bpy.context.scene.world = world
+    world.use_nodes = True
+    bg = world.node_tree.nodes.get("Background")
+    if bg is None:
+        bg = world.node_tree.nodes.new('ShaderNodeBackground')
+    bg.inputs["Color"].default_value = (*color, 1.0)
+    bg.inputs["Strength"].default_value = strength
+    return strength
 
 def object_world_bounds(obj):
     """World-space AABB of an object's bounding box, or None when degenerate."""
@@ -324,9 +421,11 @@ def animate_dialogue_mouth(mouth, rest_scale, rest_location, segments, fps: int,
     keyed = []
 
     # Mouth closed just before speech begins, so the first viseme reads as an
-    # opening movement rather than an instant pop.
+    # opening movement rather than an instant pop. This must be the CLOSED
+    # viseme, not REST: REST is the asset's own mouth, which is modelled with the
+    # lips slightly apart and reads as an open mouth in a close-up.
     frame = max(scene_start_frame, abs_start - 1)
-    set_mouth_pose(mouth, mouth_pose_for(MouthViseme.REST), rest_scale, rest_location, frame)
+    set_mouth_pose(mouth, mouth_pose_for(MouthViseme.CLOSED), rest_scale, rest_location, frame)
     keyed.append(frame)
 
     for viseme_name, start, end in segments:
@@ -341,7 +440,7 @@ def animate_dialogue_mouth(mouth, rest_scale, rest_location, segments, fps: int,
     # Close the mouth as soon as the audio ends: a held-open vowel after the last
     # phoneme is the clearest sign that animation is not following speech.
     frame = min(scene_end_frame, abs_end)
-    set_mouth_pose(mouth, mouth_pose_for(MouthViseme.REST), rest_scale, rest_location, frame)
+    set_mouth_pose(mouth, mouth_pose_for(MouthViseme.CLOSED), rest_scale, rest_location, frame)
     keyed.append(frame)
 
     use_linear_mouth_interpolation(mouth)
@@ -552,7 +651,7 @@ def main():
         log(f"Importing background: {bg_blend_path}")
         background_objects = append_blend_objects(
             bg_blend_path,
-            exclude_names=["AssetCamera", "WarmFill", "WarmKey", "DayKey", "DayFill", "NeonKey", "NeonFill"],
+            exclude_names=ASSET_LIGHT_NAMES,
             prefix="env"
         )
 
@@ -561,11 +660,11 @@ def main():
         table_path = os.path.join(assets_dir, "props", "prop_table.blend")
         if os.path.exists(table_path):
             log("Importing prop_table")
-            append_blend_objects(table_path, exclude_names=["AssetCamera", "WarmFill", "WarmKey"], prefix="prop_table")
+            append_blend_objects(table_path, exclude_names=ASSET_LIGHT_NAMES, prefix="prop_table")
         cup_path = os.path.join(assets_dir, "props", "prop_coffee_cup.blend")
         if os.path.exists(cup_path):
             log("Importing prop_coffee_cup")
-            cup_objs = append_blend_objects(cup_path, exclude_names=["AssetCamera", "WarmFill", "WarmKey"], prefix="cup1")
+            cup_objs = append_blend_objects(cup_path, exclude_names=ASSET_LIGHT_NAMES, prefix="cup1")
             for c_obj in cup_objs.values():
                 c_obj.location.x += -0.25
                 c_obj.location.y += -0.15
@@ -586,7 +685,7 @@ def main():
             log(f"Importing character {char_id} from {char_blend_path}")
             char_map = append_blend_objects(
                 char_blend_path,
-                exclude_names=["StudioCamera", "KeyLight", "FillLight", "RimLight"],
+                exclude_names=ASSET_LIGHT_NAMES,
                 prefix=char_id
             )
             character_maps[char_id] = char_map
@@ -600,6 +699,7 @@ def main():
     # wider than neutral), and viseme poses are multipliers on this rest, so
     # capturing it late would key every character to the same invented face.
     rest_mouth = {}
+    rest_teeth = {}
     for char_id, char_map in character_maps.items():
         mouth_obj = char_map.get("Mesh_Mouth")
         if mouth_obj is not None:
@@ -607,6 +707,13 @@ def main():
                 tuple(mouth_obj.scale),
                 tuple(mouth_obj.location),
             )
+            # The mouth is a flat disc a few millimetres proud of the face. Its
+            # cast shadow is the black crescent that made a closed mouth read as
+            # open in every close-up, so it never casts one.
+            mouth_obj.visible_shadow = False
+        teeth_obj = char_map.get("Mesh_Teeth")
+        if teeth_obj is not None:
+            rest_teeth[char_id] = tuple(teeth_obj.scale)
 
     # 6. Timeline and Keyframing
     current_frame = 1
@@ -615,11 +722,50 @@ def main():
 
     framing_reports = []
     lip_sync_reports = []
+    animation_reports = []
     coverages = []
     BACKDROP_PLANE_Y = 5.0
     # The legacy landscape two-shot saw 2.56m of width; camera moves are kept at
     # that same share of the frame so a pan does not sweep out of shot in portrait.
     BASELINE_VISIBLE_WIDTH = 2.56
+
+    # 6b. Rig setup: resolve controls, turn the forearm/hand meshes into real
+    # elbow/wrist joints, and record what this asset actually exposes.
+    rigs = {}
+    for char_id, char_map in character_maps.items():
+        controls = build_control_map(char_map)
+        repivoted = prepare_joint_pivots(controls)
+        rigs[char_id] = {
+            "controls": controls,
+            "inventory": control_inventory(controls),
+            "repivoted": repivoted,
+            "profile": CharacterAnimationProfile.for_character(char_id),
+        }
+        log(f"{char_id}: {len(controls)} controls, elbow/wrist pivots set on {repivoted}")
+
+    # 6c. The animation plan. Built from the same SceneGraph the camera and the
+    # lip sync use, so gestures follow the script instead of being invented here.
+    animation_plan = None
+    try:
+        scene_plans, plan_profiles = animation_director.plan_scene_graph(
+            scene_graph, {c: r["profile"] for c, r in rigs.items()}
+        )
+        animation_plan = AnimationPlan(
+            project_id=scene_graph.get("project_id", ""),
+            fps=fps,
+            scenes=tuple(scene_plans),
+            profiles=plan_profiles,
+        )
+        animation_plan.validate()
+        summary = animation_plan.summary()
+        log(f"Animation plan: {summary['clips_total']} clips, "
+            f"{summary['distinct_clips']} distinct, {summary['gestures']} gestures, "
+            f"{summary['dropped_gestures']} dropped")
+    except Exception as exc:
+        # A missing plan must not kill a render: fall back to the pre-5.5 idle so
+        # old projects still produce a video, and say so in the result.
+        animation_plan = None
+        log(f"Animation plan unavailable ({exc}); using legacy idle")
 
     for s_idx, scene_def in enumerate(scenes):
         scene_dur = scene_def.get("duration_seconds", 5.0)
@@ -649,11 +795,13 @@ def main():
                 f"{framing_profile.aspect_ratio} delivery"
             )
 
+        placed_ids = set()
         for placement in placements:
             c_id = placement.get("character_id")
             c_map = character_maps.get(c_id)
             if not c_map:
                 continue
+            placed_ids.add(c_id)
 
             root_obj = None
             for name, obj in c_map.items():
@@ -682,44 +830,106 @@ def main():
             apply_pose(c_map, pose_str)
             apply_expression(c_map, expr_str, scene_start_frame)
 
-        # B. Idle Breathing, Subtle Sway, Eye Blinking across the scene
-        for c_id, c_map in character_maps.items():
-            torso = c_map.get("Anchor_Torso")
-            head = c_map.get("Anchor_Head")
-            eye_l = c_map.get("Mesh_EyeWhite_L")
-            eye_r = c_map.get("Mesh_EyeWhite_R")
-            pupil_l = c_map.get("Mesh_Pupil_L")
-            pupil_r = c_map.get("Mesh_Pupil_R")
-            mouth = c_map.get("Mesh_Mouth")
+        # The rest pose is captured per scene, after placement, base pose and
+        # expression have been applied, because every clip channel is a delta on
+        # top of it. Capturing it earlier would animate the character back to the
+        # asset's neutral instead of to the pose this scene asked for.
+        for c_id, rig in rigs.items():
+            if c_id in placed_ids:
+                rig["rest"] = capture_rest(rig["controls"])
 
-            base_torso_z = torso.location.z if torso else 0.95
-            # Per-character phase/amplitude so Ali and Ayşe do not breathe in unison.
-            char_hash = sum(ord(ch) for ch in c_id)
-            phase_offset = (char_hash % 100) / 100.0 * math.pi * 2.0
-            breath_amp = 0.010 + 0.004 * (char_hash % 5) / 5.0
-            head_tilt_amp = 0.012 + 0.006 * (char_hash % 3) / 3.0
+        # B. Plan-driven animation.
+        #
+        # Replaces the old three-sine idle. Each frame samples the character's
+        # own scheduled clips, blended by priority, scaled by that character's
+        # personality profile, and written as absolute transforms against the
+        # scene's rest pose.
+        scene_plan = animation_plan.scenes[s_idx] if animation_plan else None
+        key_step = max(1, int(round(fps / 15.0)))
+        EPSILON = 1e-4
 
-            # Step through frames at 5-frame intervals for smooth continuous curves
-            for f in range(scene_start_frame, scene_end_frame + 1, 5):
+        def _channel_moved(base, values, scale_mode=False):
+            for b, v in zip(base, values):
+                if abs((v - b) if not scale_mode else (v - 1.0)) > EPSILON:
+                    return True
+            return False
+
+        for c_id, rig in rigs.items():
+            if "rest" not in rig:
+                continue
+            controls, rest = rig["controls"], rig["rest"]
+            targets = sorted(controls)
+            instances = scene_plan.clips_for(c_id) if scene_plan else ()
+            moved_keys = 0
+            for f in list(range(scene_start_frame, scene_end_frame + 1, key_step)) + [scene_end_frame]:
                 t = (f - scene_start_frame) / fps
-                # Idle breathing on Torso
-                if torso:
-                    torso.location.z = base_torso_z + breath_amp * math.sin(t * 2.8 + phase_offset)
-                    torso.rotation_euler.y = 0.006 * math.sin(t * 1.4 + phase_offset + 1.0)
-                    torso.keyframe_insert(data_path="location", frame=f)
-                    torso.keyframe_insert(data_path="rotation_euler", frame=f)
+                pose = animation_layers.sample_tracks(
+                    instances, rig["profile"], t, targets, skip_mouth=True
+                )
+                animation_layers.apply_blink(pose, f, rig["profile"])
+                # Only key the controls that actually differ from rest, plus one
+                # final keyframe to bring a moved control back so it cannot be
+                # left mid-gesture at the cut.
+                for control in targets:
+                    if control == "mouth":
+                        continue
+                    channels = pose.get(control)
+                    if not channels:
+                        continue
+                    base_loc, base_rot, base_scale = rest[control]
+                    moved = (
+                        _channel_moved(base_loc, [base_loc[i] + channels["loc"][i] for i in range(3)])
+                        or _channel_moved(base_rot, [base_rot[i] + channels["rot"][i] for i in range(3)])
+                        or _channel_moved(base_scale, [base_scale[i] * channels["scale"][i] for i in range(3)], True)
+                    )
+                    if not moved:
+                        continue
+                    moved_keys += 1
+                    write_pose(controls, rest, {control: channels}, f)
+            animation_reports.append({
+                "character_id": c_id,
+                "scene_id": scene_def.get("scene_id", ""),
+                "clips": len(instances),
+                "keyed_channels": moved_keys,
+                "controls": sorted(controls),
+                "profile": {
+                    "energy": round(rig["profile"].energy, 3),
+                    "gesture_rate": round(rig["profile"].gesture_rate, 3),
+                    "head_mobility": round(rig["profile"].head_mobility, 3),
+                    "leading_hand": rig["profile"].hand_bias,
+                    "blink_offset_frames": rig["profile"].blink_offset_frames,
+                },
+            })
 
-                # Idle subtle head tilt (per-character phase)
-                if head:
-                    head.rotation_euler.y = head_tilt_amp * math.cos(t * 1.2 + phase_offset + 0.5)
-                    head.keyframe_insert(data_path="rotation_euler", frame=f)
+        if animation_plan is None:
+            # Legacy path kept for projects whose plan could not be built.
+            for c_id, c_map in character_maps.items():
+                torso = c_map.get("Anchor_Torso")
+                head = c_map.get("Anchor_Head")
+                if torso is None and head is None:
+                    continue
+                char_hash = sum(ord(ch) for ch in c_id)
+                phase_offset = (char_hash % 100) / 100.0 * math.pi * 2.0
+                base_torso_z = torso.location.z if torso else 0.95
+                for f in range(scene_start_frame, scene_end_frame + 1, 5):
+                    t = (f - scene_start_frame) / fps
+                    if torso:
+                        torso.location.z = base_torso_z + 0.010 * math.sin(t * 2.8 + phase_offset)
+                        torso.keyframe_insert(data_path="location", frame=f)
+                    if head:
+                        head.rotation_euler.y = 0.012 * math.cos(t * 1.2 + phase_offset + 0.5)
+                        head.keyframe_insert(data_path="rotation_euler", frame=f)
 
-            # Eye Blinks (every ~90 frames / 3 seconds), staggered per character
-            blink_interval = 95
-            blink_offset = (char_hash % 30)
-            for blink_frame in range(scene_start_frame + 30 + blink_offset, scene_end_frame, blink_interval):
-                for eye_obj in (eye_l, eye_r, pupil_l, pupil_r):
-                    if eye_obj:
+        # Eye blink for the legacy path only; the plan path folds it in above.
+        if animation_plan is None:
+            for c_id, c_map in character_maps.items():
+                char_hash = sum(ord(ch) for ch in c_id)
+                blink_offset = (char_hash % 30)
+                for blink_frame in range(scene_start_frame + 30 + blink_offset, scene_end_frame, 95):
+                    for eye_name in ("Mesh_EyeWhite_L", "Mesh_EyeWhite_R", "Mesh_Pupil_L", "Mesh_Pupil_R"):
+                        eye_obj = c_map.get(eye_name)
+                        if not eye_obj:
+                            continue
                         eye_obj.scale.z = 1.0
                         eye_obj.keyframe_insert(data_path="scale", frame=max(scene_start_frame, blink_frame - 1))
                         eye_obj.scale.z = 0.08
@@ -727,17 +937,31 @@ def main():
                         eye_obj.scale.z = 1.0
                         eye_obj.keyframe_insert(data_path="scale", frame=min(scene_end_frame, blink_frame + 3))
 
-            # Resting mouth shape: hold the character's own built rest, not a
-            # flattened (1,1,1) that would erase the per-expression mouth.
-            if mouth:
-                rest = rest_mouth.get(c_id)
-                if rest:
-                    mouth.scale = rest[0]
-                    mouth.location = rest[1]
-                mouth.keyframe_insert(data_path="scale", frame=scene_start_frame)
-                mouth.keyframe_insert(data_path="scale", frame=scene_end_frame)
-                mouth.keyframe_insert(data_path="location", frame=scene_start_frame)
-                mouth.keyframe_insert(data_path="location", frame=scene_end_frame)
+        # B2. Mouth baseline. Clips never write the mouth, so visemes and the
+        # fallback flap are the only mouth sources. Silent characters are keyed
+        # to the CLOSED viseme for the whole scene: the asset's built rest mouth
+        # has parted lips and looks open in a close-up, so a listener held at
+        # rest reads as if they were talking too.
+        for c_id, c_map in character_maps.items():
+            mouth = c_map.get("Mesh_Mouth")
+            if not mouth:
+                continue
+            rest = rest_mouth.get(c_id)
+            if not rest:
+                continue
+            closed = mouth_pose_for(MouthViseme.CLOSED)
+            for frame in (scene_start_frame, scene_end_frame):
+                set_mouth_pose(mouth, closed, rest[0], rest[1], frame)
+
+            # The teeth strip peeks above the upper lip, so a silent character
+            # with teeth at full size still reads as slightly open. Shrink it
+            # while silent; the dialogue pass restores it for speech.
+            teeth = c_map.get("Mesh_Teeth")
+            t_rest = rest_teeth.get(c_id)
+            if teeth is not None and t_rest:
+                teeth.scale = tuple(value * 0.001 for value in t_rest)
+                for frame in (scene_start_frame, scene_end_frame):
+                    teeth.keyframe_insert(data_path="scale", frame=frame)
 
         # C. Dialogue Keyframing: Mouth Flap, Gestures, Head Orientation
         dialogues = scene_def.get("dialogues", [])
@@ -754,18 +978,25 @@ def main():
                 continue
 
             mouth = speaker_map.get("Mesh_Mouth")
-            head = speaker_map.get("Anchor_Head")
-            arm_r = speaker_map.get("Anchor_Arm_R")
-            arm_l = speaker_map.get("Anchor_Arm_L")
 
-            # Per-character variation so Ali and Ayşe do not move identically.
+            # Teeth are part of what makes an open mouth read as open; bring
+            # them back for the line and shrink them again on either side.
+            teeth = speaker_map.get("Mesh_Teeth")
+            t_rest = rest_teeth.get(speaker_id)
+            if teeth is not None and t_rest:
+                tiny = tuple(value * 0.001 for value in t_rest)
+                teeth.scale = tiny
+                teeth.keyframe_insert(data_path="scale", frame=max(scene_start_frame, abs_start - 1))
+                teeth.scale = t_rest
+                teeth.keyframe_insert(data_path="scale", frame=abs_start)
+                teeth.keyframe_insert(data_path="scale", frame=abs_end)
+                teeth.scale = tiny
+                teeth.keyframe_insert(data_path="scale", frame=min(scene_end_frame, abs_end + 1))
+
+            # Per-character variation so Ali and Ayşe do not flap identically.
             spk_hash = sum(ord(ch) for ch in speaker_id)
             mouth_open_amp = 1.65 + 0.25 * (spk_hash % 3) / 3.0
             mouth_mid_amp = 0.55 + 0.15 * (spk_hash % 3) / 3.0
-            # Turn direction derived from character id (not hardcoded names).
-            turn_dir = 0.15 if (spk_hash % 2 == 0) else -0.15
-            # Alternate which arm gestures so speakers do not move in sync.
-            gesture_arm = "r" if (spk_hash % 2 == 0) else "l"
 
             # 1. Mouth. Measured visemes drive it when the dialogue audio was
             # aligned; otherwise the pre-5.4 flap cycle is kept so a render never
@@ -793,203 +1024,225 @@ def main():
                         "frames": [],
                         "source": "estimated",
                     }
-                    mouth.scale.z = rest[0][2]
+                    # The mouth mesh is rotated, so its local Y is the vertical
+                    # opening axis. This used to scale Z (depth) and therefore
+                    # barely moved the mouth at all. Amplitudes are relative to
+                    # the character's built rest, like the viseme poses.
+                    rest_y = rest[0][1]
+                    mouth.scale.y = rest_y * 0.62
                     mouth.keyframe_insert(data_path="scale", frame=max(scene_start_frame, abs_start - 1))
                     # Flap cycle every 4 frames
                     for f in range(abs_start, abs_end, 4):
                         cycle = (f - abs_start) // 4
                         # Alternate between open and medium open
-                        mouth_z = mouth_open_amp if (cycle % 2 == 0) else mouth_mid_amp
-                        mouth.scale.z = mouth_z
+                        mouth_y = mouth_open_amp if (cycle % 2 == 0) else mouth_mid_amp
+                        mouth.scale.y = rest_y * mouth_y
                         mouth.keyframe_insert(data_path="scale", frame=f)
 
-                    mouth.scale.z = rest[0][2]
+                    mouth.scale.y = rest_y * 0.62
                     mouth.keyframe_insert(data_path="scale", frame=min(scene_end_frame, abs_end + 1))
 
-            # 2. Head turning toward partner when speaking
-            if head:
-                head.rotation_euler.z = turn_dir
-                head.keyframe_insert(data_path="rotation_euler", frame=abs_start)
-                head.keyframe_insert(data_path="rotation_euler", frame=abs_end)
-                head.rotation_euler.z = 0.0
-                head.keyframe_insert(data_path="rotation_euler", frame=min(scene_end_frame, abs_end + 10))
+            # 2. Mouth easing. Viseme transitions must not overshoot, or a short
+            # vowel pops and the mesh can leave the face. Stage 5.4 tried this
+            # through `action.fcurves`, which Blender 5.2 removed, so it silently
+            # did nothing; this uses the current API and reports the count.
+            eased = set_interpolation(mouth, ("scale", "location"), "LINEAR")
+            if eased == 0 and mouth is not None:
+                log(f"{speaker_id}: could not set LINEAR mouth easing")
 
-            # 3. Gesturing with one arm during speech (alternates per speaker)
-            gesture_arm_obj = arm_r if gesture_arm == "r" else arm_l
-            if gesture_arm_obj:
-                gesture_arm_obj.rotation_euler.x = math.radians(-38)
-                gesture_arm_obj.rotation_euler.z = math.radians(12 if gesture_arm == "r" else -12)
-                gesture_arm_obj.keyframe_insert(data_path="rotation_euler", frame=abs_start + 4)
-                gesture_arm_obj.rotation_euler.x = math.radians(-25)
-                gesture_arm_obj.keyframe_insert(data_path="rotation_euler", frame=(abs_start + abs_end) // 2)
-                gesture_arm_obj.rotation_euler.x = 0.0
-                gesture_arm_obj.rotation_euler.z = 0.0
-                gesture_arm_obj.keyframe_insert(data_path="rotation_euler", frame=min(scene_end_frame, abs_end + 8))
-
-            # 4. Listener behavior: strict mouth rest and attentive head orientation
+            # 3. The listener's mouth is held at the CLOSED viseme through the
+            # partner's line. Body and head behaviour for the listener now comes
+            # from the animation plan; only the mouth is deliberately excluded.
+            closed = mouth_pose_for(MouthViseme.CLOSED)
             for other_id, other_map in character_maps.items():
-                if other_id != speaker_id:
-                    # The listener's mouth must not move during the partner's
-                    # speech, on every channel the speaker animation uses.
-                    o_mouth = other_map.get("Mesh_Mouth")
-                    if o_mouth:
-                        o_rest = rest_mouth.get(other_id)
-                        if o_rest:
-                            o_mouth.scale = o_rest[0]
-                            o_mouth.location = o_rest[1]
-                        o_mouth.keyframe_insert(data_path="scale", frame=abs_start)
-                        o_mouth.keyframe_insert(data_path="scale", frame=abs_end)
-                        o_mouth.keyframe_insert(data_path="location", frame=abs_start)
-                        o_mouth.keyframe_insert(data_path="location", frame=abs_end)
+                if other_id == speaker_id:
+                    continue
+                o_mouth = other_map.get("Mesh_Mouth")
+                if not o_mouth:
+                    continue
+                o_rest = rest_mouth.get(other_id)
+                if not o_rest:
+                    continue
+                for frame in (abs_start, abs_end):
+                    set_mouth_pose(o_mouth, closed, o_rest[0], o_rest[1], frame)
 
-                    o_head = other_map.get("Anchor_Head")
-                    if o_head:
-                        # Listener turns toward the speaker
-                        o_turn = -turn_dir
-                        o_head.rotation_euler.z = o_turn
-                        o_head.keyframe_insert(data_path="rotation_euler", frame=abs_start)
-                        # Small nod halfway
-                        nod_f = (abs_start + abs_end) // 2
-                        o_head.rotation_euler.x = 0.08
-                        o_head.keyframe_insert(data_path="rotation_euler", frame=nod_f)
-                        o_head.rotation_euler.x = 0.0
-                        o_head.keyframe_insert(data_path="rotation_euler", frame=nod_f + 8)
+                o_teeth = other_map.get("Mesh_Teeth")
+                o_t_rest = rest_teeth.get(other_id)
+                if o_teeth is not None and o_t_rest:
+                    o_teeth.scale = tuple(value * 0.001 for value in o_t_rest)
+                    for frame in (abs_start, abs_end):
+                        o_teeth.keyframe_insert(data_path="scale", frame=frame)
 
-        # D. Solve the camera for this shot *and* this delivery format.
+        # D. Solve the camera per shot *and* per delivery format.
         cam_setup = scene_def.get("camera", {})
         cam_angle = cam_setup.get("angle", "two_shot")
         cam_movement = cam_setup.get("movement", "static").lower()
-        intent = intent_for_angle(cam_angle)
-        crop = min(1.0, intent.body_crop * framing_profile.body_crop_adjust)
 
-        sample_frames = sorted(
-            {
-                scene_start_frame,
-                (scene_start_frame + scene_end_frame) // 2,
-                scene_end_frame,
-            }
-        )
-        cast_bounds, union_extents = measure_subject_bounds(character_maps, sample_frames)
+        # D2. Shot-by-shot camera solve.
+        #
+        # The plan already decided *what the audience should look at*; this turns
+        # that into lens and position per shot window instead of one framing for
+        # the whole scene. Every window is solved with the same Stage 5.3 solver,
+        # so a close-up cannot push a character out of the safe area any more
+        # than a two-shot could.
+        shots = list(scene_plan.shot_plan.shots) if scene_plan else []
+        if not shots:
+            shots = [None]  # un-planned path: one authored framing for the scene
 
-        if union_extents:
-            extents_by_id = cast_bounds
-            union_box = subject_box_from_extents(union_extents, crop)
-        else:
-            # Nothing measurable on stage (empty cast or a failed asset import):
-            # fall back to a neutral standing-person box so the shot still gets a
-            # sane camera instead of a divide-by-zero distance.
-            fallback = (0.0, 0.0, 0.0, 0.0, 0.0, 1.72)
-            extents_by_id = {}
-            union_box = subject_box_from_extents(fallback, crop)
+        shot_solves = []
+        for shot in shots:
+            if shot is None:
+                shot_start, shot_end = scene_start_frame, scene_end_frame
+                focus_id = None
+                intent = intent_for_angle(cam_angle)
+                shot_kind = cam_angle
+            else:
+                shot_start = min(scene_end_frame, scene_start_frame + int(round(shot.start * fps)))
+                shot_end = max(shot_start, min(scene_end_frame,
+                                               scene_start_frame + int(round(shot.end * fps)) - 1))
+                focus_id = shot.focus_character_id
+                shot_kind = shot.kind
+                if shot.kind == "establishing":
+                    intent = intent_by_key("wide")
+                elif shot.kind == "speaker_close_up":
+                    intent = intent_by_key("close_up")
+                elif shot.kind == "listener_reaction":
+                    intent = intent_by_key("shoulder")
+                elif shot.kind == "action_shot":
+                    intent = intent_by_key("medium_shot")
+                else:
+                    intent = intent_for_angle(cam_angle)
 
-        solve = solve_camera(framing_profile, union_box, intent, sensor_width_mm)
+            crop = min(1.0, intent.body_crop * framing_profile.body_crop_adjust)
+            shot_samples = sorted({shot_start, (shot_start + shot_end) // 2, shot_end})
+            cast_bounds, union_extents = measure_subject_bounds(character_maps, shot_samples)
 
-        cam_data.lens = solve.lens
-        cam_data.keyframe_insert(data_path="lens", frame=scene_start_frame)
-        cam_data.keyframe_insert(data_path="lens", frame=scene_end_frame)
+            if focus_id and focus_id in cast_bounds:
+                # Restrict the subject to the focused character, then keep the
+                # rest of the cast inside the frame as a soft constraint by
+                # widening toward them only if they are close.
+                extents = cast_bounds[focus_id]
+                others = [e for cid, e in cast_bounds.items() if cid != focus_id]
+                if others and shot.kind in ("two_shot", "establishing", "medium_shot",
+                                           "action_shot"):
+                    extents = merge_bounds([extents, others[0]])
+            elif union_extents:
+                extents = union_extents
+            else:
+                extents = (0.0, 0.0, 0.0, 0.0, 0.0, 1.72)
 
-        cam_target.location = (solve.target_x, 0.0, solve.target_z)
-        cam_target.keyframe_insert(data_path="location", frame=scene_start_frame)
-        cam_target.keyframe_insert(data_path="location", frame=scene_end_frame)
+            subject_box = subject_box_from_extents(extents, crop)
+            solve = solve_camera(framing_profile, subject_box, intent, sensor_width_mm)
 
-        base_loc = (solve.camera_x, solve.camera_y, solve.camera_z)
-        pan_amplitude = 0.25 * (solve.visible_width / BASELINE_VISIBLE_WIDTH)
-        dolly_scale = solve.distance / 3.2
+            cam_data.lens = solve.lens
+            cam_data.keyframe_insert(data_path="lens", frame=shot_start)
+            cam_data.keyframe_insert(data_path="lens", frame=shot_end)
 
-        if "pan_right" in cam_movement:
-            cam_obj.location = (base_loc[0] - pan_amplitude, base_loc[1], base_loc[2])
-            cam_obj.keyframe_insert(data_path="location", frame=scene_start_frame)
-            cam_obj.location = (base_loc[0] + pan_amplitude, base_loc[1], base_loc[2])
-            cam_obj.keyframe_insert(data_path="location", frame=scene_end_frame)
-        elif "pan_left" in cam_movement:
-            cam_obj.location = (base_loc[0] + pan_amplitude, base_loc[1], base_loc[2])
-            cam_obj.keyframe_insert(data_path="location", frame=scene_start_frame)
-            cam_obj.location = (base_loc[0] - pan_amplitude, base_loc[1], base_loc[2])
-            cam_obj.keyframe_insert(data_path="location", frame=scene_end_frame)
-        elif "zoom_in" in cam_movement:
-            cam_obj.location = (base_loc[0], base_loc[1] - 0.6 * dolly_scale, base_loc[2])
-            cam_obj.keyframe_insert(data_path="location", frame=scene_start_frame)
-            cam_obj.location = (base_loc[0], base_loc[1] + 0.4 * dolly_scale, base_loc[2])
-            cam_obj.keyframe_insert(data_path="location", frame=scene_end_frame)
-        elif "zoom_out" in cam_movement:
-            cam_obj.location = (base_loc[0], base_loc[1] + 0.3 * dolly_scale, base_loc[2])
-            cam_obj.keyframe_insert(data_path="location", frame=scene_start_frame)
-            cam_obj.location = (base_loc[0], base_loc[1] - 0.5 * dolly_scale, base_loc[2])
-            cam_obj.keyframe_insert(data_path="location", frame=scene_end_frame)
-        else:  # static
-            cam_obj.location = base_loc
-            cam_obj.keyframe_insert(data_path="location", frame=scene_start_frame)
-            cam_obj.keyframe_insert(data_path="location", frame=scene_end_frame)
+            cam_target.location = (solve.target_x, 0.0, solve.target_z)
+            cam_target.keyframe_insert(data_path="location", frame=shot_start)
+            cam_target.keyframe_insert(data_path="location", frame=shot_end)
 
-        wall_x0, wall_x1, wall_z0, wall_z1 = visible_extents_at_plane(
-            framing_profile, solve, BACKDROP_PLANE_Y, sensor_width_mm
-        )
-        coverages.append(
-            (
-                wall_x0,
-                wall_x1,
-                max(0.0, wall_z0),
-                wall_z1,
-                solve.camera_y - 0.5,
-                BACKDROP_PLANE_Y + 1.0,
+            base_loc = (solve.camera_x, solve.camera_y, solve.camera_z)
+            pan_amplitude = 0.25 * (solve.visible_width / BASELINE_VISIBLE_WIDTH)
+            dolly_scale = solve.distance / 3.2
+            # A cut-in gets a slow push so the shot is not a still frame; the
+            # authored movement still applies to whole-scene shots.
+            movement = cam_movement if shot is None else "push_in"
+            if "pan_right" in movement:
+                cam_obj.location = (base_loc[0] - pan_amplitude, base_loc[1], base_loc[2])
+                cam_obj.keyframe_insert(data_path="location", frame=shot_start)
+                cam_obj.location = (base_loc[0] + pan_amplitude, base_loc[1], base_loc[2])
+                cam_obj.keyframe_insert(data_path="location", frame=shot_end)
+            elif "pan_left" in movement:
+                cam_obj.location = (base_loc[0] + pan_amplitude, base_loc[1], base_loc[2])
+                cam_obj.keyframe_insert(data_path="location", frame=shot_start)
+                cam_obj.location = (base_loc[0] - pan_amplitude, base_loc[1], base_loc[2])
+                cam_obj.keyframe_insert(data_path="location", frame=shot_end)
+            elif "zoom_in" in movement or movement == "push_in":
+                cam_obj.location = (base_loc[0], base_loc[1] + 0.18 * dolly_scale, base_loc[2])
+                cam_obj.keyframe_insert(data_path="location", frame=shot_start)
+                cam_obj.location = (base_loc[0], base_loc[1] - 0.18 * dolly_scale, base_loc[2])
+                cam_obj.keyframe_insert(data_path="location", frame=shot_end)
+            elif "zoom_out" in movement:
+                cam_obj.location = (base_loc[0], base_loc[1] + 0.3 * dolly_scale, base_loc[2])
+                cam_obj.keyframe_insert(data_path="location", frame=shot_start)
+                cam_obj.location = (base_loc[0], base_loc[1] - 0.5 * dolly_scale, base_loc[2])
+                cam_obj.keyframe_insert(data_path="location", frame=shot_end)
+            else:
+                cam_obj.location = base_loc
+                cam_obj.keyframe_insert(data_path="location", frame=shot_start)
+                cam_obj.keyframe_insert(data_path="location", frame=shot_end)
+
+            wall_x0, wall_x1, wall_z0, wall_z1 = visible_extents_at_plane(
+                framing_profile, solve, BACKDROP_PLANE_Y, sensor_width_mm
             )
-        )
+            coverages.append(
+                (wall_x0, wall_x1, max(0.0, wall_z0), wall_z1,
+                 solve.camera_y - 0.5, BACKDROP_PLANE_Y + 1.0)
+            )
 
-        framing_reports.append(
-            {
-                "scene_id": scene_def.get("scene_id", f"scene_{s_idx + 1:02d}"),
-                "format": framing_profile.aspect_ratio,
-                "profile": framing_profile.key,
-                "camera_angle": cam_angle,
-                "shot": intent.key,
-                "body_crop": round(crop, 3),
-                # Every rig imported into the shot is measured, including one this
-                # scene never re-placed: it is still on stage, so the camera must
-                # keep it in frame too. ``placed`` records the authored blocking.
-                "placed": sorted(
-                    str(p.get("character_id", "")) for p in placements
-                ),
-                "cast": sorted(extents_by_id),
-                "solve": solve.to_dict(),
-                "screen_boxes": {
-                    char_id: screen_box(
-                        framing_profile, solve, subject_box_from_extents(extents, crop)
-                    )
-                    for char_id, extents in sorted(extents_by_id.items())
-                },
-            }
-        )
+            shot_solves.append((shot_start, shot_end, solve))
+            framing_reports.append(
+                {
+                    "scene_id": scene_def.get("scene_id", f"scene_{s_idx + 1:02d}"),
+                    "format": framing_profile.aspect_ratio,
+                    "profile": framing_profile.key,
+                    "camera_angle": cam_angle,
+                    "shot": intent.key,
+                    "shot_kind": shot_kind,
+                    "shot_focus": focus_id,
+                    "window_frames": [shot_start, shot_end],
+                    "body_crop": round(crop, 3),
+                    # Every rig imported into the shot is measured, including one this
+                    # scene never re-placed: it is still on stage, so the camera must
+                    # keep it in frame too. ``placed`` records the authored blocking.
+                    "placed": sorted(str(p.get("character_id", "")) for p in placements),
+                    "cast": sorted(cast_bounds),
+                    "solve": solve.to_dict(),
+                    "screen_boxes": {
+                        char_id: screen_box(
+                            framing_profile, solve,
+                            subject_box_from_extents(extents_one, crop),
+                        )
+                        for char_id, extents_one in sorted(cast_bounds.items())
+                    },
+                }
+            )
+            log(
+                f"Framed {shot_kind} for {framing_profile.aspect_ratio}: "
+                f"lens={solve.lens:.1f}mm distance={solve.distance:.2f}m "
+                f"limited_by={solve.limited_by} fits_safe_area={solve.fits} "
+                f"fill_w={solve.fill_width} fill_h={solve.fill_height}"
+            )
+            if not solve.fits:
+                log(
+                    f"WARNING: scene '{scene_def.get('scene_id')}' shot '{shot_kind}' "
+                    f"cannot fill the {framing_profile.aspect_ratio} safe area from the "
+                    "rig limits; the cast stays visible but the shot is looser than intended."
+                )
 
         # Where the mouth actually lands on screen, at the frames where a viseme
-        # was keyed, so the evidence crops the mouth rather than a guess.
+        # was keyed, using the camera solve that is active in that window.
         evidence_frames = sorted({
             frame
             for mode in lip_sync_modes.values()
             for frame in mode.get("frames", [])
         })
+        mouth_boxes = {}
+        for shot_start, shot_end, solve in shot_solves:
+            in_window = [f for f in evidence_frames if shot_start <= f <= shot_end]
+            if not in_window:
+                continue
+            mouth_boxes.update(
+                mouth_screen_boxes(character_maps, in_window, framing_profile, solve,
+                                   sensor_width_mm)
+            )
         lip_sync_reports.append({
             "scene_id": scene_def.get("scene_id", f"scene_{s_idx + 1:02d}"),
             "speakers": lip_sync_modes,
-            "real_lip_sync": any(
-                mode.get("mode") == "viseme" for mode in lip_sync_modes.values()
-            ),
-            "mouth_boxes": mouth_screen_boxes(
-                character_maps, evidence_frames, framing_profile, solve, sensor_width_mm
-            ),
+            "real_lip_sync": any(mode.get("mode") == "viseme" for mode in lip_sync_modes.values()),
+            "mouth_boxes": mouth_boxes,
         })
-
-        log(
-            f"Framed {intent.key} for {framing_profile.aspect_ratio}: "
-            f"lens={solve.lens:.1f}mm distance={solve.distance:.2f}m "
-            f"limited_by={solve.limited_by} fits_safe_area={solve.fits} "
-            f"fill_w={solve.fill_width} fill_h={solve.fill_height}"
-        )
-        if not solve.fits:
-            log(
-                f"WARNING: scene '{scene_def.get('scene_id')}' cannot fill the "
-                f"{framing_profile.aspect_ratio} safe area from the rig limits; "
-                "the cast stays fully visible but the shot is looser than intended."
-            )
 
         current_frame = scene_end_frame + 1
 
@@ -1026,19 +1279,87 @@ def main():
     scene.render.image_settings.file_format = 'PNG'
     scene.render.image_settings.color_mode = 'RGBA'
 
-    engine_clean = (engine_override or "BLENDER_WORKBENCH").upper()
-    if "EEVEE" in engine_clean:
-        # Check if BLENDER_EEVEE_NEXT or BLENDER_EEVEE exists
-        try:
-            scene.render.engine = 'BLENDER_EEVEE_NEXT'
-        except Exception:
-            scene.render.engine = 'BLENDER_EEVEE'
-    else:
+    # Colours first: both engines benefit, and Workbench is unreadable without it.
+    color_sync = sync_material_display_colors()
+    setup_world_ambient()
+
+    # EEVEE is the default because it evaluates the material graph; Workbench is
+    # kept as an explicit fast option. A grey character must never be the default
+    # outcome of a successful render.
+    engine_clean = (engine_override or "BLENDER_EEVEE").upper()
+    engine_report = {"requested": engine_override or "BLENDER_EEVEE", "color_sync": color_sync}
+    if "WORKBENCH" in engine_clean:
         scene.render.engine = 'BLENDER_WORKBENCH'
         scene.display.shading.light = 'STUDIO'
         scene.display.shading.color_type = 'MATERIAL'
         scene.display.shading.show_shadows = True
-        scene.display.render_aa = 'FXAA'
+        scene.display.shading.show_cavity = True
+        # Blender 5.2 exposes OFF/FXAA/5/8/11/16/32 here, not the old "8X" string.
+        for aa in ('8', '16', 'FXAA'):
+            try:
+                scene.display.render_aa = aa
+                break
+            except Exception:
+                continue
+    else:
+        chosen = None
+        for candidate in ('BLENDER_EEVEE_NEXT', 'BLENDER_EEVEE'):
+            try:
+                scene.render.engine = candidate
+                chosen = candidate
+                break
+            except Exception:
+                continue
+        if chosen is None:
+            scene.render.engine = 'BLENDER_WORKBENCH'
+            scene.display.shading.light = 'STUDIO'
+            scene.display.shading.color_type = 'MATERIAL'
+            scene.display.shading.show_shadows = True
+            log("EEVEE unavailable, fell back to BLENDER_WORKBENCH")
+        eevee = scene.eevee
+        eevee.taa_render_samples = 24
+        try:
+            eevee.use_shadows = True
+        except Exception:
+            pass
+        try:
+            # Screen-space contact shading gives the stylised look its grounding
+            # without the cost of full ray tracing.
+            eevee.use_raytracing = False
+            eevee.use_gtao = True
+            eevee.gtao_distance = 0.25
+        except Exception:
+            pass
+        try:
+            eevee.use_bloom = False
+            eevee.use_volumetric_shadows = True
+        except Exception:
+            pass
+    engine_report["engine"] = scene.render.engine
+
+    # 'Standard' keeps the palette the asset builder chose. AgX/Filmic would
+    # desaturate the flat cartoon colours toward grey, which is the opposite of
+    # what a stylised 2.5D look needs. The enum is only populated once colour
+    # management data is loaded, so in a factory-startup subprocess
+    # `enum_items` reports just ['NONE'] and a membership guard would never
+    # match; assign directly and read the value back instead.
+    applied_transform = None
+    for candidate in ('Standard', 'Filmic', 'AgX'):
+        try:
+            scene.view_settings.view_transform = candidate
+        except Exception:
+            continue
+        if scene.view_settings.view_transform == candidate:
+            applied_transform = candidate
+            break
+    try:
+        scene.view_settings.look = 'None'
+    except Exception:
+        pass
+    engine_report["view_transform"] = applied_transform or scene.view_settings.view_transform
+    if applied_transform != "Standard":
+        log(f"view transform is {engine_report['view_transform']}, not Standard; "
+            f"colours will read flatter than the asset palette")
 
     os.makedirs(frames_dir, exist_ok=True)
     frame_prefix = os.path.join(frames_dir, "frame_")
@@ -1086,6 +1407,12 @@ def main():
         "lip_sync": {
             "scenes": lip_sync_reports,
             "real_lip_sync": any(r["real_lip_sync"] for r in lip_sync_reports),
+        },
+        "engine_config": engine_report,
+        "animation": {
+            "planned": animation_plan is not None,
+            "scenes": animation_reports,
+            "summary": animation_plan.summary() if animation_plan else {},
         },
     }
     with open(result_path, "w", encoding="utf-8") as f:

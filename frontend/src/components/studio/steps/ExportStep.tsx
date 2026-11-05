@@ -21,6 +21,7 @@ import { formatBytes, formatDate, formatDuration } from '../../../lib/utils';
 import {
   isActiveRender,
   isCompositionRender,
+  isPlayableRender,
   renderFormatLabel,
 } from '../../../lib/studioWorkspace';
 import { Button } from '../../ui/button';
@@ -42,13 +43,31 @@ interface ExportStepProps {
  * alignment, provider alignment, pending, failed, or the legacy mouth animation.
  * A render that fell back may never read as "Gerçek Lip-Sync".
  */
-export function lipSyncLabel(metadata?: RenderJob['output_metadata']): string {
+export function lipSyncLabel(metadata?: RenderJob['output_metadata'] | null): string {
   const lipSync = metadata?.lip_sync;
   if (!lipSync) return 'Eski render (lip-sync bilgisi yok)';
-  if (lipSync.speakers_aligned > 0) {
-    return `Gerçek lip-sync · ${lipSync.speakers_aligned}/${lipSync.speakers_total} konuşmacı`;
-  }
+  // The worker reports one mode per speaker per scene; counting those is the
+  // only honest source for "how many speakers got real visemes".
+  const modes = (lipSync.scenes || []).flatMap((scene) => Object.values(scene.speakers || {}));
+  const aligned = modes.filter((mode) => mode.mode === 'viseme').length;
+  if (aligned > 0) return `Gerçek lip-sync · ${aligned}/${modes.length} konuşmacı`;
   return 'Basit ağız animasyonu (alignment yok)';
+}
+
+/**
+ * Loudness was measured on the finished file, so this can tell the difference
+ * between "has an audio stream" and "you will hear something". Older renders
+ * carry no measurement and are labelled as such instead of being claimed either
+ * way.
+ */
+export function audioLabel(metadata?: RenderJob['output_metadata'] | null): string {
+  if (metadata?.audio_mean_db === undefined || metadata?.audio_mean_db === null) {
+    return metadata?.has_audio === false ? 'Ses yok' : 'Ses ölçülmedi (eski render)';
+  }
+  if (metadata.audio_audible) {
+    return `Sesli · ort. ${Math.round(metadata.audio_mean_db)} dB`;
+  }
+  return 'Sessiz · ses kanalı var ama duyulmuyor';
 }
 
 function metadataRows(job: RenderJob) {
@@ -63,6 +82,7 @@ function metadataRows(job: RenderJob) {
     { label: 'Video codec', value: metadata?.video_codec || '—' },
     { label: 'Süre', value: metadata?.duration_seconds ? formatDuration(metadata.duration_seconds) : '—' },
     { label: 'Dosya boyutu', value: metadata?.file_size_bytes ? formatBytes(metadata.file_size_bytes) : '—' },
+    { label: 'Ses', value: audioLabel(metadata) },
     { label: 'Lip-sync', value: lipSyncLabel(metadata) },
   ];
 }
@@ -76,13 +96,21 @@ export const ExportStep: React.FC<ExportStepProps> = ({
   onOpenMediaLibrary,
   onRefresh,
 }) => {
-  const compositionRenders = useMemo(
-    () =>
-      renders
-        .filter((job) => job.project_id === project.id && isCompositionRender(job))
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
-    [project.id, renders]
-  );
+  // Every finished render of this project, composition first. Restricting this
+  // list to composition renders hid completed Blender animations, so the export
+  // step said there was nothing to export next to a valid MP4 on disk.
+  const compositionRenders = useMemo(() => {
+    const mine = renders.filter((job) => job.project_id === project.id && (
+      isPlayableRender(job) || (isCompositionRender(job) && job.status !== 'completed')
+    ));
+    const rank = (job: RenderJob) =>
+      (isPlayableRender(job) ? 0 : 1) * 1000 + (isCompositionRender(job) ? 0 : 1);
+    return mine.sort(
+      (a, b) =>
+        rank(a) - rank(b) ||
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, [project.id, renders]);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(
     compositionRenders.find((job) => job.status === 'completed')?.id || compositionRenders[0]?.id || null
   );

@@ -13,9 +13,17 @@ class RenderOutputMetadata(BaseModel):
     container: str = "mp4"
     has_audio: bool = True
     audio_codec: str = "aac"
+    # Stage 5.5: measured loudness, not a stream header. `has_audio` was true for
+    # files whose audio track was digital silence, because the engines synthesise
+    # a silent AAC track when there is nothing to mix. Defaults keep already
+    # stored renders readable.
+    audio_audible: bool = True
+    audio_mean_db: Optional[float] = None
+    audio_max_db: Optional[float] = None
+    audio_reason: str = ""
     frame_count: int = Field(default=0, ge=0)
     render_duration_seconds: float = Field(default=0.0, ge=0.0)
-    engine: str = "BLENDER_WORKBENCH"
+    engine: str = "BLENDER_EEVEE"
 
     # Stage 4.5 composition details (optional for backwards compatibility)
     composition_id: Optional[str] = None
@@ -29,3 +37,5 @@ class RenderOutputMetadata(BaseModel):
 
     # Stage 5.4 lip sync (optional for backwards compatibility with stored renders)
     lip_sync: Optional[dict] = None
+    # Stage 5.5 animation plan actually used by this render
+    animation: Optional[dict] = None

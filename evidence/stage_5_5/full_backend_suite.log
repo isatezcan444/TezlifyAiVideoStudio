@@ -1,0 +1,16 @@
+
+[tezlify tests] isolated DATA_DIR = /var/folders/d_/hk6t47ns6_3gq262dc7_vs640000gn/T/tezlify-test-data-m6hkqr7q
+........................................................................ [ 17%]
+........................................................................ [ 34%]
+........................................................................ [ 52%]
+........................................................................ [ 69%]
+........................................................................ [ 87%]
+.....................................................                    [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.14/site-packages/fastapi/testclient.py:1
+  /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/.venv/lib/python3.14/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+413 passed, 1 warning in 511.87s (0:08:31)
+EXIT=0

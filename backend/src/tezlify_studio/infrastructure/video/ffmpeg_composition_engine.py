@@ -16,6 +16,7 @@ a black letterbox is a framing failure, and the fix belongs in the camera.
 from __future__ import annotations
 
 import json
+import logging
 import math
 import os
 import re
@@ -31,6 +32,7 @@ from tezlify_studio.domain.exceptions.studio_exceptions import (
     CompositionRenderException,
 )
 from tezlify_studio.domain.value_objects.camera_framing import profile_for_dimensions
+from tezlify_studio.infrastructure.configuration.settings import settings
 from tezlify_studio.domain.value_objects.render_metadata import RenderOutputMetadata
 from tezlify_studio.domain.value_objects.scene_graph import SceneGraph, SceneResolution
 from tezlify_studio.domain.value_objects.video_composition import (
@@ -42,6 +44,7 @@ from tezlify_studio.domain.value_objects.video_composition import (
     build_composition_timeline,
     validate_composition_against_scene_ids,
 )
+from tezlify_studio.infrastructure.video.audio_probe import probe_audio_loudness
 from tezlify_studio.infrastructure.video.subtitle_builder import (
     build_subtitle_cues,
     probe_media_duration,
@@ -51,6 +54,8 @@ from tezlify_studio.infrastructure.video.text_overlay_renderer import (
     OverlayImage,
     render_text_overlay,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _safe_name(value: str) -> str:
@@ -97,7 +102,7 @@ class FFmpegCompositionEngine:
         ffprobe_executable: str = "ffprobe",
     ):
         self.animation_engine = animation_engine
-        self.base_projects_dir = base_projects_dir or os.path.abspath("data/studio_projects")
+        self.base_projects_dir = base_projects_dir or settings.resolved_studio_projects_dir
         self.keep_scene_clips = keep_scene_clips
         self.ffmpeg = ffmpeg_executable
         self.ffprobe = ffprobe_executable
@@ -376,6 +381,18 @@ class FFmpegCompositionEngine:
                 f"(beklenen {total_duration:.2f}s)."
             )
 
+        # Loudness is measured from the decoded audio, not from the stream header.
+        # A silent AAC track is a legitimate container outcome - the engine adds a
+        # silence bed on purpose - but it must never be reported as a video with
+        # sound, which is what users saw before this check existed.
+        loudness = probe_audio_loudness(output_path, ffmpeg=self.ffmpeg)
+        if loudness.measured and not loudness.audible:
+            logger.warning(
+                "Composition %s produced no audible audio (%s); %d dialogue "
+                "audio file(s) were mixed in",
+                composition.id, loudness.reason, len(dialogue_audio),
+            )
+
         # 6. Persist composition/timeline metadata for reproducibility.
         manifest = {
             "composition": composition.model_dump(mode="json"),
@@ -434,6 +451,10 @@ class FFmpegCompositionEngine:
             container="mp4",
             has_audio=True,
             audio_codec="aac",
+            audio_audible=loudness.audible,
+            audio_mean_db=loudness.mean_db,
+            audio_max_db=loudness.max_db,
+            audio_reason=loudness.reason,
             frame_count=int(round(actual_duration * composition.fps)),
             render_duration_seconds=round(time.time() - started, 2),
             engine="FFMPEG_COMPOSITION",

@@ -42,6 +42,39 @@ export function isActiveRender(job: RenderJob | null | undefined): boolean {
   return Boolean(job && (job.status === 'pending' || job.status === 'running'));
 }
 
+/**
+ * A `pending` job that was never dispatched.
+ *
+ * Dispatch is an in-process thread, so every job left `pending` by a previous
+ * server run stays pending forever. The UI used to read that as "render in
+ * progress" and permanently disabled the render button. Deriving this at read
+ * time - rather than rewriting the rows - keeps the user's stored history
+ * untouched while unsticking the interface.
+ */
+export function isStalePending(job: RenderJob | null | undefined, now = Date.now()): boolean {
+  if (!job || job.status !== 'pending' || job.started_at) return false;
+  const created = new Date(job.created_at).getTime();
+  if (Number.isNaN(created)) return false;
+  return now - created > 30 * 60 * 1000;
+}
+
+/** True only when the job is both finished and actually waiting on the renderer. */
+export function isLiveRender(job: RenderJob | null | undefined, now = Date.now()): boolean {
+  if (!job) return false;
+  if (job.status === 'running') return true;
+  return job.status === 'pending' && !isStalePending(job, now);
+}
+
+/**
+ * Any finished job whose file can be handed to a player.
+ *
+ * The export screen used to accept only composition renders, so a completed
+ * Blender animation - a real MP4 on disk - showed "Dışa aktarılacak video yok".
+ */
+export function isPlayableRender(job: RenderJob): boolean {
+  return job.status === 'completed' && Boolean(job.output_metadata?.video_file_path);
+}
+
 export function isCompositionRender(job: RenderJob): boolean {
   return (
     job.id.startsWith('comp_') ||
@@ -155,10 +188,14 @@ export function workflowState(
         completed = Boolean(composition?.is_saved);
         if (!composition?.is_saved) missing.push('Kompozisyon ayarlarını kaydedin.');
         break;
-      case 'export':
-        completed = hasComposition;
-        if (!hasComposition) missing.push('Tamamlanmış bir kompozisyon render’ı yok.');
+      case 'export': {
+        // A finished Blender animation is an MP4 the export screen can play and
+        // download, so it satisfies this step just like a composition render.
+        const hasPlayable = projectJobs.some((job) => isPlayableRender(job));
+        completed = hasComposition || hasPlayable;
+        if (!completed) missing.push('Oynatılabilir tamamlanmış bir render yok.');
         break;
+      }
       default:
         break;
     }

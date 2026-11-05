@@ -19,6 +19,7 @@ from tezlify_studio.domain.exceptions.studio_exceptions import (
     InvalidSceneGraphException,
     InvalidRenderStateException,
 )
+from tezlify_studio.infrastructure.configuration.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +143,11 @@ class StartProjectRenderUseCase:
                 )
 
         # Disk space guard before dispatching the worker.
-        base_data_dir = getattr(self.execute_worker.animation_engine, "base_projects_dir", "data/studio_projects")
+        base_data_dir = getattr(
+            self.execute_worker.animation_engine,
+            "base_projects_dir",
+            settings.resolved_studio_projects_dir,
+        )
         self._check_disk_space(base_data_dir)
 
         job_id = f"render_{uuid.uuid4().hex[:12]}"

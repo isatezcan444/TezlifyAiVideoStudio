@@ -138,7 +138,11 @@ class ExecuteRenderJobUseCase:
                 try:
                     job.update_progress(8.0, "Synthesizing dialogue audio with ElevenLabs")
                     job_repo.save(job)
-                    base_data_dir = getattr(self.animation_engine, "base_projects_dir", "data/studio_projects")
+                    base_data_dir = getattr(
+                        self.animation_engine,
+                        "base_projects_dir",
+                        settings.resolved_studio_projects_dir,
+                    )
                     synth_use_case = SynthesizeDialogueAudioUseCase(self.voice_synthesizer)
                     updated_sg, _ = synth_use_case.execute(
                         scene_graph=project.scene_graph,

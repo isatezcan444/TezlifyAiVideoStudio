@@ -41,6 +41,7 @@ __all__ = [
     "profile_for_aspect",
     "profile_for_dimensions",
     "intent_for_angle",
+    "intent_by_key",
     "solve_camera",
     "screen_box",
     "visible_extents_at_plane",
@@ -212,6 +213,19 @@ def intent_for_angle(angle: Optional[str]) -> ShotIntent:
             for intent in _SHOT_INTENTS:
                 if intent.key == key:
                     return intent
+    return _SHOT_INTENTS[-1]  # medium_shot
+
+
+def intent_by_key(key: str) -> ShotIntent:
+    """Look an intent up directly, for shot plans that name the framing they want.
+
+    `intent_for_angle` maps the authored camera angle, which is what a user picks;
+    a shot plan already knows whether it wants a close-up, so it asks by key.
+    """
+    text = str(key or "").lower()
+    for intent in _SHOT_INTENTS:
+        if intent.key == text:
+            return intent
     return _SHOT_INTENTS[-1]  # medium_shot
 
 

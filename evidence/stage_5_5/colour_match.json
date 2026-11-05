@@ -1,0 +1,150 @@
+{
+ "frame_0025.png": {
+  "ali_shirt": {
+   "target": "#3B82F6",
+   "median_rgb": [
+    66,
+    132,
+    244
+   ],
+   "rgb_distance": 7.5,
+   "target_hue": 217.2,
+   "median_hue": 217.8,
+   "hue_delta": 0.5
+  },
+  "ali_hair": {
+   "target": "#2C1810",
+   "median_rgb": [
+    41,
+    31,
+    29
+   ],
+   "rgb_distance": 15.1,
+   "target_hue": 17.1,
+   "median_hue": 10.0,
+   "hue_delta": 7.1
+  },
+  "ali_skin": {
+   "target": "#F5D0A9",
+   "median_rgb": [
+    243,
+    208,
+    171
+   ],
+   "rgb_distance": 2.8,
+   "target_hue": 30.8,
+   "median_hue": 30.8,
+   "hue_delta": 0.0
+  },
+  "ayse_shirt": {
+   "target": "#EC4899",
+   "median_rgb": [
+    230,
+    79,
+    156
+   ],
+   "rgb_distance": 9.7,
+   "target_hue": 330.4,
+   "median_hue": 329.4,
+   "hue_delta": 1.0
+  },
+  "ayse_hair": {
+   "target": "#B45309",
+   "median_rgb": [
+    167,
+    82,
+    35
+   ],
+   "rgb_distance": 29.1,
+   "target_hue": 26.0,
+   "median_hue": 21.4,
+   "hue_delta": 4.6
+  },
+  "ayse_skin": {
+   "target": "#FCE7D0",
+   "median_rgb": [
+    253,
+    232,
+    211
+   ],
+   "rgb_distance": 3.3,
+   "target_hue": 31.4,
+   "median_hue": 30.0,
+   "hue_delta": 1.4
+  }
+ },
+ "frame_0300.png": {
+  "ali_shirt": {
+   "target": "#3B82F6",
+   "median_rgb": [
+    66,
+    130,
+    241
+   ],
+   "rgb_distance": 8.6,
+   "target_hue": 217.2,
+   "median_hue": 218.1,
+   "hue_delta": 0.8
+  },
+  "ali_hair": {
+   "target": "#2C1810",
+   "median_rgb": [
+    39,
+    30,
+    29
+   ],
+   "rgb_distance": 15.2,
+   "target_hue": 17.1,
+   "median_hue": 6.0,
+   "hue_delta": 11.1
+  },
+  "ali_skin": {
+   "target": "#F5D0A9",
+   "median_rgb": [
+    243,
+    208,
+    172
+   ],
+   "rgb_distance": 3.6,
+   "target_hue": 30.8,
+   "median_hue": 30.4,
+   "hue_delta": 0.4
+  },
+  "ayse_shirt": {
+   "target": "#EC4899",
+   "median_rgb": [
+    228,
+    78,
+    155
+   ],
+   "rgb_distance": 10.2,
+   "target_hue": 330.4,
+   "median_hue": 329.2,
+   "hue_delta": 1.2
+  },
+  "ayse_hair": {
+   "target": "#B45309",
+   "median_rgb": [
+    169,
+    83,
+    36
+   ],
+   "rgb_distance": 29.2,
+   "target_hue": 26.0,
+   "median_hue": 21.2,
+   "hue_delta": 4.8
+  },
+  "ayse_skin": {
+   "target": "#FCE7D0",
+   "median_rgb": [
+    254,
+    233,
+    211
+   ],
+   "rgb_distance": 4.1,
+   "target_hue": 31.4,
+   "median_hue": 30.7,
+   "hue_delta": 0.7
+  }
+ }
+}

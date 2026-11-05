@@ -14,6 +14,7 @@ from tezlify_studio.domain.exceptions.studio_exceptions import (
     ElevenLabsApiException,
     AudioSynthesisException,
 )
+from tezlify_studio.infrastructure.configuration.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +81,7 @@ class ElevenLabsClientImpl(VoiceSynthesizerPort):
         self.api_key = api_key or os.environ.get("ELEVENLABS_API_KEY", "").strip() or None
         self.default_model = default_model
         self.api_base = api_base.rstrip("/")
-        self.cache_dir = cache_dir or os.path.abspath("data/audio_cache")
+        self.cache_dir = cache_dir or settings.audio_cache_dir
         os.makedirs(self.cache_dir, exist_ok=True)
 
     def is_configured(self) -> bool:

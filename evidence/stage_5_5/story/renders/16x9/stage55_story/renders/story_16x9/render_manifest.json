@@ -1,0 +1,1991 @@
+{
+  "project_id": "stage55_story",
+  "job_id": "story_16x9",
+  "assets_dir": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/studio_assets",
+  "frames_dir": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_5/story/renders/16x9/stage55_story/frames/story_16x9",
+  "scene_save_path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_5/story/renders/16x9/stage55_story/scenes/scene_story_16x9.blend",
+  "result_path": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_5/story/renders/16x9/stage55_story/renders/story_16x9/render_result.json",
+  "engine_override": "BLENDER_EEVEE",
+  "scene_graph": {
+    "schema_version": "1.0",
+    "project_id": "stage55_story",
+    "title": "Kafede Kar\u015f\u0131la\u015fma",
+    "description": "",
+    "resolution": {
+      "width": 1280,
+      "height": 720,
+      "aspect_ratio": "16:9",
+      "fps": 30
+    },
+    "characters": [
+      {
+        "id": "char_ali",
+        "name": "Ali",
+        "voice_id": "tr_yelda",
+        "style": {
+          "hair_color": "#2C1810",
+          "skin_tone": "#F5D0A9",
+          "shirt_color": "#3B82F6",
+          "pants_color": "#1E293B"
+        }
+      },
+      {
+        "id": "char_ayse",
+        "name": "Ay\u015fe",
+        "voice_id": "tr_yelda",
+        "style": {
+          "hair_color": "#2C1810",
+          "skin_tone": "#F5D0A9",
+          "shirt_color": "#3B82F6",
+          "pants_color": "#1E293B"
+        }
+      }
+    ],
+    "scenes": [
+      {
+        "scene_id": "scene_encounter",
+        "sequence_order": 1,
+        "duration_seconds": 8.51,
+        "background": {
+          "type": "preset",
+          "asset_id": "bg_modern_cafe",
+          "lighting": "warm_interior"
+        },
+        "camera": {
+          "angle": "two_shot",
+          "fov": 45.0,
+          "movement": "slow_zoom_in"
+        },
+        "character_placements": [
+          {
+            "character_id": "char_ali",
+            "position": [
+              -0.55,
+              0.0,
+              0.0
+            ],
+            "rotation_y": 14.0,
+            "pose": "standing",
+            "expression": "cheerful"
+          },
+          {
+            "character_id": "char_ayse",
+            "position": [
+              0.55,
+              0.0,
+              0.0
+            ],
+            "rotation_y": -14.0,
+            "pose": "standing",
+            "expression": "cheerful"
+          }
+        ],
+        "dialogues": [
+          {
+            "character_id": "char_ali",
+            "start_time": 0.5,
+            "end_time": 3.98,
+            "text": "Merhaba Ay\u015fe! Seni burada g\u00f6rmek ne g\u00fczel.",
+            "audio_file": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_5/story/audio/scene_encounter_char_ali_1.mp3",
+            "visemes": [
+              {
+                "time": 0.02,
+                "shape": "X",
+                "end_time": 0.12,
+                "viseme": "CLOSED",
+                "phoneme": "m",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.12,
+                "shape": "X",
+                "end_time": 0.2,
+                "viseme": "OPEN",
+                "phoneme": "e",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.2,
+                "shape": "X",
+                "end_time": 0.26,
+                "viseme": "DENTAL",
+                "phoneme": "r",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.26,
+                "shape": "X",
+                "end_time": 0.32,
+                "viseme": "VELAR",
+                "phoneme": "h",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.32,
+                "shape": "X",
+                "end_time": 0.42,
+                "viseme": "OPEN",
+                "phoneme": "a",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.42,
+                "shape": "X",
+                "end_time": 0.48,
+                "viseme": "CLOSED",
+                "phoneme": "b",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.48,
+                "shape": "X",
+                "end_time": 0.5,
+                "viseme": "OPEN",
+                "phoneme": "a",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.6,
+                "shape": "X",
+                "end_time": 0.7,
+                "viseme": "OPEN",
+                "phoneme": "a",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.7,
+                "shape": "X",
+                "end_time": 0.78,
+                "viseme": "NARROW_ROUND",
+                "phoneme": "y",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.78,
+                "shape": "X",
+                "end_time": 0.86,
+                "viseme": "SIBILANT",
+                "phoneme": "\u015f",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.86,
+                "shape": "X",
+                "end_time": 0.88,
+                "viseme": "OPEN",
+                "phoneme": "e",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.88,
+                "shape": "X",
+                "end_time": 1.28,
+                "viseme": "REST",
+                "phoneme": " ",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.28,
+                "shape": "X",
+                "end_time": 1.38,
+                "viseme": "SIBILANT",
+                "phoneme": "s",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.38,
+                "shape": "X",
+                "end_time": 1.46,
+                "viseme": "OPEN",
+                "phoneme": "e",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.46,
+                "shape": "X",
+                "end_time": 1.5,
+                "viseme": "DENTAL",
+                "phoneme": "n",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.5,
+                "shape": "X",
+                "end_time": 1.52,
+                "viseme": "WIDE",
+                "phoneme": "i",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.6,
+                "shape": "X",
+                "end_time": 1.66,
+                "viseme": "CLOSED",
+                "phoneme": "b",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.66,
+                "shape": "X",
+                "end_time": 1.72,
+                "viseme": "NARROW_ROUND",
+                "phoneme": "u",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.72,
+                "shape": "X",
+                "end_time": 1.76,
+                "viseme": "DENTAL",
+                "phoneme": "r",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.76,
+                "shape": "X",
+                "end_time": 1.84,
+                "viseme": "OPEN",
+                "phoneme": "a",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.84,
+                "shape": "X",
+                "end_time": 1.9,
+                "viseme": "DENTAL",
+                "phoneme": "d",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.9,
+                "shape": "X",
+                "end_time": 1.92,
+                "viseme": "OPEN",
+                "phoneme": "a",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.0,
+                "shape": "X",
+                "end_time": 2.08,
+                "viseme": "VELAR",
+                "phoneme": "g",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.08,
+                "shape": "X",
+                "end_time": 2.16,
+                "viseme": "ROUND",
+                "phoneme": "\u00f6",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.16,
+                "shape": "X",
+                "end_time": 2.24,
+                "viseme": "DENTAL",
+                "phoneme": "r",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.24,
+                "shape": "X",
+                "end_time": 2.32,
+                "viseme": "CLOSED",
+                "phoneme": "m",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.32,
+                "shape": "X",
+                "end_time": 2.4,
+                "viseme": "OPEN",
+                "phoneme": "e",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.4,
+                "shape": "X",
+                "end_time": 2.42,
+                "viseme": "VELAR",
+                "phoneme": "k",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.52,
+                "shape": "X",
+                "end_time": 2.58,
+                "viseme": "DENTAL",
+                "phoneme": "n",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.58,
+                "shape": "X",
+                "end_time": 2.6,
+                "viseme": "OPEN",
+                "phoneme": "e",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.62,
+                "shape": "X",
+                "end_time": 2.72,
+                "viseme": "VELAR",
+                "phoneme": "g",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.72,
+                "shape": "X",
+                "end_time": 2.82,
+                "viseme": "NARROW_ROUND",
+                "phoneme": "\u00fc",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.82,
+                "shape": "X",
+                "end_time": 2.92,
+                "viseme": "SIBILANT",
+                "phoneme": "z",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.92,
+                "shape": "X",
+                "end_time": 3.04,
+                "viseme": "OPEN",
+                "phoneme": "e",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 3.04,
+                "shape": "X",
+                "end_time": 3.06,
+                "viseme": "DENTAL",
+                "phoneme": "l",
+                "confidence": null,
+                "source": "ctc_forced"
+              }
+            ]
+          },
+          {
+            "character_id": "char_ayse",
+            "start_time": 4.48,
+            "end_time": 7.31,
+            "text": "Ali! Ben de tam seni d\u00fc\u015f\u00fcn\u00fcyordum.",
+            "audio_file": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_5/story/audio/scene_encounter_char_ayse_2.mp3",
+            "visemes": [
+              {
+                "time": 0.02,
+                "shape": "X",
+                "end_time": 0.14,
+                "viseme": "OPEN",
+                "phoneme": "a",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.14,
+                "shape": "X",
+                "end_time": 0.2,
+                "viseme": "DENTAL",
+                "phoneme": "l",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.2,
+                "shape": "X",
+                "end_time": 0.22,
+                "viseme": "WIDE",
+                "phoneme": "i",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.22,
+                "shape": "X",
+                "end_time": 0.54,
+                "viseme": "REST",
+                "phoneme": " ",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.54,
+                "shape": "X",
+                "end_time": 0.62,
+                "viseme": "CLOSED",
+                "phoneme": "b",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.62,
+                "shape": "X",
+                "end_time": 0.7,
+                "viseme": "OPEN",
+                "phoneme": "e",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.7,
+                "shape": "X",
+                "end_time": 0.72,
+                "viseme": "DENTAL",
+                "phoneme": "n",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.78,
+                "shape": "X",
+                "end_time": 0.84,
+                "viseme": "DENTAL",
+                "phoneme": "d",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.84,
+                "shape": "X",
+                "end_time": 0.86,
+                "viseme": "OPEN",
+                "phoneme": "e",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.94,
+                "shape": "X",
+                "end_time": 1.04,
+                "viseme": "DENTAL",
+                "phoneme": "t",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.04,
+                "shape": "X",
+                "end_time": 1.14,
+                "viseme": "OPEN",
+                "phoneme": "a",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.14,
+                "shape": "X",
+                "end_time": 1.16,
+                "viseme": "CLOSED",
+                "phoneme": "m",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.24,
+                "shape": "X",
+                "end_time": 1.34,
+                "viseme": "SIBILANT",
+                "phoneme": "s",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.34,
+                "shape": "X",
+                "end_time": 1.42,
+                "viseme": "OPEN",
+                "phoneme": "e",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.42,
+                "shape": "X",
+                "end_time": 1.46,
+                "viseme": "DENTAL",
+                "phoneme": "n",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.46,
+                "shape": "X",
+                "end_time": 1.48,
+                "viseme": "WIDE",
+                "phoneme": "i",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.52,
+                "shape": "X",
+                "end_time": 1.6,
+                "viseme": "DENTAL",
+                "phoneme": "d",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.6,
+                "shape": "X",
+                "end_time": 1.7,
+                "viseme": "NARROW_ROUND",
+                "phoneme": "\u00fc",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.7,
+                "shape": "X",
+                "end_time": 1.76,
+                "viseme": "SIBILANT",
+                "phoneme": "\u015f",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.76,
+                "shape": "X",
+                "end_time": 1.86,
+                "viseme": "NARROW_ROUND",
+                "phoneme": "\u00fc",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.86,
+                "shape": "X",
+                "end_time": 1.92,
+                "viseme": "DENTAL",
+                "phoneme": "n",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.92,
+                "shape": "X",
+                "end_time": 2.06,
+                "viseme": "NARROW_ROUND",
+                "phoneme": "\u00fc",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.06,
+                "shape": "X",
+                "end_time": 2.18,
+                "viseme": "ROUND",
+                "phoneme": "o",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.18,
+                "shape": "X",
+                "end_time": 2.32,
+                "viseme": "DENTAL",
+                "phoneme": "r",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.32,
+                "shape": "X",
+                "end_time": 2.4,
+                "viseme": "NARROW_ROUND",
+                "phoneme": "u",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.4,
+                "shape": "X",
+                "end_time": 2.42,
+                "viseme": "CLOSED",
+                "phoneme": "m",
+                "confidence": null,
+                "source": "ctc_forced"
+              }
+            ]
+          }
+        ],
+        "transition": null
+      },
+      {
+        "scene_id": "scene_conversation",
+        "sequence_order": 1,
+        "duration_seconds": 9.22,
+        "background": {
+          "type": "preset",
+          "asset_id": "bg_modern_cafe",
+          "lighting": "warm_interior"
+        },
+        "camera": {
+          "angle": "medium_shot",
+          "fov": 45.0,
+          "movement": "static"
+        },
+        "character_placements": [
+          {
+            "character_id": "char_ali",
+            "position": [
+              -0.55,
+              0.0,
+              0.0
+            ],
+            "rotation_y": 14.0,
+            "pose": "standing",
+            "expression": "cheerful"
+          },
+          {
+            "character_id": "char_ayse",
+            "position": [
+              0.55,
+              0.0,
+              0.0
+            ],
+            "rotation_y": -14.0,
+            "pose": "standing",
+            "expression": "cheerful"
+          }
+        ],
+        "dialogues": [
+          {
+            "character_id": "char_ayse",
+            "start_time": 0.5,
+            "end_time": 3.58,
+            "text": "Yeni animasyon projesi nas\u0131l gidiyor?",
+            "audio_file": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_5/story/audio/scene_conversation_char_ayse_1.mp3",
+            "visemes": [
+              {
+                "time": 0.02,
+                "shape": "X",
+                "end_time": 0.1,
+                "viseme": "NARROW_ROUND",
+                "phoneme": "y",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.1,
+                "shape": "X",
+                "end_time": 0.18,
+                "viseme": "OPEN",
+                "phoneme": "e",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.18,
+                "shape": "X",
+                "end_time": 0.2,
+                "viseme": "DENTAL",
+                "phoneme": "n",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.2,
+                "shape": "X",
+                "end_time": 0.22,
+                "viseme": "WIDE",
+                "phoneme": "i",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.3,
+                "shape": "X",
+                "end_time": 0.4,
+                "viseme": "OPEN",
+                "phoneme": "a",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.4,
+                "shape": "X",
+                "end_time": 0.44,
+                "viseme": "DENTAL",
+                "phoneme": "n",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.44,
+                "shape": "X",
+                "end_time": 0.52,
+                "viseme": "WIDE",
+                "phoneme": "i",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.52,
+                "shape": "X",
+                "end_time": 0.6,
+                "viseme": "CLOSED",
+                "phoneme": "m",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.6,
+                "shape": "X",
+                "end_time": 0.74,
+                "viseme": "OPEN",
+                "phoneme": "a",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.74,
+                "shape": "X",
+                "end_time": 0.84,
+                "viseme": "SIBILANT",
+                "phoneme": "s",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.84,
+                "shape": "X",
+                "end_time": 0.9,
+                "viseme": "NARROW_ROUND",
+                "phoneme": "y",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.9,
+                "shape": "X",
+                "end_time": 1.02,
+                "viseme": "ROUND",
+                "phoneme": "o",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.02,
+                "shape": "X",
+                "end_time": 1.04,
+                "viseme": "DENTAL",
+                "phoneme": "n",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.12,
+                "shape": "X",
+                "end_time": 1.18,
+                "viseme": "CLOSED",
+                "phoneme": "p",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.18,
+                "shape": "X",
+                "end_time": 1.22,
+                "viseme": "DENTAL",
+                "phoneme": "r",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.22,
+                "shape": "X",
+                "end_time": 1.34,
+                "viseme": "ROUND",
+                "phoneme": "o",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.34,
+                "shape": "X",
+                "end_time": 1.42,
+                "viseme": "SIBILANT",
+                "phoneme": "j",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.42,
+                "shape": "X",
+                "end_time": 1.54,
+                "viseme": "OPEN",
+                "phoneme": "e",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.54,
+                "shape": "X",
+                "end_time": 1.6,
+                "viseme": "SIBILANT",
+                "phoneme": "s",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.6,
+                "shape": "X",
+                "end_time": 1.62,
+                "viseme": "WIDE",
+                "phoneme": "i",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.72,
+                "shape": "X",
+                "end_time": 1.78,
+                "viseme": "DENTAL",
+                "phoneme": "n",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.78,
+                "shape": "X",
+                "end_time": 1.88,
+                "viseme": "OPEN",
+                "phoneme": "a",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.88,
+                "shape": "X",
+                "end_time": 1.96,
+                "viseme": "SIBILANT",
+                "phoneme": "s",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.96,
+                "shape": "X",
+                "end_time": 2.0,
+                "viseme": "WIDE",
+                "phoneme": "\u0131",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.0,
+                "shape": "X",
+                "end_time": 2.04,
+                "viseme": "DENTAL",
+                "phoneme": "l",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.1,
+                "shape": "X",
+                "end_time": 2.16,
+                "viseme": "VELAR",
+                "phoneme": "g",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.16,
+                "shape": "X",
+                "end_time": 2.24,
+                "viseme": "WIDE",
+                "phoneme": "i",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.24,
+                "shape": "X",
+                "end_time": 2.28,
+                "viseme": "DENTAL",
+                "phoneme": "d",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.28,
+                "shape": "X",
+                "end_time": 2.38,
+                "viseme": "WIDE",
+                "phoneme": "i",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.38,
+                "shape": "X",
+                "end_time": 2.44,
+                "viseme": "NARROW_ROUND",
+                "phoneme": "y",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.44,
+                "shape": "X",
+                "end_time": 2.58,
+                "viseme": "ROUND",
+                "phoneme": "o",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.58,
+                "shape": "X",
+                "end_time": 2.62,
+                "viseme": "DENTAL",
+                "phoneme": "r",
+                "confidence": null,
+                "source": "ctc_forced"
+              }
+            ]
+          },
+          {
+            "character_id": "char_ali",
+            "start_time": 4.08,
+            "end_time": 8.02,
+            "text": "Harika gidiyor! D\u00fcn gece b\u00fct\u00fcn sahneleri bitirdim.",
+            "audio_file": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_5/story/audio/scene_conversation_char_ali_2.mp3",
+            "visemes": [
+              {
+                "time": 0.02,
+                "shape": "X",
+                "end_time": 0.08,
+                "viseme": "VELAR",
+                "phoneme": "h",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.08,
+                "shape": "X",
+                "end_time": 0.24,
+                "viseme": "OPEN",
+                "phoneme": "a",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.24,
+                "shape": "X",
+                "end_time": 0.3,
+                "viseme": "DENTAL",
+                "phoneme": "r",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.3,
+                "shape": "X",
+                "end_time": 0.36,
+                "viseme": "WIDE",
+                "phoneme": "i",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.36,
+                "shape": "X",
+                "end_time": 0.44,
+                "viseme": "VELAR",
+                "phoneme": "k",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.44,
+                "shape": "X",
+                "end_time": 0.48,
+                "viseme": "OPEN",
+                "phoneme": "a",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.52,
+                "shape": "X",
+                "end_time": 0.62,
+                "viseme": "VELAR",
+                "phoneme": "g",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.62,
+                "shape": "X",
+                "end_time": 0.7,
+                "viseme": "WIDE",
+                "phoneme": "i",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.7,
+                "shape": "X",
+                "end_time": 0.74,
+                "viseme": "DENTAL",
+                "phoneme": "d",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.74,
+                "shape": "X",
+                "end_time": 0.82,
+                "viseme": "WIDE",
+                "phoneme": "i",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.82,
+                "shape": "X",
+                "end_time": 0.9,
+                "viseme": "NARROW_ROUND",
+                "phoneme": "y",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.9,
+                "shape": "X",
+                "end_time": 1.06,
+                "viseme": "ROUND",
+                "phoneme": "o",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.06,
+                "shape": "X",
+                "end_time": 1.08,
+                "viseme": "DENTAL",
+                "phoneme": "r",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.16,
+                "shape": "X",
+                "end_time": 1.48,
+                "viseme": "DENTAL",
+                "phoneme": "d",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.48,
+                "shape": "X",
+                "end_time": 1.54,
+                "viseme": "NARROW_ROUND",
+                "phoneme": "\u00fc",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.54,
+                "shape": "X",
+                "end_time": 1.56,
+                "viseme": "DENTAL",
+                "phoneme": "n",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.62,
+                "shape": "X",
+                "end_time": 1.68,
+                "viseme": "VELAR",
+                "phoneme": "g",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.68,
+                "shape": "X",
+                "end_time": 1.8,
+                "viseme": "OPEN",
+                "phoneme": "e",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.8,
+                "shape": "X",
+                "end_time": 1.84,
+                "viseme": "SIBILANT",
+                "phoneme": "c",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.84,
+                "shape": "X",
+                "end_time": 1.86,
+                "viseme": "OPEN",
+                "phoneme": "e",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.96,
+                "shape": "X",
+                "end_time": 2.0,
+                "viseme": "CLOSED",
+                "phoneme": "b",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.0,
+                "shape": "X",
+                "end_time": 2.12,
+                "viseme": "NARROW_ROUND",
+                "phoneme": "\u00fc",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.12,
+                "shape": "X",
+                "end_time": 2.18,
+                "viseme": "DENTAL",
+                "phoneme": "t",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.18,
+                "shape": "X",
+                "end_time": 2.24,
+                "viseme": "NARROW_ROUND",
+                "phoneme": "\u00fc",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.24,
+                "shape": "X",
+                "end_time": 2.26,
+                "viseme": "DENTAL",
+                "phoneme": "n",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.34,
+                "shape": "X",
+                "end_time": 2.44,
+                "viseme": "SIBILANT",
+                "phoneme": "s",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.44,
+                "shape": "X",
+                "end_time": 2.56,
+                "viseme": "OPEN",
+                "phoneme": "a",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.56,
+                "shape": "X",
+                "end_time": 2.62,
+                "viseme": "VELAR",
+                "phoneme": "h",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.62,
+                "shape": "X",
+                "end_time": 2.68,
+                "viseme": "DENTAL",
+                "phoneme": "n",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.68,
+                "shape": "X",
+                "end_time": 2.76,
+                "viseme": "OPEN",
+                "phoneme": "e",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.76,
+                "shape": "X",
+                "end_time": 2.82,
+                "viseme": "DENTAL",
+                "phoneme": "l",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.82,
+                "shape": "X",
+                "end_time": 2.88,
+                "viseme": "OPEN",
+                "phoneme": "e",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.88,
+                "shape": "X",
+                "end_time": 2.94,
+                "viseme": "DENTAL",
+                "phoneme": "r",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.94,
+                "shape": "X",
+                "end_time": 2.96,
+                "viseme": "WIDE",
+                "phoneme": "i",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.98,
+                "shape": "X",
+                "end_time": 3.08,
+                "viseme": "CLOSED",
+                "phoneme": "b",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 3.08,
+                "shape": "X",
+                "end_time": 3.2,
+                "viseme": "WIDE",
+                "phoneme": "i",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 3.2,
+                "shape": "X",
+                "end_time": 3.26,
+                "viseme": "DENTAL",
+                "phoneme": "t",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 3.26,
+                "shape": "X",
+                "end_time": 3.32,
+                "viseme": "WIDE",
+                "phoneme": "i",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 3.32,
+                "shape": "X",
+                "end_time": 3.44,
+                "viseme": "DENTAL",
+                "phoneme": "r",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 3.44,
+                "shape": "X",
+                "end_time": 3.5,
+                "viseme": "WIDE",
+                "phoneme": "i",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 3.5,
+                "shape": "X",
+                "end_time": 3.52,
+                "viseme": "CLOSED",
+                "phoneme": "m",
+                "confidence": null,
+                "source": "ctc_forced"
+              }
+            ]
+          }
+        ],
+        "transition": null
+      },
+      {
+        "scene_id": "scene_reaction",
+        "sequence_order": 1,
+        "duration_seconds": 8.68,
+        "background": {
+          "type": "preset",
+          "asset_id": "bg_modern_cafe",
+          "lighting": "warm_interior"
+        },
+        "camera": {
+          "angle": "over_shoulder",
+          "fov": 45.0,
+          "movement": "slow_zoom_in"
+        },
+        "character_placements": [
+          {
+            "character_id": "char_ali",
+            "position": [
+              -0.55,
+              0.0,
+              0.0
+            ],
+            "rotation_y": 14.0,
+            "pose": "standing",
+            "expression": "sad"
+          },
+          {
+            "character_id": "char_ayse",
+            "position": [
+              0.55,
+              0.0,
+              0.0
+            ],
+            "rotation_y": -14.0,
+            "pose": "standing",
+            "expression": "surprised"
+          }
+        ],
+        "dialogues": [
+          {
+            "character_id": "char_ali",
+            "start_time": 0.5,
+            "end_time": 3.43,
+            "text": "Ama sabah bilgisayar bir anda \u00e7\u00f6kt\u00fc.",
+            "audio_file": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_5/story/audio/scene_reaction_char_ali_1.mp3",
+            "visemes": [
+              {
+                "time": 0.02,
+                "shape": "X",
+                "end_time": 0.14,
+                "viseme": "OPEN",
+                "phoneme": "a",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.14,
+                "shape": "X",
+                "end_time": 0.2,
+                "viseme": "CLOSED",
+                "phoneme": "m",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.2,
+                "shape": "X",
+                "end_time": 0.22,
+                "viseme": "OPEN",
+                "phoneme": "a",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.32,
+                "shape": "X",
+                "end_time": 0.4,
+                "viseme": "SIBILANT",
+                "phoneme": "s",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.4,
+                "shape": "X",
+                "end_time": 0.5,
+                "viseme": "OPEN",
+                "phoneme": "a",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.5,
+                "shape": "X",
+                "end_time": 0.56,
+                "viseme": "CLOSED",
+                "phoneme": "b",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.56,
+                "shape": "X",
+                "end_time": 0.66,
+                "viseme": "OPEN",
+                "phoneme": "a",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.66,
+                "shape": "X",
+                "end_time": 0.68,
+                "viseme": "VELAR",
+                "phoneme": "h",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.76,
+                "shape": "X",
+                "end_time": 0.84,
+                "viseme": "CLOSED",
+                "phoneme": "b",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.84,
+                "shape": "X",
+                "end_time": 0.88,
+                "viseme": "WIDE",
+                "phoneme": "i",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.88,
+                "shape": "X",
+                "end_time": 0.94,
+                "viseme": "DENTAL",
+                "phoneme": "l",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.94,
+                "shape": "X",
+                "end_time": 1.0,
+                "viseme": "VELAR",
+                "phoneme": "g",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.0,
+                "shape": "X",
+                "end_time": 1.1,
+                "viseme": "WIDE",
+                "phoneme": "i",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.1,
+                "shape": "X",
+                "end_time": 1.2,
+                "viseme": "SIBILANT",
+                "phoneme": "s",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.2,
+                "shape": "X",
+                "end_time": 1.26,
+                "viseme": "OPEN",
+                "phoneme": "a",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.26,
+                "shape": "X",
+                "end_time": 1.36,
+                "viseme": "NARROW_ROUND",
+                "phoneme": "y",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.36,
+                "shape": "X",
+                "end_time": 1.48,
+                "viseme": "OPEN",
+                "phoneme": "a",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.48,
+                "shape": "X",
+                "end_time": 1.5,
+                "viseme": "DENTAL",
+                "phoneme": "r",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.54,
+                "shape": "X",
+                "end_time": 1.6,
+                "viseme": "CLOSED",
+                "phoneme": "b",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.6,
+                "shape": "X",
+                "end_time": 1.66,
+                "viseme": "WIDE",
+                "phoneme": "i",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.66,
+                "shape": "X",
+                "end_time": 1.7,
+                "viseme": "DENTAL",
+                "phoneme": "r",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.76,
+                "shape": "X",
+                "end_time": 1.86,
+                "viseme": "OPEN",
+                "phoneme": "a",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.86,
+                "shape": "X",
+                "end_time": 1.98,
+                "viseme": "DENTAL",
+                "phoneme": "n",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.98,
+                "shape": "X",
+                "end_time": 2.02,
+                "viseme": "OPEN",
+                "phoneme": "a",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.1,
+                "shape": "X",
+                "end_time": 2.2,
+                "viseme": "SIBILANT",
+                "phoneme": "\u00e7",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.2,
+                "shape": "X",
+                "end_time": 2.34,
+                "viseme": "ROUND",
+                "phoneme": "\u00f6",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.34,
+                "shape": "X",
+                "end_time": 2.44,
+                "viseme": "VELAR",
+                "phoneme": "k",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.44,
+                "shape": "X",
+                "end_time": 2.48,
+                "viseme": "DENTAL",
+                "phoneme": "t",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.48,
+                "shape": "X",
+                "end_time": 2.5,
+                "viseme": "NARROW_ROUND",
+                "phoneme": "\u00fc",
+                "confidence": null,
+                "source": "ctc_forced"
+              }
+            ]
+          },
+          {
+            "character_id": "char_ayse",
+            "start_time": 3.93,
+            "end_time": 7.48,
+            "text": "Ger\u00e7ekten mi? \u00c7ok \u00fcz\u00fcld\u00fcm, ge\u00e7mi\u015f olsun.",
+            "audio_file": "/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/evidence/stage_5_5/story/audio/scene_reaction_char_ayse_2.mp3",
+            "visemes": [
+              {
+                "time": 0.02,
+                "shape": "X",
+                "end_time": 0.1,
+                "viseme": "VELAR",
+                "phoneme": "g",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.1,
+                "shape": "X",
+                "end_time": 0.16,
+                "viseme": "OPEN",
+                "phoneme": "e",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.16,
+                "shape": "X",
+                "end_time": 0.28,
+                "viseme": "DENTAL",
+                "phoneme": "r",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.28,
+                "shape": "X",
+                "end_time": 0.34,
+                "viseme": "SIBILANT",
+                "phoneme": "\u00e7",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.34,
+                "shape": "X",
+                "end_time": 0.42,
+                "viseme": "OPEN",
+                "phoneme": "e",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.42,
+                "shape": "X",
+                "end_time": 0.56,
+                "viseme": "VELAR",
+                "phoneme": "k",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.56,
+                "shape": "X",
+                "end_time": 0.64,
+                "viseme": "DENTAL",
+                "phoneme": "t",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.64,
+                "shape": "X",
+                "end_time": 0.72,
+                "viseme": "OPEN",
+                "phoneme": "e",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.72,
+                "shape": "X",
+                "end_time": 0.74,
+                "viseme": "DENTAL",
+                "phoneme": "n",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.8,
+                "shape": "X",
+                "end_time": 0.86,
+                "viseme": "CLOSED",
+                "phoneme": "m",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.86,
+                "shape": "X",
+                "end_time": 0.88,
+                "viseme": "WIDE",
+                "phoneme": "i",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 0.88,
+                "shape": "X",
+                "end_time": 1.22,
+                "viseme": "REST",
+                "phoneme": " ",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.22,
+                "shape": "X",
+                "end_time": 1.28,
+                "viseme": "SIBILANT",
+                "phoneme": "\u00e7",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.28,
+                "shape": "X",
+                "end_time": 1.38,
+                "viseme": "ROUND",
+                "phoneme": "o",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.38,
+                "shape": "X",
+                "end_time": 1.4,
+                "viseme": "VELAR",
+                "phoneme": "k",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.46,
+                "shape": "X",
+                "end_time": 1.56,
+                "viseme": "NARROW_ROUND",
+                "phoneme": "\u00fc",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.56,
+                "shape": "X",
+                "end_time": 1.6,
+                "viseme": "SIBILANT",
+                "phoneme": "z",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.6,
+                "shape": "X",
+                "end_time": 1.66,
+                "viseme": "NARROW_ROUND",
+                "phoneme": "\u00fc",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.66,
+                "shape": "X",
+                "end_time": 1.8,
+                "viseme": "DENTAL",
+                "phoneme": "l",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.8,
+                "shape": "X",
+                "end_time": 1.86,
+                "viseme": "NARROW_ROUND",
+                "phoneme": "\u00fc",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.86,
+                "shape": "X",
+                "end_time": 1.88,
+                "viseme": "CLOSED",
+                "phoneme": "m",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 1.88,
+                "shape": "X",
+                "end_time": 2.22,
+                "viseme": "REST",
+                "phoneme": " ",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.22,
+                "shape": "X",
+                "end_time": 2.26,
+                "viseme": "VELAR",
+                "phoneme": "g",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.26,
+                "shape": "X",
+                "end_time": 2.38,
+                "viseme": "OPEN",
+                "phoneme": "e",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.38,
+                "shape": "X",
+                "end_time": 2.48,
+                "viseme": "SIBILANT",
+                "phoneme": "\u00e7",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.48,
+                "shape": "X",
+                "end_time": 2.52,
+                "viseme": "CLOSED",
+                "phoneme": "m",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.52,
+                "shape": "X",
+                "end_time": 2.62,
+                "viseme": "WIDE",
+                "phoneme": "i",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.62,
+                "shape": "X",
+                "end_time": 2.64,
+                "viseme": "SIBILANT",
+                "phoneme": "\u015f",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.74,
+                "shape": "X",
+                "end_time": 2.86,
+                "viseme": "ROUND",
+                "phoneme": "o",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.86,
+                "shape": "X",
+                "end_time": 2.96,
+                "viseme": "DENTAL",
+                "phoneme": "l",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 2.96,
+                "shape": "X",
+                "end_time": 3.02,
+                "viseme": "SIBILANT",
+                "phoneme": "s",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 3.02,
+                "shape": "X",
+                "end_time": 3.1,
+                "viseme": "NARROW_ROUND",
+                "phoneme": "u",
+                "confidence": null,
+                "source": "ctc_forced"
+              },
+              {
+                "time": 3.1,
+                "shape": "X",
+                "end_time": 3.12,
+                "viseme": "DENTAL",
+                "phoneme": "n",
+                "confidence": null,
+                "source": "ctc_forced"
+              }
+            ]
+          }
+        ],
+        "transition": null
+      }
+    ]
+  }
+}

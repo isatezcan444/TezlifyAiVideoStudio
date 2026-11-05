@@ -1,0 +1,18 @@
+============================================================
+  TEZLIFY AI VIDEO STUDIO - SISTEM VE ORTAM DENETIMI
+============================================================
+
+1. Isletim Sistemi: Darwin 27.0.0 (arm64)
+2. Python Surumu: 3.14.7 [92m[✓ OK][0m
+3. Node.js: v24.15.0 [92m[✓ OK][0m
+   npm:     11.12.1 [92m[✓ OK][0m
+4. FFmpeg:  /opt/homebrew/bin/ffmpeg [92m[✓ OK][0m
+   FFprobe: /opt/homebrew/bin/ffprobe [92m[✓ OK][0m
+5. Blender: Mevcut [92m[✓ OK][0m
+6. Medya Dizini: /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/media [92m[✓ OK][0m
+   SQLite DB:    /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/data/database/tezlify_studio.db [92m[✓ OK][0m
+
+============================================================
+  DENETIM TAMAMLANDI: Asama 1 (Local Studio Core) calismaya hazir.
+============================================================
+

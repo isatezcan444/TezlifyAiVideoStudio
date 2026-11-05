@@ -84,6 +84,8 @@ export interface RenderJob {
     frame_count: number;
     render_duration_seconds: number;
     engine: string;
+    has_audio?: boolean;
+    audio_codec?: string;
     composition_id?: string | null;
     composition_name?: string | null;
     format?: string | null;
@@ -94,13 +96,45 @@ export interface RenderJob {
     scene_count?: number;
     lip_sync?: {
       real_lip_sync: boolean;
-      speakers_total: number;
-      speakers_aligned: number;
       scenes: Array<{
         scene_id: string;
-        speakers: Record<string, string>;
         real_lip_sync: boolean;
+        speakers: Record<
+          string,
+          { mode: 'viseme' | 'legacy_flap' | string; segments?: number; keyframes?: number; source?: string }
+        >;
       }>;
+    } | null;
+    // Stage 5.5: measured loudness of the finished file, not a stream header.
+    audio_audible?: boolean;
+    audio_mean_db?: number | null;
+    audio_max_db?: number | null;
+    audio_reason?: string;
+    animation?: {
+      planned: boolean;
+      scenes?: Array<{
+        scene_id: string;
+        character_id: string;
+        clips: number;
+        keyed_channels: number;
+        controls: string[];
+        profile: {
+          energy: number;
+          gesture_rate: number;
+          head_mobility: number;
+          leading_hand: string;
+          blink_offset_frames: number;
+        };
+      }>;
+      summary?: {
+        scenes?: number;
+        clips_total?: number;
+        distinct_clips?: number;
+        gestures?: number;
+        dropped_gestures?: number;
+        expressions?: number;
+        clip_usage?: Record<string, number>;
+      };
     } | null;
   } | null;
   error_message?: string | null;

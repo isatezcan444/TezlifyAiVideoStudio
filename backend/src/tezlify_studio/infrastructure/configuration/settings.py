@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     frontend_port: int = Field(default=5173, alias="FRONTEND_PORT")
 
     data_dir: str = Field(default="./data", alias="DATA_DIR")
+    studio_projects_dir: str = Field(default="", alias="STUDIO_PROJECTS_DIR")
+    studio_assets_dir: str = Field(default="", alias="STUDIO_ASSETS_DIR")
     max_upload_size_mb: int = Field(default=500, alias="MAX_UPLOAD_SIZE_MB")
     allowed_origins: str = Field(
         default="http://localhost:5173,http://127.0.0.1:5173",
@@ -62,6 +64,30 @@ class Settings(BaseSettings):
         if os.path.isabs(self.data_dir):
             return self.data_dir
         return os.path.abspath(os.path.join(PROJECT_ROOT, self.data_dir))
+
+    @property
+    def resolved_studio_projects_dir(self) -> str:
+        """Render output tree. Absolute override, otherwise under DATA_DIR.
+
+        This used to be `os.path.abspath("data/studio_projects")`, i.e. relative to
+        whatever the process happened to be started from, so a test run with
+        DATA_DIR pointing at a scratch tree still wrote into the user's real
+        renders. Deriving it here makes DATA_DIR the single isolation switch.
+        """
+        if self.studio_projects_dir and os.path.isabs(self.studio_projects_dir):
+            return self.studio_projects_dir
+        path = os.path.join(self.resolved_data_dir, "studio_projects")
+        os.makedirs(path, exist_ok=True)
+        return path
+
+    @property
+    def resolved_studio_assets_dir(self) -> str:
+        """Character/prop/background .blend tree, same isolation rule as above."""
+        if self.studio_assets_dir and os.path.isabs(self.studio_assets_dir):
+            return self.studio_assets_dir
+        path = os.path.join(self.resolved_data_dir, "studio_assets")
+        os.makedirs(path, exist_ok=True)
+        return path
 
     @property
     def database_url(self) -> str:

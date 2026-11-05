@@ -80,3 +80,9 @@ tools/alignment_probe/*.log
 
 # Local speech alignment results (content-addressed cache, re-derivable)
 data/alignment_cache/
+
+# Stage 5.5 — raw render frames are ~1.8 GB and re-derivable with
+# evidence/stage_5_5/render_story_evidence.py. The sampled contact sheets and
+# story_evidence.json stay tracked.
+evidence/stage_5_5/story/renders/*/stage55_story/frames/
+evidence/stage_5_5/.data/

@@ -1,0 +1,51 @@
+/Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/.venv/lib/python3.14/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+=================================================================
+  TEZLIFY AI VIDEO STUDIO - UÇTAN UCA DOĞRULAMA (E2E TEST)
+=================================================================
+
+1. Health Check Test Ediliyor...
+   [✓] Health Check OK: {'status': 'ok', 'app': 'Tezlify AI Video Studio', 'version': '1.0.0'}
+
+2. Sistem Durumu Test Ediliyor...
+   [✓] OS: Darwin 27.0.0 (arm64)
+   [✓] Python: 3.14.7
+   [✓] Storage Path: /tmp/tezlify-e2e55
+
+3. Gerçek Video Yükleme Akışı Test Ediliyor...
+✅ Gerçek test MP4 dosyası oluşturuldu: /Users/isatezcan/Documents/Github/Tezlify-AI-Video-Studio/scripts/../data/temp/e2e_test_a6ef5773.mp4 (1280x720, 5s)
+   [✓] Video Yüklendi! ID: f8fd0bd1-4c44-45ed-8110-48f41e2f7d68
+   [✓] Dosya Adı: e2e_test_a6ef5773.mp4
+   [✓] Süre: 5.0s
+   [✓] Çözünürlük: 1280x720
+   [✓] SHA-256 Hash: 8d3d1dc0d5d959cf...
+
+4. Medya Kütüphanesinde Listeleme Doğrulanıyor...
+   [✓] Kütüphanede bulundu (Toplam 1 video).
+
+5. Video HTTP Range Streaming (İleri-Geri Sarma) Test Ediliyor...
+   [✓] HTTP 206 Partial Content (Bytes 0-1023) başarıyla iletildi.
+
+6. Mükerrer Video Tespiti (Duplicate Hash) Test Ediliyor...
+   [✓] HTTP 409 DUPLICATE_MEDIA başarıyla engellendi.
+
+7. Kalıcılık (Persistence) Doğrulanıyor...
+   [✓] SQLite veritabanında kayıt kalıcı olarak korundu.
+
+8. Güvenli Silme ve Dosya Temizliği Test Ediliyor...
+   [✓] Medya kaydı ve diskteki dosya güvenle silindi.
+
+9. YouTube Publisher Modülü Test Ediliyor...
+   [✓] YouTube Durum Endpoint'i OK (Bağlantı: False)
+   [✓] YouTube Yayın Geçmişi Endpoint'i OK (Kayıt sayısı: 0)
+
+10. Aşama 3 - Yayın Takvimi ve Otomatik Zamanlayıcı Test Ediliyor...
+   [✓] Scheduler Motor Durumu: False (Kontrol Aralığı: 30s)
+   [✓] Yayın Takvimi Listeleme OK (Toplam Plan: 0)
+   [✓] Yaklaşan Yayınlar Endpoint'i OK (Gelecek Planlar: 0)
+
+=================================================================
+  🎉 TÜM UÇTAN UCA TESTLER BAŞARIYLA TAMAMLANDI!
+=================================================================
+
+EXIT=0

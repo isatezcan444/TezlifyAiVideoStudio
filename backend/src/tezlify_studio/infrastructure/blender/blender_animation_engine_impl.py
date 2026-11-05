@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import time
+import logging
 import shutil
 import subprocess
 from typing import Callable, Optional
@@ -15,6 +16,10 @@ from tezlify_studio.application.use_cases.execute_render_job_use_case import (
 from tezlify_studio.domain.value_objects.scene_graph import SceneGraph
 from tezlify_studio.domain.value_objects.render_metadata import RenderOutputMetadata
 from tezlify_studio.domain.exceptions.studio_exceptions import BlenderRenderException
+from tezlify_studio.infrastructure.configuration.settings import settings
+from tezlify_studio.infrastructure.video.audio_probe import probe_audio_loudness
+
+logger = logging.getLogger(__name__)
 
 class BlenderAnimationEngineImpl(BlenderAnimationEnginePort):
     def __init__(
@@ -25,8 +30,8 @@ class BlenderAnimationEngineImpl(BlenderAnimationEnginePort):
         keep_frames: bool = False,
     ):
         self.blender_executable = blender_executable or self._find_blender()
-        self.base_projects_dir = base_projects_dir or os.path.abspath("data/studio_projects")
-        self.assets_dir = assets_dir or os.path.abspath("data/studio_assets")
+        self.base_projects_dir = base_projects_dir or settings.resolved_studio_projects_dir
+        self.assets_dir = assets_dir or settings.resolved_studio_assets_dir
         self.keep_frames = keep_frames
 
         # Path to the render worker script
@@ -121,7 +126,7 @@ class BlenderAnimationEngineImpl(BlenderAnimationEnginePort):
             "frames_dir": frames_dir,
             "scene_save_path": scene_save_path,
             "result_path": result_path,
-            "engine_override": engine_override or "BLENDER_WORKBENCH",
+            "engine_override": engine_override or "BLENDER_EEVEE",
             "scene_graph": scene_graph.model_dump(),
         }
 
@@ -365,6 +370,16 @@ class BlenderAnimationEngineImpl(BlenderAnimationEnginePort):
                 pass
 
         render_duration = round(time.time() - start_time, 2)
+        # Loudness is measured from the finished file, never inferred from the
+        # presence of an audio stream: this engine deliberately writes a silent
+        # AAC track when a project has no dialogue audio.
+        loudness = probe_audio_loudness(output_mp4_path)
+        if not loudness.audible:
+            logger.warning(
+                "%s: video has no audible audio (%s); reporting it as silent "
+                "rather than successful-with-audio",
+                job_id, loudness.reason,
+            )
         report(100.0, "Video render completed successfully")
 
         meta = RenderOutputMetadata(
@@ -379,10 +394,15 @@ class BlenderAnimationEngineImpl(BlenderAnimationEnginePort):
             container="mp4",
             has_audio=bool(audio_stream),
             audio_codec=a_codec,
+            audio_audible=loudness.audible,
+            audio_mean_db=loudness.mean_db,
+            audio_max_db=loudness.max_db,
+            audio_reason=loudness.reason,
             frame_count=total_frames,
             render_duration_seconds=render_duration,
-            engine=worker_result.get("engine", "BLENDER_WORKBENCH"),
+            engine=worker_result.get("engine", "BLENDER_EEVEE"),
             lip_sync=worker_result.get("lip_sync"),
+            animation=worker_result.get("animation"),
         )
 
         # Save metadata to disk
