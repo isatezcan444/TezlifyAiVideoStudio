@@ -30,6 +30,10 @@ class StartPublishRequest(BaseModel):
     category_id: str = Field(default="22")
     privacy_status: str = Field(default="private", pattern="^(public|unlisted|private)$")
     thumbnail_path: Optional[str] = None
+    playlist_id: Optional[str] = Field(
+        default=None,
+        description="Optional playlist to add the uploaded video to.",
+    )
 
 class PublishRecordResponse(BaseModel):
     id: str
@@ -47,6 +51,7 @@ class PublishRecordResponse(BaseModel):
     uploaded_bytes: int
     total_bytes: int
     thumbnail_path: Optional[str] = None
+    playlist_id: Optional[str] = None
     error_code: Optional[str] = None
     error_message: Optional[str] = None
     created_at: str

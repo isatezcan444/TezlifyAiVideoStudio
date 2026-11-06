@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, Dict, List, Optional
 
 from tezlify_studio.application.dto.connection_dto import channel_context_payload
@@ -16,6 +16,8 @@ from tezlify_studio.application.services.youtube_capability_service import (
 )
 from tezlify_studio.domain.value_objects.creator_models import (
     AnalyticsResult,
+    AnalyticsRow,
+    DateRange,
     YOUTUBE_ANALYTICS_METRICS,
 )
 from tezlify_studio.domain.value_objects.youtube_capabilities import (
@@ -47,6 +49,93 @@ _REASON_TEXT = {
 }
 
 
+def _previous_range(date_range: DateRange) -> DateRange:
+    end = date_range.start_date - timedelta(days=1)
+    start = end - timedelta(days=date_range.days - 1)
+    return DateRange(start_date=start, end_date=end, label=f"previous_{date_range.label}")
+
+
+def _metric_delta(current: Any, previous: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(current, (int, float)) or not isinstance(previous, (int, float)):
+        return None
+    change = current - previous
+    percent = (change / previous * 100) if previous else None
+    return {
+        "current": current,
+        "previous": previous,
+        "change": change,
+        "percent": percent,
+    }
+
+
+def _row_key(dimensions: List[str], row: AnalyticsRow) -> str:
+    return "|".join(row.dimensions.get(dimension, "") for dimension in dimensions)
+
+
+def _build_row_comparisons(
+    current: AnalyticsResult, previous: AnalyticsResult
+) -> List[Dict[str, Any]]:
+    if not current.dimensions or "day" in current.dimensions:
+        # Day keys are dates, so the previous window never shares them.
+        return []
+    previous_by_key = {
+        _row_key(current.dimensions, row): row for row in previous.rows
+    }
+    comparisons: List[Dict[str, Any]] = []
+    for row in current.rows:
+        key = _row_key(current.dimensions, row)
+        previous_row = previous_by_key.get(key)
+        deltas: Dict[str, Any] = {}
+        if previous_row is not None:
+            for metric, value in row.metrics.items():
+                delta = _metric_delta(value, previous_row.metrics.get(metric))
+                if delta is not None:
+                    deltas[metric] = delta
+        comparisons.append(
+            {
+                "key": key,
+                "dimensions": dict(row.dimensions),
+                "previous_metrics": (
+                    dict(previous_row.metrics) if previous_row is not None else {}
+                ),
+                "deltas": deltas,
+            }
+        )
+    return comparisons
+
+
+def _build_comparison(
+    current: AnalyticsResult, previous: AnalyticsResult, previous_range: DateRange
+) -> Dict[str, Any]:
+    deltas = {
+        metric: delta
+        for metric, value in current.totals.items()
+        if (delta := _metric_delta(value, previous.totals.get(metric))) is not None
+    }
+    revenue_delta = None
+    if current.revenue and current.revenue.get("available") and previous.revenue and previous.revenue.get("available"):
+        revenue_delta = {
+            "amount": _metric_delta(
+                current.revenue.get("amount"), previous.revenue.get("amount")
+            ),
+            "ad_revenue": _metric_delta(
+                current.revenue.get("ad_revenue"), previous.revenue.get("ad_revenue")
+            ),
+        }
+    return {
+        "available": True,
+        "range": {
+            "start_date": previous_range.start_date.isoformat(),
+            "end_date": previous_range.end_date.isoformat(),
+            "days": previous_range.days,
+        },
+        "totals": dict(previous.totals),
+        "deltas": deltas,
+        "rows": _build_row_comparisons(current, previous),
+        "revenue": revenue_delta,
+    }
+
+
 class GetChannelAnalyticsUseCase:
     def __init__(
         self,
@@ -71,6 +160,7 @@ class GetChannelAnalyticsUseCase:
         end_date: Optional[date] = None,
         dimensions: Optional[List[str]] = None,
         include_revenue: bool = False,
+        compare: bool = False,
         channel_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         date_range = resolve_date_range(
@@ -93,6 +183,7 @@ class GetChannelAnalyticsUseCase:
                 context.connection.granted_scopes, CAPABILITY_ANALYTICS
             )
         )
+        comparison: Optional[Dict[str, Any]] = None
         if missing_analytics_scope:
             # The central resolver decides from the granted scope, so a missing
             # permission is reported without calling Google. "API not enabled"
@@ -120,8 +211,29 @@ class GetChannelAnalyticsUseCase:
             self.availability_registry.mark(
                 context.connection_id, result.reason if not result.available else None
             )
+            if compare and result.available:
+                previous_range = _previous_range(date_range)
+                previous = session.analytics.query(
+                    date_range=previous_range,
+                    metrics=list(YOUTUBE_ANALYTICS_METRICS),
+                    dimensions=selected_dimensions,
+                    include_revenue=revenue_allowed,
+                )
+                comparison = (
+                    _build_comparison(result, previous, previous_range)
+                    if previous.available
+                    else {
+                        "available": False,
+                        "reason": previous.reason or "api_error",
+                        "range": {
+                            "start_date": previous_range.start_date.isoformat(),
+                            "end_date": previous_range.end_date.isoformat(),
+                            "days": previous_range.days,
+                        },
+                    }
+                )
 
-        return {
+        response: Dict[str, Any] = {
             "range": {
                 "key": date_range.label,
                 "start_date": date_range.start_date.isoformat(),
@@ -129,6 +241,7 @@ class GetChannelAnalyticsUseCase:
                 "days": date_range.days,
             },
             "analytics": result,
+            "comparison": comparison,
             "context": channel_context_payload(context),
             "source": "youtube_analytics_api" if result.available else None,
             "explanation": None if result.available else _REASON_TEXT.get(
@@ -147,3 +260,4 @@ class GetChannelAnalyticsUseCase:
                 ),
             },
         }
+        return response

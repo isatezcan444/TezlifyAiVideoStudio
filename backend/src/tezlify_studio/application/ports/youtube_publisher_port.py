@@ -112,6 +112,19 @@ class YouTubePublisherPort(ABC):
         """Uploads custom thumbnail for the specified YouTube video."""
         pass
 
+    def add_video_to_playlist(
+        self,
+        access_token: str,
+        playlist_id: str,
+        video_id: str,
+    ) -> bool:
+        """Adds an uploaded video to a playlist.
+
+        Default keeps older fakes working; the real adapter overrides it.
+        Requires the youtube.force-ssl scope, not just youtube.upload.
+        """
+        return False
+
     def get_video_details(self, access_token: str, video_id: str) -> Dict[str, Any]:
         """Queries video details (snippet, status) from YouTube Data API."""
         return {}

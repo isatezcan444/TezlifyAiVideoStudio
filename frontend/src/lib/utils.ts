@@ -51,4 +51,20 @@ export function formatNumber(value: number | null | undefined): string {
   return value.toLocaleString('tr-TR');
 }
 
+export function formatCurrency(
+  value: number | null | undefined,
+  currency = 'USD'
+): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return '—';
+  try {
+    return value.toLocaleString('tr-TR', {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: 2,
+    });
+  } catch {
+    return `${value.toFixed(2)} ${currency}`;
+  }
+}
+
 

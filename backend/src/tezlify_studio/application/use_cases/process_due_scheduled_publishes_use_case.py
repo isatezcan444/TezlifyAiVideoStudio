@@ -128,7 +128,10 @@ class ProcessDueScheduledPublishesUseCase:
                         title=record.title,
                         description=record.description,
                         tags=record.tags,
+                        category_id=record.category_id,
                         privacy_status=record.privacy_status.value,
+                        thumbnail_path=record.thumbnail_path,
+                        playlist_id=record.playlist_id,
                         channel_id=record.channel_id,
                     )
                     # Synchronous chunked upload in this scheduler worker thread

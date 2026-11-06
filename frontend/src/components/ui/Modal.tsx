@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -10,6 +10,9 @@ interface ModalProps {
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '4xl';
 }
 
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
@@ -17,19 +20,60 @@ export const Modal: React.FC<ModalProps> = ({
   children,
   maxWidth = 'md',
 }) => {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  const titleId = useId();
+
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    document.body.style.overflow = 'hidden';
+
+    const getFocusable = () =>
+      panelRef.current
+        ? Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+        : [];
+
+    const initial = getFocusable();
+    (initial[0] ?? panelRef.current)?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const focusable = getFocusable();
+      if (focusable.length === 0) {
+        event.preventDefault();
+        panelRef.current?.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-      window.addEventListener('keydown', handleKeyDown);
-    }
+
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.body.style.overflow = 'unset';
       window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'unset';
+      previouslyFocused?.focus?.();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -43,22 +87,32 @@ export const Modal: React.FC<ModalProps> = ({
   }[maxWidth];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="overlay-enter fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className={cn(
-          'w-full bg-white dark:bg-[#2F3349] rounded-xl shadow-2xl border border-slate-200 dark:border-white/[0.08] overflow-hidden flex flex-col max-h-[90vh]',
+          'dialog-enter w-full bg-white dark:bg-[#2F3349] rounded-xl shadow-2xl border border-slate-200 dark:border-white/[0.08] overflow-hidden flex flex-col max-h-[90vh] focus:outline-none',
           maxWidthClasses
         )}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-white/[0.08]">
-          <h2 className="text-base font-bold text-slate-800 dark:text-white">
+          <h2
+            id={titleId}
+            className="text-base font-bold text-slate-800 dark:text-white"
+          >
             {title}
           </h2>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Kapat"
             className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
         <div className="p-6 overflow-y-auto">{children}</div>
@@ -66,4 +120,3 @@ export const Modal: React.FC<ModalProps> = ({
     </div>
   );
 };
-

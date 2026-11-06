@@ -13,6 +13,9 @@ from tezlify_studio.application.services.connection_token_provider import Connec
 from tezlify_studio.application.services.youtube_capability_service import (
     YouTubeCapabilityService,
 )
+from tezlify_studio.application.use_cases.add_video_to_playlist_use_case import (
+    AddVideoToPlaylistUseCase,
+)
 from tezlify_studio.application.use_cases.cancel_scheduled_publish_use_case import (
     CancelScheduledPublishUseCase,
 )
@@ -61,6 +64,15 @@ from tezlify_studio.application.use_cases.get_upcoming_publishes_use_case import
 from tezlify_studio.application.use_cases.get_youtube_publish_status_use_case import (
     GetYouTubePublishStatusUseCase,
 )
+from tezlify_studio.application.use_cases.create_playlist_use_case import (
+    CreatePlaylistUseCase,
+)
+from tezlify_studio.application.use_cases.delete_channel_video_use_case import (
+    DeleteChannelVideoUseCase,
+)
+from tezlify_studio.application.use_cases.delete_playlist_use_case import (
+    DeletePlaylistUseCase,
+)
 from tezlify_studio.application.use_cases.import_video_use_case import ImportVideoUseCase
 from tezlify_studio.application.use_cases.list_channel_playlists_use_case import (
     ListChannelPlaylistsUseCase,
@@ -74,6 +86,9 @@ from tezlify_studio.application.use_cases.list_platform_connections_use_case imp
     ListPlatformConnectionsUseCase,
 )
 from tezlify_studio.application.use_cases.list_platforms_use_case import ListPlatformsUseCase
+from tezlify_studio.application.use_cases.list_playlist_items_use_case import (
+    ListPlaylistItemsUseCase,
+)
 from tezlify_studio.application.use_cases.list_publish_records_use_case import (
     ListPublishRecordsUseCase,
 )
@@ -83,8 +98,14 @@ from tezlify_studio.application.use_cases.list_scheduled_publishes_use_case impo
 from tezlify_studio.application.use_cases.list_video_categories_use_case import (
     ListVideoCategoriesUseCase,
 )
+from tezlify_studio.application.use_cases.move_playlist_item_use_case import (
+    MovePlaylistItemUseCase,
+)
 from tezlify_studio.application.use_cases.publish_video_to_youtube_use_case import (
     PublishVideoToYouTubeUseCase,
+)
+from tezlify_studio.application.use_cases.remove_video_from_playlist_use_case import (
+    RemoveVideoFromPlaylistUseCase,
 )
 from tezlify_studio.application.use_cases.reply_to_comment_use_case import (
     ReplyToCommentUseCase,
@@ -98,8 +119,14 @@ from tezlify_studio.application.use_cases.retry_failed_scheduled_publish_use_cas
 from tezlify_studio.application.use_cases.set_comment_moderation_use_case import (
     SetCommentModerationUseCase,
 )
+from tezlify_studio.application.use_cases.set_video_thumbnail_use_case import (
+    SetVideoThumbnailUseCase,
+)
 from tezlify_studio.application.use_cases.update_channel_video_use_case import (
     UpdateChannelVideoUseCase,
+)
+from tezlify_studio.application.use_cases.update_playlist_use_case import (
+    UpdatePlaylistUseCase,
 )
 from tezlify_studio.application.use_cases.update_scheduled_publish_use_case import (
     UpdateScheduledPublishUseCase,
@@ -454,8 +481,11 @@ def get_create_scheduled_publish_use_case(
     media_repo: MediaRepositoryImpl = Depends(get_repository),
     resolver: ChannelContextService = Depends(get_channel_context_service),
     publish_repo: PublishRecordRepositoryImpl = Depends(get_publish_record_repository),
+    capability_service: YouTubeCapabilityService = Depends(get_capability_service),
 ) -> CreateScheduledPublishUseCase:
-    return CreateScheduledPublishUseCase(sched_repo, media_repo, resolver, publish_repo)
+    return CreateScheduledPublishUseCase(
+        sched_repo, media_repo, resolver, publish_repo, capability_service
+    )
 
 
 def get_update_scheduled_publish_use_case(
@@ -548,6 +578,77 @@ def get_list_channel_playlists_use_case(
     gateway: YouTubeCreatorGateway = Depends(get_creator_gateway),
 ) -> ListChannelPlaylistsUseCase:
     return ListChannelPlaylistsUseCase(resolver, gateway)
+
+
+def get_list_playlist_items_use_case(
+    resolver: ChannelContextService = Depends(get_channel_context_service),
+    gateway: YouTubeCreatorGateway = Depends(get_creator_gateway),
+) -> ListPlaylistItemsUseCase:
+    return ListPlaylistItemsUseCase(resolver, gateway)
+
+
+def get_create_playlist_use_case(
+    resolver: ChannelContextService = Depends(get_channel_context_service),
+    gateway: YouTubeCreatorGateway = Depends(get_creator_gateway),
+    capability_service: YouTubeCapabilityService = Depends(get_capability_service),
+) -> CreatePlaylistUseCase:
+    return CreatePlaylistUseCase(resolver, gateway, capability_service)
+
+
+def get_add_video_to_playlist_use_case(
+    resolver: ChannelContextService = Depends(get_channel_context_service),
+    gateway: YouTubeCreatorGateway = Depends(get_creator_gateway),
+    capability_service: YouTubeCapabilityService = Depends(get_capability_service),
+) -> AddVideoToPlaylistUseCase:
+    return AddVideoToPlaylistUseCase(resolver, gateway, capability_service)
+
+
+def get_remove_video_from_playlist_use_case(
+    resolver: ChannelContextService = Depends(get_channel_context_service),
+    gateway: YouTubeCreatorGateway = Depends(get_creator_gateway),
+    capability_service: YouTubeCapabilityService = Depends(get_capability_service),
+) -> RemoveVideoFromPlaylistUseCase:
+    return RemoveVideoFromPlaylistUseCase(resolver, gateway, capability_service)
+
+
+def get_set_video_thumbnail_use_case(
+    resolver: ChannelContextService = Depends(get_channel_context_service),
+    gateway: YouTubeCreatorGateway = Depends(get_creator_gateway),
+    capability_service: YouTubeCapabilityService = Depends(get_capability_service),
+) -> SetVideoThumbnailUseCase:
+    return SetVideoThumbnailUseCase(resolver, gateway, capability_service)
+
+
+def get_update_playlist_use_case(
+    resolver: ChannelContextService = Depends(get_channel_context_service),
+    gateway: YouTubeCreatorGateway = Depends(get_creator_gateway),
+    capability_service: YouTubeCapabilityService = Depends(get_capability_service),
+) -> UpdatePlaylistUseCase:
+    return UpdatePlaylistUseCase(resolver, gateway, capability_service)
+
+
+def get_delete_playlist_use_case(
+    resolver: ChannelContextService = Depends(get_channel_context_service),
+    gateway: YouTubeCreatorGateway = Depends(get_creator_gateway),
+    capability_service: YouTubeCapabilityService = Depends(get_capability_service),
+) -> DeletePlaylistUseCase:
+    return DeletePlaylistUseCase(resolver, gateway, capability_service)
+
+
+def get_move_playlist_item_use_case(
+    resolver: ChannelContextService = Depends(get_channel_context_service),
+    gateway: YouTubeCreatorGateway = Depends(get_creator_gateway),
+    capability_service: YouTubeCapabilityService = Depends(get_capability_service),
+) -> MovePlaylistItemUseCase:
+    return MovePlaylistItemUseCase(resolver, gateway, capability_service)
+
+
+def get_delete_channel_video_use_case(
+    resolver: ChannelContextService = Depends(get_channel_context_service),
+    gateway: YouTubeCreatorGateway = Depends(get_creator_gateway),
+    capability_service: YouTubeCapabilityService = Depends(get_capability_service),
+) -> DeleteChannelVideoUseCase:
+    return DeleteChannelVideoUseCase(resolver, gateway, capability_service)
 
 
 def get_list_video_categories_use_case(

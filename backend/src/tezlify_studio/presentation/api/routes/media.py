@@ -1,5 +1,9 @@
 import os
 import re
+import io
+import glob
+import uuid
+import mimetypes
 from fastapi import APIRouter, Depends, UploadFile, File, Request, Header, HTTPException, status
 from fastapi.responses import StreamingResponse, FileResponse
 from tezlify_studio.presentation.schemas.media_schemas import (
@@ -20,6 +24,13 @@ from tezlify_studio.presentation.dependencies.container import (
 from tezlify_studio.infrastructure.media.local_media_storage import LocalMediaStorage
 
 router = APIRouter(prefix="/media", tags=["Media"])
+
+# YouTube custom thumbnails: JPEG/PNG, at most 2 MB.
+_THUMBNAIL_CONTENT_TYPES = {
+    "image/jpeg": (".jpg", b"\xff\xd8\xff"),
+    "image/png": (".png", b"\x89PNG\r\n\x1a\n"),
+}
+_THUMBNAIL_MAX_BYTES = 2 * 1024 * 1024
 
 @router.get("", response_model=MediaListResponse)
 def list_media(
@@ -66,8 +77,57 @@ def get_media_thumbnail(
 ):
     dto = use_case.execute(media_id)
     if dto.thumbnail_path and os.path.exists(dto.thumbnail_path):
-        return FileResponse(dto.thumbnail_path, media_type="image/jpeg")
+        media_type = mimetypes.guess_type(dto.thumbnail_path)[0] or "image/jpeg"
+        return FileResponse(dto.thumbnail_path, media_type=media_type)
     raise HTTPException(status_code=404, detail="Thumbnail not available")
+
+
+@router.post("/{media_id}/thumbnail")
+async def upload_custom_thumbnail(
+    media_id: str,
+    file: UploadFile = File(...),
+    use_case: GetMediaUseCase = Depends(get_media_use_case),
+    storage: LocalMediaStorage = Depends(get_storage),
+):
+    dto = use_case.execute(media_id)
+
+    content_type = (file.content_type or "").lower()
+    spec = _THUMBNAIL_CONTENT_TYPES.get(content_type)
+    if not spec:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Kapak görseli JPEG veya PNG olmalıdır.",
+        )
+    extension, signature = spec
+
+    data = await file.read(_THUMBNAIL_MAX_BYTES + 1)
+    if len(data) > _THUMBNAIL_MAX_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Kapak görseli en fazla 2 MB olabilir.",
+        )
+    if not data.startswith(signature):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Dosya içeriği belirtilen görsel biçimiyle uyuşmuyor.",
+        )
+
+    media_folder = os.path.dirname(dto.file_path)
+    for stale in glob.glob(os.path.join(media_folder, f"custom_thumb_{dto.id}_*")):
+        try:
+            storage.delete_file(stale)
+        except Exception:
+            pass
+
+    filename = f"custom_thumb_{dto.id}_{uuid.uuid4().hex[:8]}{extension}"
+    thumbnail_path, size_bytes, _ = storage.save_stream(
+        io.BytesIO(data), filename, max_bytes=_THUMBNAIL_MAX_BYTES
+    )
+    return {
+        "media_id": dto.id,
+        "thumbnail_path": thumbnail_path,
+        "file_size_bytes": size_bytes,
+    }
 
 @router.get("/{media_id}/stream")
 def stream_media(

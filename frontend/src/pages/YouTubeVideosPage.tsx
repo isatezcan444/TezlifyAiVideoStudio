@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ExternalLink,
   Film,
+  Image as ImageIcon,
   Loader2,
   MessageSquare,
   Pencil,
@@ -9,14 +10,17 @@ import {
   ThumbsUp,
   Eye,
   AlertTriangle,
+  Trash2,
 } from 'lucide-react';
 import { apiService } from '../services/api';
 import { useChannelContext } from '../context/ChannelContext';
 import { ChannelVideo, VideoCategory } from '../types/creator';
+import { capabilityAllows } from '../lib/capabilities';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Modal } from '../components/ui/Modal';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { formatDate, formatDuration, formatNumber } from '../lib/utils';
 
 const PRIVACY_STYLE: Record<string, string> = {
@@ -25,9 +29,24 @@ const PRIVACY_STYLE: Record<string, string> = {
   private: 'bg-slate-200 text-slate-600 dark:bg-white/[0.08] dark:text-slate-300',
 };
 
+const MAX_THUMBNAIL_BYTES = 2 * 1024 * 1024;
+const THUMBNAIL_TYPES = ['image/jpeg', 'image/png'];
+
 export const YouTubeVideosPage: React.FC = () => {
-  const { activeChannel } = useChannelContext();
+  const { activeChannel, connections } = useChannelContext();
   const channelId = activeChannel?.id;
+  const connection = connections.find((item) => item.id === activeChannel?.platform_connection_id);
+  const uploadAllowed = capabilityAllows(connection, 'upload');
+  const deleteAllowed = capabilityAllows(connection, 'comments');
+  const thumbnailInputRef = useRef<HTMLInputElement | null>(null);
+  const [thumbnailTarget, setThumbnailTarget] = useState<ChannelVideo | null>(null);
+  const [isThumbnailUploading, setIsThumbnailUploading] = useState(false);
+  const [thumbnailError, setThumbnailError] = useState<string | null>(null);
+  const [thumbnailMessage, setThumbnailMessage] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ChannelVideo | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteMessage, setDeleteMessage] = useState<string | null>(null);
   const [videos, setVideos] = useState<ChannelVideo[]>([]);
   const [categories, setCategories] = useState<VideoCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -71,6 +90,74 @@ export const YouTubeVideosPage: React.FC = () => {
     });
   };
 
+  const openThumbnailPicker = (video: ChannelVideo) => {
+    setThumbnailError(null);
+    setThumbnailMessage(null);
+    if (!uploadAllowed) {
+      setThumbnailError(
+        'Video kapağı değiştirmek için YouTube yükleme izni gerekiyor. Mevcut bağlantınız korunur; Bağlı Hesaplar sayfasından izin ekleyebilirsiniz.'
+      );
+      return;
+    }
+    setThumbnailTarget(video);
+    thumbnailInputRef.current?.click();
+  };
+
+  const handleThumbnailFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !thumbnailTarget) return;
+    setThumbnailError(null);
+    setThumbnailMessage(null);
+    if (!THUMBNAIL_TYPES.includes(file.type)) {
+      setThumbnailError('Kapak görseli JPEG veya PNG olmalıdır.');
+      return;
+    }
+    if (file.size > MAX_THUMBNAIL_BYTES) {
+      setThumbnailError('Kapak görseli en fazla 2 MB olabilir.');
+      return;
+    }
+    setIsThumbnailUploading(true);
+    try {
+      await apiService.setVideoThumbnail(thumbnailTarget.video_id, file, channelId);
+      setThumbnailMessage(`"${thumbnailTarget.title}" videosunun kapağı güncellendi.`);
+      await load();
+    } catch (err: any) {
+      setThumbnailError(err.message || 'Video kapağı değiştirilemedi.');
+    } finally {
+      setIsThumbnailUploading(false);
+      setThumbnailTarget(null);
+    }
+  };
+
+  const openDeleteDialog = (video: ChannelVideo) => {
+    setDeleteError(null);
+    setDeleteMessage(null);
+    if (!deleteAllowed) {
+      setDeleteError(
+        "Videoyu YouTube'dan silmek için yorum yönetimi izni gerekiyor. Mevcut bağlantınız korunur; Bağlı Hesaplar sayfasından izin ekleyebilirsiniz."
+      );
+      return;
+    }
+    setDeleteTarget(video);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await apiService.deleteChannelVideo(deleteTarget.video_id, channelId);
+      setVideos((prev) => prev.filter((item) => item.video_id !== deleteTarget.video_id));
+      setDeleteMessage(`"${deleteTarget.title}" videosu YouTube'dan silindi.`);
+      setDeleteTarget(null);
+    } catch (err: any) {
+      setDeleteError(err.message || 'Video silinemedi.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!editing) return;
     setIsSaving(true);
@@ -99,6 +186,13 @@ export const YouTubeVideosPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <input
+        ref={thumbnailInputRef}
+        type="file"
+        accept="image/jpeg,image/png"
+        className="hidden"
+        onChange={handleThumbnailFile}
+      />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-sm font-bold text-slate-800 dark:text-white">Kanal videoları</h3>
@@ -112,6 +206,27 @@ export const YouTubeVideosPage: React.FC = () => {
           Yenile
         </Button>
       </div>
+
+      {thumbnailError && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300">
+          {thumbnailError}
+        </div>
+      )}
+      {thumbnailMessage && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300">
+          {thumbnailMessage}
+        </div>
+      )}
+      {deleteError && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300">
+          {deleteError}
+        </div>
+      )}
+      {deleteMessage && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300">
+          {deleteMessage}
+        </div>
+      )}
 
       {error ? (
         <EmptyState icon={AlertTriangle} title="Videolar alınamadı" description={error} />
@@ -171,6 +286,21 @@ export const YouTubeVideosPage: React.FC = () => {
                   <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => openEditor(video)}>
                     <Pencil className="h-3.5 w-3.5" /> Düzenle
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-xs"
+                    onClick={() => openThumbnailPicker(video)}
+                    disabled={isThumbnailUploading}
+                    title={uploadAllowed ? 'Kapak görselini değiştir' : 'YouTube yükleme izni gerekiyor'}
+                  >
+                    {isThumbnailUploading && thumbnailTarget?.video_id === video.video_id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <ImageIcon className="h-3.5 w-3.5" />
+                    )}
+                    Kapak
+                  </Button>
                   <a
                     href={`https://www.youtube.com/watch?v=${video.video_id}`}
                     target="_blank"
@@ -179,6 +309,16 @@ export const YouTubeVideosPage: React.FC = () => {
                   >
                     İzle <ExternalLink className="h-3.5 w-3.5" />
                   </a>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-xs text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
+                    onClick={() => openDeleteDialog(video)}
+                    disabled={isDeleting && deleteTarget?.video_id === video.video_id}
+                    title={deleteAllowed ? "Videoyu YouTube'dan sil" : 'Yorum yönetimi izni gerekiyor'}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Sil
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -261,6 +401,16 @@ export const YouTubeVideosPage: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Videoyu YouTube'dan sil"
+        description={`"${deleteTarget?.title || ''}" videosu YouTube kanalınızdan kalıcı olarak silinecek. Bu işlem geri alınamaz; izlenme, yorum ve gelir geçmişi de kanaldan kaldırılır.`}
+        confirmLabel="Videoyu sil"
+        isLoading={isDeleting}
+      />
     </div>
   );
 };

@@ -3,18 +3,44 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    color-scheme: light;
+    background-color: #F8F7FA;
+  }
+
+  html.dark {
+    color-scheme: dark;
+    background-color: #25293C;
+  }
+
   body {
     background-color: #F8F7FA;
     color: #4B465C;
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     min-height: 100vh;
     overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     transition: background-color 0.2s ease, color 0.2s ease;
   }
 
   .dark body {
     background-color: #25293C;
     color: #DBD7EC;
+  }
+
+  :where(a, button, [role='button'], summary):focus-visible {
+    outline: 2px solid #7367F0;
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: rgba(115, 103, 240, 0.22);
+  }
+
+  .dark ::selection {
+    background-color: rgba(115, 103, 240, 0.38);
   }
 }
 
@@ -24,13 +50,92 @@
   border-radius: 0.625rem;
   border: 1px solid rgba(47, 43, 61, 0.08);
   box-shadow: 0 2px 9px 0 rgba(47, 43, 61, 0.06);
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.vuexy-card:hover {
+  box-shadow: 0 6px 18px -6px rgba(47, 43, 61, 0.16);
 }
 
 .dark .vuexy-card {
   background-color: #2F3349;
   border-color: rgba(255, 255, 255, 0.07);
   box-shadow: 0 2px 14px 0 rgba(15, 20, 34, 0.4);
+}
+
+.dark .vuexy-card:hover {
+  box-shadow: 0 8px 22px -6px rgba(0, 0, 0, 0.55);
+}
+
+/* Page transition */
+@keyframes tezlify-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-enter {
+  animation: tezlify-page-enter 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Modal transition */
+@keyframes tezlify-overlay-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes tezlify-dialog-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.overlay-enter {
+  animation: tezlify-overlay-enter 0.18s ease-out both;
+}
+
+.dialog-enter {
+  animation: tezlify-dialog-enter 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Toast transition */
+@keyframes tezlify-toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.toast-enter {
+  animation: tezlify-toast-enter 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter,
+  .overlay-enter,
+  .dialog-enter,
+  .toast-enter {
+    animation: none;
+  }
+
+  .vuexy-card,
+  body {
+    transition: none;
+  }
 }
 
 .vuexy-input {

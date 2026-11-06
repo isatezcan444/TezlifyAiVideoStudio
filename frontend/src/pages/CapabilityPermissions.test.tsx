@@ -39,6 +39,7 @@ vi.mock('../services/api', () => ({
     moderateComment: vi.fn(),
     grantCapabilities: vi.fn(),
     resumePublish: vi.fn(),
+    disconnectConnection: vi.fn(),
   },
 }));
 
@@ -52,6 +53,7 @@ const api = apiService as unknown as {
   replyToComment: ReturnType<typeof vi.fn>;
   moderateComment: ReturnType<typeof vi.fn>;
   grantCapabilities: ReturnType<typeof vi.fn>;
+  disconnectConnection: ReturnType<typeof vi.fn>;
 };
 
 const CAPABILITIES: CapabilityName[] = [
@@ -183,6 +185,7 @@ beforeEach(() => {
     state: 'state',
     capabilities: [],
   });
+  api.disconnectConnection.mockResolvedValue({ success: true });
 });
 
 describe('ConnectedAccountsPage capability grid', () => {
@@ -357,6 +360,155 @@ describe('AnalyticsPage permission states', () => {
       screen.queryByRole('button', { name: 'Analytics izni ver' })
     ).not.toBeInTheDocument();
   });
+
+  it('offers an optional revenue grant when the monetization scope is missing', async () => {
+    const user = userEvent.setup();
+    const connection = makeConnection({ analytics: 'active' });
+    mockContext.connections = [connection];
+    mockContext.activeChannel = activeChannel;
+    api.getChannelAnalytics.mockResolvedValue({
+      range: { key: '7', start_date: '2026-10-30', end_date: '2026-11-05', days: 7 },
+      analytics: {
+        available: true,
+        source: 'youtube_analytics',
+        reason: null,
+        start_date: '2026-10-30',
+        end_date: '2026-11-05',
+        metrics: ['views'],
+        dimensions: ['day'],
+        totals: { views: 10 },
+        rows: [{ dimensions: { day: '2026-10-30' }, metrics: { views: 10 } }],
+        revenue: null,
+        fetched_at: '2026-11-05T00:00:00',
+      },
+      source: 'youtube_analytics',
+      explanation: null,
+      metric_notes: {},
+    });
+
+    render(<AnalyticsPage onNavigate={vi.fn()} />);
+
+    await user.click(await screen.findByLabelText('Gelir verisi iste'));
+    const grantButton = await screen.findByRole('button', { name: 'Gelir izni ekle' });
+    expect(screen.getByText(/Gelir verisi · izin gerekli/)).toBeInTheDocument();
+
+    await user.click(grantButton);
+    await waitFor(() =>
+      expect(api.grantCapabilities).toHaveBeenCalledWith('conn_1', ['revenue'])
+    );
+  });
+
+  it('hides the revenue grant and explains the missing data when the scope is active', async () => {
+    const user = userEvent.setup();
+    const connection = makeConnection({ analytics: 'active', revenue: 'active' });
+    mockContext.connections = [connection];
+    mockContext.activeChannel = activeChannel;
+    api.getChannelAnalytics.mockResolvedValue({
+      range: { key: '7', start_date: '2026-10-30', end_date: '2026-11-05', days: 7 },
+      analytics: {
+        available: true,
+        source: 'youtube_analytics',
+        reason: null,
+        start_date: '2026-10-30',
+        end_date: '2026-11-05',
+        metrics: ['views'],
+        dimensions: ['day'],
+        totals: { views: 10 },
+        rows: [],
+        revenue: null,
+        fetched_at: '2026-11-05T00:00:00',
+      },
+      source: 'youtube_analytics',
+      explanation: null,
+      metric_notes: {},
+    });
+
+    render(<AnalyticsPage onNavigate={vi.fn()} />);
+
+    await user.click(await screen.findByLabelText('Gelir verisi iste'));
+
+    expect(
+      await screen.findByText(/Gelir verisi döndürülmedi/)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Gelir izni ekle' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('renders revenue totals, daily trend and per-video revenue with titles', async () => {
+    const user = userEvent.setup();
+    const connection = makeConnection({ analytics: 'active', revenue: 'active' });
+    mockContext.connections = [connection];
+    mockContext.activeChannel = activeChannel;
+    api.listChannelVideos.mockResolvedValue({
+      items: [
+        {
+          video_id: 'vid_1',
+          title: 'İlk Video',
+          description: '',
+          tags: [],
+          thumbnail_url: 'https://img.test/thumb.jpg',
+        },
+      ],
+      source: 'youtube_data_api',
+    });
+    api.getChannelAnalytics.mockResolvedValue({
+      range: { key: '7', start_date: '2026-10-30', end_date: '2026-11-05', days: 7 },
+      analytics: {
+        available: true,
+        source: 'youtube_analytics',
+        reason: null,
+        start_date: '2026-10-30',
+        end_date: '2026-11-05',
+        metrics: ['views'],
+        dimensions: ['day'],
+        totals: { views: 10 },
+        rows: [],
+        revenue: {
+          available: true,
+          amount: 1.5,
+          ad_revenue: 1.2,
+          currency: 'USD',
+          daily: [
+            {
+              dimensions: { day: '2026-10-30' },
+              metrics: { estimatedRevenue: 1.0, estimatedAdRevenue: 0.8 },
+            },
+            {
+              dimensions: { day: '2026-10-31' },
+              metrics: { estimatedRevenue: 0.5, estimatedAdRevenue: 0.4 },
+            },
+          ],
+          top_videos: [
+            {
+              dimensions: { video: 'vid_1' },
+              metrics: { estimatedRevenue: 1.5, estimatedAdRevenue: 1.2, views: 100 },
+            },
+          ],
+          note: 'YouTube Analytics tahmini geliri; varsayılan para birimi USD.',
+        },
+        fetched_at: '2026-11-05T00:00:00',
+      },
+      source: 'youtube_analytics',
+      explanation: null,
+      metric_notes: {},
+    });
+
+    render(<AnalyticsPage onNavigate={vi.fn()} />);
+
+    await user.click(await screen.findByLabelText('Gelir verisi iste'));
+
+    expect(await screen.findByText('İlk Video')).toBeInTheDocument();
+    expect(screen.getByText('Toplam tahmini gelir')).toBeInTheDocument();
+    expect(screen.getByText('Reklam geliri')).toBeInTheDocument();
+    expect(screen.getAllByText(/1,50/).length).toBeGreaterThan(0);
+    expect(
+      screen.getByText(/varsayılan para birimi USD/)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'İlk Video' })
+    ).toHaveAttribute('href', 'https://www.youtube.com/watch?v=vid_1');
+  });
 });
 
 describe('CommentsPage write permission', () => {
@@ -506,5 +658,24 @@ describe('ConnectedAccountsPage primary badge', () => {
 
     expect(await screen.findByText('UC_RESILIENCE')).toBeInTheDocument();
     expect(screen.queryByText('birincil')).not.toBeInTheDocument();
+  });
+});
+
+describe('ConnectedAccountsPage disconnect confirmation', () => {
+  it('asks for in-app confirmation before disconnecting an account', async () => {
+    const user = userEvent.setup();
+    const connection = makeConnection();
+    mockContext.connections = [connection];
+    api.listConnections.mockResolvedValue({ items: [connection], total: 1 });
+
+    render(<ConnectedAccountsPage />);
+    await user.click(await screen.findByRole('button', { name: /Bağlantıyı Kes/ }));
+
+    expect(api.disconnectConnection).not.toHaveBeenCalled();
+    expect(screen.getByText('Hesap Bağlantısını Kes')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Evet, Bağlantıyı Kes' }));
+
+    await waitFor(() => expect(api.disconnectConnection).toHaveBeenCalledWith('conn_1'));
   });
 });

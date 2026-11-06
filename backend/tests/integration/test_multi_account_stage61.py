@@ -1166,7 +1166,7 @@ def test_scheduled_publishes_remain_independent_per_channel(tmp_path):
         resolver=stack.resolver,
         publish_repo=publish_repo,
     )
-    future = "2026-11-06T10:00:00+00:00"
+    future = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
 
     sched_a = create_use_case.execute(
         CreateScheduledPublishDTO(

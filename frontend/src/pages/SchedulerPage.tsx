@@ -8,6 +8,7 @@ import { PublishCalendarView } from '../components/schedule/PublishCalendarView'
 import { PublishListView } from '../components/schedule/PublishListView';
 import { ScheduleModal } from '../components/schedule/ScheduleModal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { useToast } from '../components/ui/toast';
 import { Button } from '../components/ui/button';
 import { Calendar, List, Plus, AlertCircle } from 'lucide-react';
 
@@ -23,6 +24,7 @@ export const SchedulerPage: React.FC<SchedulerPageProps> = ({
   onClearInitialAsset = () => {},
 }) => {
   const { activeChannel } = useChannelContext();
+  const { notify } = useToast();
   const channelId = activeChannel?.id;
   const [schedules, setSchedules] = useState<ScheduledPublish[]>([]);
   const [schedulerStatus, setSchedulerStatus] = useState<SchedulerStatusResponse | null>(null);
@@ -104,7 +106,11 @@ export const SchedulerPage: React.FC<SchedulerPageProps> = ({
       setScheduleToCancel(null);
       fetchSchedulerData();
     } catch (err: any) {
-      alert(`İptal işlemi başarısız: ${err.message || 'Bilinmeyen hata'}`);
+      notify({
+        variant: 'error',
+        title: 'İptal işlemi başarısız',
+        description: err.message || 'Bilinmeyen hata',
+      });
     } finally {
       setIsCancelling(false);
     }
@@ -117,7 +123,11 @@ export const SchedulerPage: React.FC<SchedulerPageProps> = ({
       setSchedules((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
       fetchSchedulerData();
     } catch (err: any) {
-      alert(`Tekrar deneme başarısız: ${err.message || 'Bilinmeyen hata'}`);
+      notify({
+        variant: 'error',
+        title: 'Tekrar deneme başarısız',
+        description: err.message || 'Bilinmeyen hata',
+      });
     } finally {
       setIsLoading(false);
     }

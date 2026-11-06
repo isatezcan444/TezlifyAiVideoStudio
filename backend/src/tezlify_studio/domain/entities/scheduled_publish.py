@@ -52,7 +52,10 @@ class ScheduledPublish:
     platform: SocialPlatform = SocialPlatform.YOUTUBE
     description: str = ""
     tags: List[str] = field(default_factory=list)
+    category_id: str = "22"
     privacy_status: PrivacyStatus = PrivacyStatus.PRIVATE
+    thumbnail_path: Optional[str] = None
+    playlist_id: Optional[str] = None
     timezone: str = "UTC"
     status: ScheduleStatus = ScheduleStatus.SCHEDULED
     publish_record_id: Optional[str] = None

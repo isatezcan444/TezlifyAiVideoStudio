@@ -61,6 +61,18 @@ class ChannelPlaylist:
     description: str = ""
     item_count: Optional[int] = None
     published_at: Optional[str] = None
+    privacy_status: Optional[str] = None
+
+
+@dataclass
+class PlaylistItem:
+    playlist_item_id: str
+    playlist_id: str
+    video_id: str
+    title: str = ""
+    thumbnail_url: Optional[str] = None
+    position: Optional[int] = None
+    published_at: Optional[str] = None
 
 
 @dataclass

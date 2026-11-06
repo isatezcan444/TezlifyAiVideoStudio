@@ -1,6 +1,7 @@
 import os
 import uuid
 import time
+import logging
 import threading
 from typing import Optional, List, Callable, Tuple, Any
 from datetime import datetime, timezone, timedelta
@@ -27,14 +28,21 @@ from tezlify_studio.application.services.youtube_capability_service import (
 )
 from tezlify_studio.domain.exceptions.creator_exceptions import (
     ChannelBindingMismatchException,
+    InsufficientScopeException,
     PlatformNotSupportedException,
 )
-from tezlify_studio.domain.value_objects.youtube_capabilities import CAPABILITY_UPLOAD
+from tezlify_studio.domain.value_objects.youtube_capabilities import (
+    CAPABILITY_COMMENTS,
+    CAPABILITY_UPLOAD,
+    SCOPE_COMMENTS,
+)
 from tezlify_studio.application.dto.publish_dto import PublishRecordDTO, StartPublishRequestDTO
 from tezlify_studio.application.dto.mappers import publish_record_to_dto
 
 # Google Resumable Upload standard chunk size (must be multiple of 256 KB)
 DEFAULT_CHUNK_SIZE = 1024 * 1024 * 4  # 4 MB
+
+logger = logging.getLogger(__name__)
 
 class PublishVideoToYouTubeUseCase:
     def __init__(
@@ -100,6 +108,14 @@ class PublishVideoToYouTubeUseCase:
             raise PlatformNotSupportedException(context.channel.platform.value)
         if self.capability_service:
             self.capability_service.require(context.connection, CAPABILITY_UPLOAD)
+            if req.playlist_id and not self.capability_service.can(
+                context.connection, CAPABILITY_COMMENTS
+            ):
+                raise InsufficientScopeException(
+                    required_scope=SCOPE_COMMENTS,
+                    action="YouTube oynatma listesine video ekleme",
+                    capability=CAPABILITY_COMMENTS,
+                )
         access = self.access_provider.get_access(context)
         self._assert_token_binding(
             access.access_token, context.channel.channel_external_id, context.channel.id
@@ -133,6 +149,7 @@ class PublishVideoToYouTubeUseCase:
             status=PublishStatus.PENDING,
             total_bytes=file_size,
             thumbnail_path=req.thumbnail_path or media.thumbnail_path,
+            playlist_id=req.playlist_id,
         )
         record = self.publish_repo.save(record)
 
@@ -212,6 +229,7 @@ class PublishVideoToYouTubeUseCase:
                     record.external_video_url = f"https://youtu.be/{video_id}"
                     record.transition_to(PublishStatus.PUBLISHED)
                     repo.save(record)
+                    self._apply_post_publish_actions(record, access_token)
                     return
             except Exception:
                 pass
@@ -390,14 +408,42 @@ class PublishVideoToYouTubeUseCase:
                     time.sleep(poll_interval)
                     continue
 
-        # Post-processing thumbnail upload if video reached PUBLISHED
-        if record.status == PublishStatus.PUBLISHED and record.thumbnail_path and self.storage.exists(record.thumbnail_path):
+        self._apply_post_publish_actions(record, access_token)
+
+    def _apply_post_publish_actions(self, record: PublishRecord, access_token: str) -> None:
+        if record.status != PublishStatus.PUBLISHED or not record.external_video_id:
+            return
+
+        if record.thumbnail_path and self.storage.exists(record.thumbnail_path):
             try:
                 self.publisher.upload_custom_thumbnail(
                     access_token=access_token,
                     video_id=record.external_video_id,
                     thumbnail_path=record.thumbnail_path,
                 )
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning(
+                    "Custom thumbnail upload failed for publish %s: %s", record.id, exc
+                )
+
+        if record.playlist_id:
+            try:
+                added = self.publisher.add_video_to_playlist(
+                    access_token=access_token,
+                    playlist_id=record.playlist_id,
+                    video_id=record.external_video_id,
+                )
+                if not added:
+                    logger.warning(
+                        "Playlist insertion was not confirmed for publish %s (playlist %s)",
+                        record.id,
+                        record.playlist_id,
+                    )
+            except Exception as exc:
+                logger.warning(
+                    "Playlist insertion failed for publish %s (playlist %s): %s",
+                    record.id,
+                    record.playlist_id,
+                    exc,
+                )
 

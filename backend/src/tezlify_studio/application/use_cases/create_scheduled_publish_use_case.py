@@ -19,6 +19,13 @@ from tezlify_studio.domain.exceptions.media_exceptions import (
     EntityNotFoundException,
     InvalidMediaFileException,
 )
+from tezlify_studio.domain.exceptions.creator_exceptions import (
+    InsufficientScopeException,
+)
+from tezlify_studio.domain.value_objects.youtube_capabilities import (
+    CAPABILITY_COMMENTS,
+    SCOPE_COMMENTS,
+)
 from tezlify_studio.domain.exceptions.publish_exceptions import (
     DuplicatePublishException,
 )
@@ -41,11 +48,13 @@ class CreateScheduledPublishUseCase:
         media_repo: MediaRepositoryPort,
         resolver: ChannelContextResolverPort,
         publish_repo: PublishRecordRepositoryPort,
+        capability_service=None,
     ):
         self.schedule_repo = schedule_repo
         self.media_repo = media_repo
         self.resolver = resolver
         self.publish_repo = publish_repo
+        self.capability_service = capability_service
 
     def execute(self, dto: CreateScheduledPublishDTO) -> ScheduledPublishDTO:
         # 1. Validate Media
@@ -57,6 +66,16 @@ class CreateScheduledPublishUseCase:
 
         # 2. Resolve and validate the target channel server-side
         context = self.resolver.resolve(dto.channel_id)
+        if (
+            dto.playlist_id
+            and self.capability_service
+            and not self.capability_service.can(context.connection, CAPABILITY_COMMENTS)
+        ):
+            raise InsufficientScopeException(
+                required_scope=SCOPE_COMMENTS,
+                action="YouTube oynatma listesine video ekleme",
+                capability=CAPABILITY_COMMENTS,
+            )
 
         # 3. Validate & Normalize Timezone & DateTime (including DST edge cases)
         tz_name = (dto.timezone or "UTC").strip()
@@ -92,7 +111,10 @@ class CreateScheduledPublishUseCase:
             title=dto.title.strip() or media.original_filename,
             description=dto.description.strip(),
             tags=dto.tags or [],
+            category_id=dto.category_id or "22",
             privacy_status=PrivacyStatus(dto.privacy_status),
+            thumbnail_path=dto.thumbnail_path,
+            playlist_id=dto.playlist_id,
             scheduled_at_utc=sched_utc,
             timezone=tz_name,
             status=ScheduleStatus.SCHEDULED,

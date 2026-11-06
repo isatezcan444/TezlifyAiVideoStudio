@@ -25,6 +25,7 @@ from tezlify_studio.domain.value_objects.creator_models import (
     ChannelProfile,
     ChannelVideo,
     DateRange,
+    PlaylistItem,
     VideoComment,
     YOUTUBE_ANALYTICS_METRICS,
 )
@@ -116,6 +117,7 @@ class YouTubeCreatorApi(ChannelPort, AnalyticsPort, CommentPort):
     """
 
     API_BASE = "https://www.googleapis.com/youtube/v3"
+    UPLOAD_BASE = "https://www.googleapis.com/upload/youtube/v3"
     ANALYTICS_BASE = "https://youtubeanalytics.googleapis.com/v2/reports"
 
     def __init__(
@@ -368,7 +370,7 @@ class YouTubeCreatorApi(ChannelPort, AnalyticsPort, CommentPort):
             "GET",
             f"{self.API_BASE}/playlists",
             params={
-                "part": "snippet,contentDetails",
+                "part": "snippet,contentDetails,status",
                 "channelId": self.access.external_channel_id,
                 "maxResults": min(max(max_results, 1), 50),
             },
@@ -384,9 +386,265 @@ class YouTubeCreatorApi(ChannelPort, AnalyticsPort, CommentPort):
                     description=snippet.get("description", ""),
                     item_count=_as_int(item.get("contentDetails", {}).get("itemCount")),
                     published_at=snippet.get("publishedAt"),
+                    privacy_status=item.get("status", {}).get("privacyStatus"),
                 )
             )
         return playlists
+
+    # --------------------------------------------------------------- playlists
+
+    def _assert_playlist_owned(self, playlist_id: str) -> None:
+        data = self._request(
+            "GET",
+            f"{self.API_BASE}/playlists",
+            params={"part": "snippet", "id": playlist_id, "maxResults": 1},
+            action="Oynatma listesi doğrulanamadı",
+        )
+        items = data.get("items", [])
+        if not items:
+            raise CreatorApiException("Oynatma listesi bulunamadı.", status_code=404)
+        owner = items[0].get("snippet", {}).get("channelId")
+        if owner and owner != self.access.external_channel_id:
+            raise ChannelBindingMismatchException(self.access.channel_id)
+
+    def list_playlist_items(
+        self, playlist_id: str, max_results: int = 50
+    ) -> List[PlaylistItem]:
+        self._assert_playlist_owned(playlist_id)
+        data = self._request(
+            "GET",
+            f"{self.API_BASE}/playlistItems",
+            params={
+                "part": "snippet,contentDetails",
+                "playlistId": playlist_id,
+                "maxResults": min(max(max_results, 1), 50),
+            },
+            action="Oynatma listesi videoları alınamadı",
+        )
+        items: List[PlaylistItem] = []
+        for item in data.get("items", []):
+            snippet = item.get("snippet", {})
+            thumbs = snippet.get("thumbnails", {})
+            items.append(
+                PlaylistItem(
+                    playlist_item_id=item.get("id", ""),
+                    playlist_id=playlist_id,
+                    video_id=snippet.get("resourceId", {}).get("videoId")
+                    or item.get("contentDetails", {}).get("videoId", ""),
+                    title=snippet.get("title", ""),
+                    thumbnail_url=(thumbs.get("medium") or thumbs.get("default") or {}).get(
+                        "url"
+                    ),
+                    position=snippet.get("position"),
+                    published_at=snippet.get("publishedAt"),
+                )
+            )
+        return items
+
+    def create_playlist(
+        self, title: str, description: str = "", privacy: str = "private"
+    ) -> ChannelPlaylist:
+        data = self._request(
+            "POST",
+            f"{self.API_BASE}/playlists",
+            params={"part": "snippet,status"},
+            json_body={
+                "snippet": {"title": title, "description": description},
+                "status": {"privacyStatus": privacy},
+            },
+            action="Oynatma listesi oluşturulamadı",
+        )
+        snippet = data.get("snippet", {})
+        return ChannelPlaylist(
+            playlist_id=data.get("id", ""),
+            title=snippet.get("title", title),
+            description=snippet.get("description", description),
+            item_count=0,
+            published_at=snippet.get("publishedAt"),
+            privacy_status=data.get("status", {}).get("privacyStatus", privacy),
+        )
+
+    def add_video_to_playlist(self, playlist_id: str, video_id: str) -> PlaylistItem:
+        self._assert_playlist_owned(playlist_id)
+        self._assert_video_owned(video_id)
+        data = self._request(
+            "POST",
+            f"{self.API_BASE}/playlistItems",
+            params={"part": "snippet"},
+            json_body={
+                "snippet": {
+                    "playlistId": playlist_id,
+                    "resourceId": {"kind": "youtube#video", "videoId": video_id},
+                }
+            },
+            action="Video oynatma listesine eklenemedi",
+        )
+        snippet = data.get("snippet", {})
+        thumbs = snippet.get("thumbnails", {})
+        return PlaylistItem(
+            playlist_item_id=data.get("id", ""),
+            playlist_id=playlist_id,
+            video_id=video_id,
+            title=snippet.get("title", ""),
+            thumbnail_url=(thumbs.get("medium") or thumbs.get("default") or {}).get("url"),
+            position=snippet.get("position"),
+            published_at=snippet.get("publishedAt"),
+        )
+
+    def remove_video_from_playlist(self, playlist_id: str, video_id: str) -> bool:
+        self._assert_playlist_owned(playlist_id)
+        data = self._request(
+            "GET",
+            f"{self.API_BASE}/playlistItems",
+            params={
+                "part": "contentDetails",
+                "playlistId": playlist_id,
+                "videoId": video_id,
+                "maxResults": 1,
+            },
+            action="Oynatma listesi kaydı bulunamadı",
+        )
+        item_id = next(
+            (item.get("id") for item in data.get("items", []) if item.get("id")),
+            None,
+        )
+        if not item_id:
+            return False
+        self._request(
+            "DELETE",
+            f"{self.API_BASE}/playlistItems",
+            params={"id": item_id},
+            action="Video oynatma listesinden çıkarılamadı",
+        )
+        return True
+
+    def set_video_thumbnail(
+        self, video_id: str, image_bytes: bytes, content_type: str
+    ) -> bool:
+        self._assert_video_owned(video_id)
+        url = f"{self.UPLOAD_BASE}/thumbnails/set"
+        try:
+            response = self._client.post(
+                url,
+                params={"videoId": video_id},
+                headers={**self._headers(), "Content-Type": content_type},
+                content=image_bytes,
+            )
+        except httpx.HTTPError as exc:
+            raise CreatorApiException(f"Kapak yüklenirken ağ hatası: {exc}")
+        if response.status_code == 401:
+            raise AuthenticationRequiredException(
+                "Kapak yüklenirken YouTube erişim anahtarı geçersiz. Hesabı yeniden bağlayın."
+            )
+        if response.status_code == 403:
+            self._raise_forbidden(response, "video kapağı güncelleme")
+        if response.status_code >= 400:
+            raise CreatorApiException(
+                f"Kapak güncellenemedi (HTTP {response.status_code}): {response.text[:300]}",
+                status_code=response.status_code,
+            )
+        return response.status_code in (200, 201)
+
+    def update_playlist(
+        self,
+        playlist_id: str,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        privacy: Optional[str] = None,
+    ) -> ChannelPlaylist:
+        self._assert_playlist_owned(playlist_id)
+        body: Dict[str, Any] = {"id": playlist_id}
+        parts: List[str] = []
+        snippet: Dict[str, Any] = {}
+        if title is not None:
+            snippet["title"] = title
+        if description is not None:
+            snippet["description"] = description
+        if snippet:
+            body["snippet"] = snippet
+            parts.append("snippet")
+        if privacy is not None:
+            body["status"] = {"privacyStatus": privacy}
+            parts.append("status")
+        if not parts:
+            raise ValueError("Güncellenecek alan belirtilmedi.")
+
+        data = self._request(
+            "PUT",
+            f"{self.API_BASE}/playlists",
+            params={"part": ",".join(parts)},
+            json_body=body,
+            action="Oynatma listesi güncellenemedi",
+        )
+        current = data.get("snippet", {})
+        return ChannelPlaylist(
+            playlist_id=data.get("id", playlist_id),
+            title=current.get("title", title or ""),
+            description=current.get("description", description or ""),
+            item_count=_as_int(data.get("contentDetails", {}).get("itemCount")),
+            published_at=current.get("publishedAt"),
+            privacy_status=data.get("status", {}).get("privacyStatus", privacy),
+        )
+
+    def delete_playlist(self, playlist_id: str) -> bool:
+        self._assert_playlist_owned(playlist_id)
+        self._request(
+            "DELETE",
+            f"{self.API_BASE}/playlists",
+            params={"id": playlist_id},
+            action="Oynatma listesi silinemedi",
+        )
+        return True
+
+    def move_playlist_item(
+        self, playlist_id: str, video_id: str, position: int
+    ) -> bool:
+        self._assert_playlist_owned(playlist_id)
+        data = self._request(
+            "GET",
+            f"{self.API_BASE}/playlistItems",
+            params={
+                "part": "snippet,contentDetails",
+                "playlistId": playlist_id,
+                "videoId": video_id,
+                "maxResults": 1,
+            },
+            action="Oynatma listesi kaydı bulunamadı",
+        )
+        items = data.get("items", [])
+        if not items or not items[0].get("id"):
+            return False
+        item = items[0]
+        snippet = item.get("snippet", {})
+        resource = snippet.get("resourceId") or {
+            "kind": "youtube#video",
+            "videoId": video_id,
+        }
+        self._request(
+            "PUT",
+            f"{self.API_BASE}/playlistItems",
+            params={"part": "snippet"},
+            json_body={
+                "id": item["id"],
+                "snippet": {
+                    "playlistId": playlist_id,
+                    "resourceId": resource,
+                    "position": max(position, 0),
+                },
+            },
+            action="Liste sırası değiştirilemedi",
+        )
+        return True
+
+    def delete_video(self, video_id: str) -> bool:
+        self._assert_video_owned(video_id)
+        self._request(
+            "DELETE",
+            f"{self.API_BASE}/videos",
+            params={"id": video_id},
+            action="Video silinemedi",
+        )
+        return True
 
     def list_video_categories(self) -> List[Dict[str, str]]:
         data = self._request(
@@ -438,12 +696,35 @@ class YouTubeCreatorApi(ChannelPort, AnalyticsPort, CommentPort):
         revenue: Optional[Dict[str, Any]] = None
         if include_revenue:
             try:
-                revenue_rows = self._analytics_query(["estimatedRevenue"], [], date_range)
+                revenue_totals = self._analytics_query(
+                    ["estimatedRevenue", "estimatedAdRevenue"], [], date_range
+                )
+                revenue_daily = self._analytics_query(
+                    ["estimatedRevenue", "estimatedAdRevenue"], ["day"], date_range
+                )
+                revenue_by_video = self._analytics_query(
+                    [
+                        "estimatedRevenue",
+                        "estimatedAdRevenue",
+                        "views",
+                        "estimatedMinutesWatched",
+                        "averageViewDuration",
+                    ],
+                    ["video"],
+                    date_range,
+                    sort="-estimatedRevenue",
+                )
                 revenue = {
                     "available": True,
-                    "amount": revenue_rows["totals"].get("estimatedRevenue"),
+                    "amount": revenue_totals["totals"].get("estimatedRevenue"),
+                    "ad_revenue": revenue_totals["totals"].get("estimatedAdRevenue"),
                     "currency": "USD",
-                    "note": "YouTube Analytics tarafından raporlanan tahmini gelir.",
+                    "daily": revenue_daily["rows"],
+                    "top_videos": revenue_by_video["rows"],
+                    "note": (
+                        "YouTube Analytics tahmini geliri; varsayılan para birimi USD. "
+                        "Ödeme (payout) tutarları YouTube Analytics API'de yer almaz."
+                    ),
                 }
             except (AnalyticsUnavailableException, InsufficientScopeException) as exc:
                 revenue = {
@@ -468,6 +749,7 @@ class YouTubeCreatorApi(ChannelPort, AnalyticsPort, CommentPort):
         metrics: List[str],
         dimensions: List[str],
         date_range: DateRange,
+        sort: Optional[str] = None,
     ) -> Dict[str, Any]:
         requested_dimensions = list(dimensions)
         google_dimensions = [
@@ -492,7 +774,7 @@ class YouTubeCreatorApi(ChannelPort, AnalyticsPort, CommentPort):
         }
         if google_dimensions:
             params["dimensions"] = ",".join(google_dimensions)
-            params["sort"] = (
+            params["sort"] = sort or (
                 "-views" if "views" in effective_metrics else google_dimensions[0]
             )
             if "video" in requested_dimensions:

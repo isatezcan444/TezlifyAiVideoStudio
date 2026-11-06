@@ -28,8 +28,40 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# Additive column backfills for databases created before these fields existed.
+# SQLite cannot add columns through create_all, and there is no migration
+# framework in this project; ADD COLUMN is metadata-only and leaves row data
+# untouched.
+_COLUMN_BACKFILLS = {
+    "publish_records": {
+        "playlist_id": "VARCHAR(64)",
+    },
+    "scheduled_publishes": {
+        "category_id": "VARCHAR(32) DEFAULT '22'",
+        "thumbnail_path": "TEXT",
+        "playlist_id": "VARCHAR(64)",
+    },
+}
+
+
+def _ensure_columns() -> None:
+    with engine.begin() as conn:
+        for table, columns in _COLUMN_BACKFILLS.items():
+            existing = {
+                row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")
+            }
+            if not existing:
+                continue
+            for name, ddl in columns.items():
+                if name not in existing:
+                    conn.exec_driver_sql(
+                        f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"
+                    )
+
+
 def init_db():
     Base.metadata.create_all(bind=engine)
+    _ensure_columns()
 
 def get_db() -> Session:
     db = SessionLocal()

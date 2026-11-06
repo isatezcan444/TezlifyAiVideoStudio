@@ -10,7 +10,10 @@ class CreateScheduledPublishRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=100)
     description: str = Field(default="", max_length=5000)
     tags: List[str] = Field(default_factory=list)
+    category_id: str = Field(default="22")
     privacy_status: str = Field(default="private", pattern="^(public|unlisted|private)$")
+    thumbnail_path: Optional[str] = None
+    playlist_id: Optional[str] = None
     scheduled_at: str = Field(..., description="ISO 8601 formatted datetime with timezone offset (e.g. 2026-11-04T15:30:00+03:00)")
     timezone: str = Field(default="UTC")
     max_attempts: int = Field(default=3, ge=1, le=10)
@@ -35,7 +38,10 @@ class ScheduledPublishResponse(BaseModel):
     title: str
     description: str
     tags: List[str] = []
+    category_id: str = "22"
     privacy_status: str
+    thumbnail_path: Optional[str] = None
+    playlist_id: Optional[str] = None
     scheduled_at_utc: str
     timezone: str
     status: str

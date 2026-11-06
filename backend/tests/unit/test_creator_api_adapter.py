@@ -486,6 +486,102 @@ def test_top_videos_dimension_sends_sort_and_max_results() -> None:
     assert calls[1]["maxResults"] == "25"
 
 
+def test_revenue_includes_daily_trend_and_top_videos() -> None:
+    calls: list[Dict[str, Any]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        params = dict(request.url.params)
+        calls.append(params)
+        metrics = params.get("metrics", "")
+        if "estimatedRevenue" in metrics:
+            if params.get("dimensions") == "video":
+                headers = [
+                    {"name": "video", "columnType": "DIMENSION"},
+                    {"name": "estimatedRevenue", "columnType": "METRIC"},
+                    {"name": "estimatedAdRevenue", "columnType": "METRIC"},
+                    {"name": "views", "columnType": "METRIC"},
+                    {"name": "estimatedMinutesWatched", "columnType": "METRIC"},
+                    {"name": "averageViewDuration", "columnType": "METRIC"},
+                ]
+                rows = [["vid_1", 1.5, 1.2, 100, 20, 12]]
+            elif params.get("dimensions") == "day":
+                headers = [
+                    {"name": "day", "columnType": "DIMENSION"},
+                    {"name": "estimatedRevenue", "columnType": "METRIC"},
+                    {"name": "estimatedAdRevenue", "columnType": "METRIC"},
+                ]
+                rows = [["2026-10-01", 1.0, 0.8], ["2026-10-02", 0.5, 0.4]]
+            else:
+                headers = [
+                    {"name": "estimatedRevenue", "columnType": "METRIC"},
+                    {"name": "estimatedAdRevenue", "columnType": "METRIC"},
+                ]
+                rows = [[1.5, 1.2]]
+        elif params.get("dimensions") == "day":
+            headers = [
+                {"name": "day", "columnType": "DIMENSION"},
+                {"name": "views", "columnType": "METRIC"},
+            ]
+            rows = [["2026-10-01", 60], ["2026-10-02", 40]]
+        else:
+            headers = [{"name": "views", "columnType": "METRIC"}]
+            rows = [[100]]
+        return httpx.Response(200, json={"columnHeaders": headers, "rows": rows})
+
+    api = build_api(handler)
+    result = api.query(
+        date_range=DateRange(date(2026, 10, 1), date(2026, 10, 2), "custom"),
+        metrics=["views"],
+        dimensions=["day"],
+        include_revenue=True,
+    )
+
+    assert result.available is True
+    revenue = result.revenue or {}
+    assert revenue["available"] is True
+    assert revenue["amount"] == 1.5
+    assert revenue["ad_revenue"] == 1.2
+    assert [row.dimensions["day"] for row in revenue["daily"]] == ["2026-10-01", "2026-10-02"]
+    assert revenue["top_videos"][0].dimensions["video"] == "vid_1"
+    assert revenue["top_videos"][0].metrics["estimatedRevenue"] == 1.5
+    assert revenue["top_videos"][0].metrics["estimatedMinutesWatched"] == 20
+    assert revenue["top_videos"][0].metrics["averageViewDuration"] == 12
+    video_call = next(call for call in calls if call.get("dimensions") == "video")
+    assert video_call["sort"] == "-estimatedRevenue"
+    assert video_call["maxResults"] == "25"
+    assert "estimatedMinutesWatched" in video_call["metrics"]
+    assert "averageViewDuration" in video_call["metrics"]
+
+
+def test_revenue_scope_missing_keeps_analytics_without_fabricating_revenue() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "estimatedRevenue" in request.url.params.get("metrics", ""):
+            return httpx.Response(
+                403,
+                json={
+                    "error": {
+                        "message": "Request had insufficient authentication scopes.",
+                        "errors": [{"reason": "insufficientPermissions"}],
+                    }
+                },
+            )
+        headers = [{"name": "views", "columnType": "METRIC"}]
+        return httpx.Response(200, json={"columnHeaders": headers, "rows": [[10]]})
+
+    api = build_api(handler)
+    result = api.query(
+        date_range=DateRange(date(2026, 10, 1), date(2026, 10, 2), "custom"),
+        metrics=["views"],
+        include_revenue=True,
+    )
+
+    assert result.available is True
+    assert result.revenue is not None
+    assert result.revenue["available"] is False
+    assert result.revenue["reason"] == "insufficient_scope"
+    assert "amount" not in result.revenue
+
+
 def test_unknown_analytics_metric_is_rejected_before_network_call() -> None:
     def handler(request: httpx.Request) -> httpx.Response:  # pragma: no cover
         raise AssertionError("network should not be reached")

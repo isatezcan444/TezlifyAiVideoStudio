@@ -30,9 +30,10 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           <button
             type="button"
             onClick={onToggleMobileMenu}
+            aria-label="Menüyü aç"
             className="lg:hidden p-2 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="w-5 h-5" aria-hidden="true" />
           </button>
 
           <div className="truncate">
@@ -65,11 +66,18 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
 
           {/* Theme Switcher Button */}
           <button
+            type="button"
             onClick={onToggleTheme}
+            aria-label={isDark ? 'Açık moda geç' : 'Koyu moda geç'}
+            aria-pressed={isDark}
             className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
             title={isDark ? 'Açık Mod' : 'Koyu Mod'}
           >
-            {isDark ? <Sun className="w-5 h-5 text-[#FF9F43]" /> : <Moon className="w-5 h-5 text-[#7367F0]" />}
+            {isDark ? (
+              <Sun className="w-5 h-5 text-[#FF9F43]" aria-hidden="true" />
+            ) : (
+              <Moon className="w-5 h-5 text-[#7367F0]" aria-hidden="true" />
+            )}
           </button>
         </div>
       </div>

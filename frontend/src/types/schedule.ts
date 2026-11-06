@@ -20,7 +20,10 @@ export interface ScheduledPublish {
   title: string;
   description: string;
   tags: string[];
+  category_id?: string;
   privacy_status: PrivacyStatus;
+  thumbnail_path?: string | null;
+  playlist_id?: string | null;
   scheduled_at_utc: string;
   timezone: string;
   status: ScheduleStatus;
@@ -42,7 +45,10 @@ export interface CreateScheduledPublishPayload {
   title: string;
   description?: string;
   tags?: string[];
+  category_id?: string;
   privacy_status: PrivacyStatus;
+  thumbnail_path?: string | null;
+  playlist_id?: string | null;
   scheduled_at: string;
   timezone: string;
   max_attempts?: number;

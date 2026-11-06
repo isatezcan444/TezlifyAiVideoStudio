@@ -38,7 +38,10 @@ class ScheduledPublishRepositoryImpl(ScheduledPublishRepositoryPort):
             title=model.title,
             description=model.description,
             tags=tags,
+            category_id=model.category_id,
             privacy_status=PrivacyStatus(model.privacy_status),
+            thumbnail_path=model.thumbnail_path,
+            playlist_id=model.playlist_id,
             scheduled_at_utc=self._ensure_utc(model.scheduled_at_utc),
             timezone=model.timezone,
             status=ScheduleStatus(model.status),
@@ -88,7 +91,10 @@ class ScheduledPublishRepositoryImpl(ScheduledPublishRepositoryPort):
                 title=record.title,
                 description=record.description,
                 tags_json=tags_str,
+                category_id=record.category_id,
                 privacy_status=record.privacy_status.value,
+                thumbnail_path=record.thumbnail_path,
+                playlist_id=record.playlist_id,
                 scheduled_at_utc=sched_naive,
                 timezone=record.timezone,
                 status=record.status.value,
@@ -114,7 +120,10 @@ class ScheduledPublishRepositoryImpl(ScheduledPublishRepositoryPort):
             model.title = record.title
             model.description = record.description
             model.tags_json = tags_str
+            model.category_id = record.category_id
             model.privacy_status = record.privacy_status.value
+            model.thumbnail_path = record.thumbnail_path
+            model.playlist_id = record.playlist_id
             model.scheduled_at_utc = sched_naive
             model.timezone = record.timezone
             model.status = record.status.value

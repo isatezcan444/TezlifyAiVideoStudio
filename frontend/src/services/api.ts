@@ -20,6 +20,7 @@ import {
   ChannelVideo,
   ChannelVideoListResponse,
   CommentListResponse,
+  PlaylistItem,
   DashboardSnapshot,
   PlatformDescriptor,
   VideoCategory,
@@ -135,6 +136,20 @@ export const apiService = {
 
   getThumbnailUrl(mediaId: string): string {
     return `${API_BASE}/media/${mediaId}/thumbnail`;
+  },
+
+  async uploadCustomThumbnail(
+    mediaId: string,
+    file: File
+  ): Promise<{ media_id: string; thumbnail_path: string; file_size_bytes: number }> {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${API_BASE}/media/${mediaId}/thumbnail`, {
+      method: 'POST',
+      body: form,
+    });
+    if (!res.ok) throw await parseError(res, 'Kapak görseli yüklenemedi.');
+    return res.json();
   },
 
   // --- Connected accounts ---
@@ -344,9 +359,10 @@ export const apiService = {
   },
 
   async cancelSchedule(scheduleId: string): Promise<ScheduledPublish> {
-    const res = await fetch(`${API_BASE}/scheduler/${scheduleId}/cancel`, { method: 'POST' });
+    const res = await fetch(`${API_BASE}/scheduler/${scheduleId}`, { method: 'DELETE' });
     if (!res.ok) throw await parseError(res, 'Plan iptal edilemedi.');
-    return res.json();
+    const data = await res.json();
+    return data.item ?? data;
   },
 
   async retrySchedule(scheduleId: string, scheduledAt?: string, timezone?: string): Promise<ScheduledPublish> {
@@ -434,6 +450,144 @@ export const apiService = {
     return res.json();
   },
 
+  async listPlaylistItems(
+    playlistId: string,
+    maxResults = 50,
+    channelId?: string | null
+  ): Promise<{ items: PlaylistItem[]; source: string }> {
+    const params = withChannel(new URLSearchParams({ max_results: String(maxResults) }), channelId);
+    const res = await fetch(
+      `${API_BASE}/channels/youtube/playlists/${playlistId}/items?${params.toString()}`
+    );
+    if (!res.ok) throw await parseError(res, 'Oynatma listesi videoları alınamadı.');
+    return res.json();
+  },
+
+  async createPlaylist(
+    payload: { title: string; description?: string; privacy_status?: string },
+    channelId?: string | null
+  ): Promise<{ playlist: ChannelPlaylist; source: string }> {
+    const params = withChannel(new URLSearchParams(), channelId);
+    const res = await fetch(`${API_BASE}/channels/youtube/playlists?${params.toString()}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw await parseError(res, 'Oynatma listesi oluşturulamadı.');
+    return res.json();
+  },
+
+  async addVideoToPlaylist(
+    playlistId: string,
+    videoId: string,
+    channelId?: string | null
+  ): Promise<{ item: PlaylistItem; source: string }> {
+    const params = withChannel(new URLSearchParams(), channelId);
+    const res = await fetch(
+      `${API_BASE}/channels/youtube/playlists/${playlistId}/items?${params.toString()}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ video_id: videoId }),
+      }
+    );
+    if (!res.ok) throw await parseError(res, 'Video oynatma listesine eklenemedi.');
+    return res.json();
+  },
+
+  async removeVideoFromPlaylist(
+    playlistId: string,
+    videoId: string,
+    channelId?: string | null
+  ): Promise<{ success: boolean; playlist_id: string; video_id: string }> {
+    const params = withChannel(new URLSearchParams(), channelId);
+    const res = await fetch(
+      `${API_BASE}/channels/youtube/playlists/${playlistId}/items/${videoId}?${params.toString()}`,
+      { method: 'DELETE' }
+    );
+    if (!res.ok) throw await parseError(res, 'Video oynatma listesinden çıkarılamadı.');
+    return res.json();
+  },
+
+  async updatePlaylist(
+    playlistId: string,
+    payload: { title?: string; description?: string; privacy_status?: string },
+    channelId?: string | null
+  ): Promise<{ playlist: ChannelPlaylist; source: string }> {
+    const params = withChannel(new URLSearchParams(), channelId);
+    const res = await fetch(
+      `${API_BASE}/channels/youtube/playlists/${playlistId}?${params.toString()}`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }
+    );
+    if (!res.ok) throw await parseError(res, 'Oynatma listesi güncellenemedi.');
+    return res.json();
+  },
+
+  async deletePlaylist(
+    playlistId: string,
+    channelId?: string | null
+  ): Promise<{ success: boolean; playlist_id: string }> {
+    const params = withChannel(new URLSearchParams(), channelId);
+    const res = await fetch(
+      `${API_BASE}/channels/youtube/playlists/${playlistId}?${params.toString()}`,
+      { method: 'DELETE' }
+    );
+    if (!res.ok) throw await parseError(res, 'Oynatma listesi silinemedi.');
+    return res.json();
+  },
+
+  async movePlaylistItem(
+    playlistId: string,
+    videoId: string,
+    position: number,
+    channelId?: string | null
+  ): Promise<{ success: boolean; playlist_id: string; video_id: string; position: number }> {
+    const params = withChannel(new URLSearchParams(), channelId);
+    const res = await fetch(
+      `${API_BASE}/channels/youtube/playlists/${playlistId}/items/${videoId}?${params.toString()}`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ position }),
+      }
+    );
+    if (!res.ok) throw await parseError(res, 'Video sırası değiştirilemedi.');
+    return res.json();
+  },
+
+  async deleteChannelVideo(
+    videoId: string,
+    channelId?: string | null
+  ): Promise<{ success: boolean; video_id: string }> {
+    const params = withChannel(new URLSearchParams(), channelId);
+    const res = await fetch(
+      `${API_BASE}/channels/youtube/videos/${videoId}?${params.toString()}`,
+      { method: 'DELETE' }
+    );
+    if (!res.ok) throw await parseError(res, 'Video silinemedi.');
+    return res.json();
+  },
+
+  async setVideoThumbnail(
+    videoId: string,
+    file: File,
+    channelId?: string | null
+  ): Promise<{ video_id: string; updated: boolean; source: string }> {
+    const params = withChannel(new URLSearchParams(), channelId);
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(
+      `${API_BASE}/channels/youtube/videos/${videoId}/thumbnail?${params.toString()}`,
+      { method: 'POST', body: form }
+    );
+    if (!res.ok) throw await parseError(res, 'Video kapağı değiştirilemedi.');
+    return res.json();
+  },
+
   async listVideoCategories(channelId?: string | null): Promise<{ items: VideoCategory[] }> {
     const params = withChannel(new URLSearchParams(), channelId);
     const res = await fetch(`${API_BASE}/channels/youtube/categories?${params.toString()}`);
@@ -447,6 +601,7 @@ export const apiService = {
     endDate?: string;
     dimensions?: string[];
     includeRevenue?: boolean;
+    compare?: boolean;
     channelId?: string | null;
   } = {}): Promise<AnalyticsResponse> {
     const search = withChannel(new URLSearchParams({ range: params.range || '28' }), params.channelId);
@@ -454,6 +609,7 @@ export const apiService = {
     if (params.endDate) search.set('end_date', params.endDate);
     if (params.dimensions?.length) search.set('dimensions', params.dimensions.join(','));
     if (params.includeRevenue) search.set('include_revenue', 'true');
+    if (params.compare) search.set('compare', 'true');
 
     const res = await fetch(`${API_BASE}/channels/youtube/analytics?${search.toString()}`);
     if (!res.ok) throw await parseError(res, 'Analitik verisi alınamadı.');

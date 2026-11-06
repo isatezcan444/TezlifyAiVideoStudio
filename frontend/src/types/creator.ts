@@ -44,6 +44,17 @@ export interface ChannelPlaylist {
   description: string;
   item_count?: number | null;
   published_at?: string | null;
+  privacy_status?: string | null;
+}
+
+export interface PlaylistItem {
+  playlist_item_id: string;
+  playlist_id: string;
+  video_id: string;
+  title: string;
+  thumbnail_url?: string | null;
+  position?: number | null;
+  published_at?: string | null;
 }
 
 export interface ChannelVideoListResponse {
@@ -63,6 +74,17 @@ export interface AnalyticsRow {
   metrics: Record<string, number>;
 }
 
+export interface AnalyticsRevenue {
+  available: boolean;
+  amount?: number | null;
+  ad_revenue?: number | null;
+  currency?: string;
+  daily?: AnalyticsRow[];
+  top_videos?: AnalyticsRow[];
+  note?: string;
+  reason?: string | null;
+}
+
 export interface AnalyticsResult {
   available: boolean;
   source: string;
@@ -73,13 +95,41 @@ export interface AnalyticsResult {
   dimensions: string[];
   totals: Record<string, number>;
   rows: AnalyticsRow[];
-  revenue?: Record<string, unknown> | null;
+  revenue?: AnalyticsRevenue | null;
   fetched_at: string;
+}
+
+export interface AnalyticsDelta {
+  current: number;
+  previous: number;
+  change: number;
+  percent: number | null;
+}
+
+export interface AnalyticsRowComparison {
+  key: string;
+  dimensions: Record<string, string>;
+  previous_metrics: Record<string, number>;
+  deltas: Record<string, AnalyticsDelta>;
+}
+
+export interface AnalyticsComparison {
+  available: boolean;
+  reason?: string | null;
+  range: { start_date: string; end_date: string; days: number };
+  totals?: Record<string, number>;
+  deltas?: Record<string, AnalyticsDelta>;
+  rows?: AnalyticsRowComparison[];
+  revenue?: {
+    amount?: AnalyticsDelta | null;
+    ad_revenue?: AnalyticsDelta | null;
+  } | null;
 }
 
 export interface AnalyticsResponse {
   range: { key: string; start_date: string; end_date: string; days: number };
   analytics: AnalyticsResult;
+  comparison?: AnalyticsComparison | null;
   source: string | null;
   explanation: string | null;
   metric_notes: Record<string, string>;

@@ -389,6 +389,39 @@ class YouTubeApiClientImpl(YouTubePublisherPort):
         except Exception:
             return False
 
+    def add_video_to_playlist(
+        self,
+        access_token: str,
+        playlist_id: str,
+        video_id: str,
+    ) -> bool:
+        url = f"{self.API_BASE}/playlistItems?part=snippet"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json; charset=UTF-8",
+        }
+        body = {
+            "snippet": {
+                "playlistId": playlist_id,
+                "resourceId": {"kind": "youtube#video", "videoId": video_id},
+            }
+        }
+
+        try:
+            resp = self._client.post(url, headers=headers, json=body)
+        except Exception as e:
+            raise PublishDomainException(
+                f"Network error adding video to playlist: {str(e)}"
+            )
+
+        if resp.status_code == 401:
+            raise AuthenticationRequiredException(
+                "Access token expired while adding video to playlist."
+            )
+        if resp.status_code == 403:
+            self._check_quota_and_forbidden_error(resp, "adding video to playlist")
+        return resp.status_code in (200, 201)
+
     def get_video_details(self, access_token: str, video_id: str) -> Dict[str, Any]:
         url = f"{self.API_BASE}/videos?part=snippet,status,processingDetails&id={video_id}"
         headers = {"Authorization": f"Bearer {access_token}"}

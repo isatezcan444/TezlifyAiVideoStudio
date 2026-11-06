@@ -322,6 +322,7 @@ export const UploadVideoPage: React.FC<UploadVideoPageProps> = ({
         onPublishStarted={handlePublishStarted}
         channelId={channelId || null}
         channelName={activeChannel.channel_name}
+        playlistWriteAllowed={capabilityAllows(connection, 'comments')}
       />
     </div>
   );

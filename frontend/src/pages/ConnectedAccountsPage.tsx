@@ -18,6 +18,7 @@ import { CAPABILITY_META, CapabilityName } from '../lib/capabilities';
 import { awaitYouTubeOAuth, openOAuthPopup } from '../lib/youtubeOAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 
 const PLATFORM_META: Record<string, { label: string; color: string }> = {
   youtube: { label: 'YouTube', color: 'text-red-600 bg-red-500/10' },
@@ -56,6 +57,7 @@ export const ConnectedAccountsPage: React.FC = () => {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [granting, setGranting] = useState<string | null>(null);
+  const [disconnectTarget, setDisconnectTarget] = useState<PlatformConnection | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -138,17 +140,12 @@ export const ConnectedAccountsPage: React.FC = () => {
     }
   };
 
-  const handleDisconnect = async (connection: PlatformConnection) => {
-    if (
-      !window.confirm(
-        `${connection.account_display_name} hesabının bağlantısı kaldırılacak. Bu hesaba ait bekleyen yayınlar güvenli şekilde durdurulur. Devam edilsin mi?`
-      )
-    ) {
-      return;
-    }
-    setBusyId(connection.id);
+  const handleDisconnectConfirm = async () => {
+    if (!disconnectTarget) return;
+    setBusyId(disconnectTarget.id);
     try {
-      await apiService.disconnectConnection(connection.id);
+      await apiService.disconnectConnection(disconnectTarget.id);
+      setDisconnectTarget(null);
       await load();
       await refresh();
     } catch (err: any) {
@@ -285,7 +282,7 @@ export const ConnectedAccountsPage: React.FC = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDisconnect(connection)}
+                        onClick={() => setDisconnectTarget(connection)}
                         disabled={busyId === connection.id}
                         className="gap-1.5 border-rose-200 text-xs text-rose-600 hover:bg-rose-50 dark:border-rose-900/40 dark:hover:bg-rose-950/20"
                       >
@@ -483,6 +480,18 @@ export const ConnectedAccountsPage: React.FC = () => {
           </p>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        isOpen={Boolean(disconnectTarget)}
+        onClose={() => setDisconnectTarget(null)}
+        onConfirm={handleDisconnectConfirm}
+        title="Hesap Bağlantısını Kes"
+        description={`${disconnectTarget?.account_display_name ?? ''} hesabının bağlantısı kaldırılacak. Bu hesaba ait bekleyen yayınlar güvenli şekilde durdurulur. Devam edilsin mi?`}
+        confirmLabel="Evet, Bağlantıyı Kes"
+        cancelLabel="Vazgeç"
+        variant="destructive"
+        isLoading={disconnectTarget ? busyId === disconnectTarget.id : false}
+      />
     </div>
   );
 };

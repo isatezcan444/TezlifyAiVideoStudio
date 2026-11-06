@@ -102,7 +102,12 @@ class YouTubeCapabilityService:
                 return False
         return has_capability(connection.granted_scopes, capability)
 
-    def require(self, connection: PlatformConnection, capability: str) -> None:
+    def require(
+        self,
+        connection: PlatformConnection,
+        capability: str,
+        action: Optional[str] = None,
+    ) -> None:
         if not connection.is_active:
             raise ConnectionInactiveException(
                 connection.id, connection.connection_status.value
@@ -114,7 +119,7 @@ class YouTubeCapabilityService:
             raise ValueError(f"Bilinmeyen yetenek: {capability}")
         raise InsufficientScopeException(
             required_scope=required[0],
-            action=_ACTION_TEXT.get(capability, capability),
+            action=action or _ACTION_TEXT.get(capability, capability),
             capability=capability,
         )
 

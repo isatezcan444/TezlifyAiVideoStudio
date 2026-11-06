@@ -311,6 +311,7 @@ def start_publish(
         category_id=req.category_id,
         privacy_status=req.privacy_status,
         thumbnail_path=req.thumbnail_path,
+        playlist_id=req.playlist_id,
         channel_id=req.channel_id,
     )
     result = use_case.execute(dto, async_upload=True)

@@ -49,6 +49,7 @@ class PublishRecordModel(Base):
     total_bytes = Column(Integer, default=0, nullable=False)
     upload_session_uri = Column(Text, nullable=True)
     thumbnail_path = Column(Text, nullable=True)
+    playlist_id = Column(String(64), nullable=True)
     error_code = Column(String(64), nullable=True)
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)

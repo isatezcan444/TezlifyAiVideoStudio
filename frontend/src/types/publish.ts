@@ -41,6 +41,7 @@ export interface StartPublishRequest {
   category_id?: string;
   privacy_status?: PrivacyStatus;
   thumbnail_path?: string | null;
+  playlist_id?: string | null;
 }
 
 export interface PublishRecord {
@@ -60,6 +61,7 @@ export interface PublishRecord {
   total_bytes: number;
   upload_session_uri?: string | null;
   thumbnail_path?: string | null;
+  playlist_id?: string | null;
   error_code?: string | null;
   error_message?: string | null;
   created_at: string;

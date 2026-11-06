@@ -36,6 +36,7 @@ class PublishRecordRepositoryImpl(PublishRecordRepositoryPort):
             total_bytes=model.total_bytes,
             upload_session_uri=model.upload_session_uri,
             thumbnail_path=model.thumbnail_path,
+            playlist_id=model.playlist_id,
             error_code=model.error_code,
             error_message=model.error_message,
             created_at=model.created_at,
@@ -68,6 +69,7 @@ class PublishRecordRepositoryImpl(PublishRecordRepositoryPort):
                 total_bytes=record.total_bytes,
                 upload_session_uri=record.upload_session_uri,
                 thumbnail_path=record.thumbnail_path,
+                playlist_id=record.playlist_id,
                 error_code=record.error_code,
                 error_message=record.error_message,
                 created_at=record.created_at,
@@ -93,6 +95,7 @@ class PublishRecordRepositoryImpl(PublishRecordRepositoryPort):
             model.total_bytes = record.total_bytes
             model.upload_session_uri = record.upload_session_uri
             model.thumbnail_path = record.thumbnail_path
+            model.playlist_id = record.playlist_id
             model.error_code = record.error_code
             model.error_message = record.error_message
             model.updated_at = record.updated_at

@@ -29,6 +29,7 @@ class PublishRecordDTO:
     uploaded_bytes: int
     total_bytes: int
     thumbnail_path: Optional[str]
+    playlist_id: Optional[str]
     error_code: Optional[str]
     error_message: Optional[str]
     created_at: str
@@ -47,6 +48,7 @@ class StartPublishRequestDTO:
     category_id: str = "22"
     privacy_status: str = "private"
     thumbnail_path: Optional[str] = None
+    playlist_id: Optional[str] = None
     channel_id: Optional[str] = None
 
 @dataclass

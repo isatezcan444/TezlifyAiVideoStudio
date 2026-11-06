@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Loader2,
   MessageSquare,
   RefreshCw,
+  Search,
   Send,
   ShieldAlert,
   ShieldCheck,
@@ -31,12 +32,49 @@ export const CommentsPage: React.FC = () => {
   const [videos, setVideos] = useState<ChannelVideo[]>([]);
   const [videoId, setVideoId] = useState('');
   const [comments, setComments] = useState<VideoComment[]>([]);
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<'newest' | 'oldest' | 'likes' | 'replies'>('newest');
+  const [onlyUnanswered, setOnlyUnanswered] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [replyTarget, setReplyTarget] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+
+  const videosById = useMemo(
+    () => Object.fromEntries(videos.map((video) => [video.video_id, video])),
+    [videos]
+  );
+
+  const unansweredCount = comments.filter((comment) => comment.total_reply_count === 0).length;
+  const totalLikes = comments.reduce((sum, comment) => sum + comment.like_count, 0);
+  const videoCount = new Set(comments.map((comment) => comment.video_id)).size;
+
+  const visibleComments = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase('tr');
+    const filtered = comments.filter((comment) => {
+      if (onlyUnanswered && comment.total_reply_count > 0) return false;
+      if (!needle) return true;
+      return `${comment.author} ${comment.text}`
+        .toLocaleLowerCase('tr')
+        .includes(needle);
+    });
+    const publishedAt = (comment: VideoComment) =>
+      comment.published_at ? Date.parse(comment.published_at) : 0;
+    return [...filtered].sort((a, b) => {
+      switch (sort) {
+        case 'oldest':
+          return publishedAt(a) - publishedAt(b);
+        case 'likes':
+          return b.like_count - a.like_count;
+        case 'replies':
+          return b.total_reply_count - a.total_reply_count;
+        default:
+          return publishedAt(b) - publishedAt(a);
+      }
+    });
+  }, [comments, query, sort, onlyUnanswered]);
 
   const loadComments = async (selectedVideoId?: string) => {
     setIsLoading(true);
@@ -125,35 +163,88 @@ export const CommentsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-white/[0.08] dark:bg-[#2F3349] sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={videoId}
-            onChange={(e) => {
-              setVideoId(e.target.value);
-              loadComments(e.target.value);
-            }}
-            className="vuexy-input max-w-xs rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-white/10 dark:bg-white/[0.03]"
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[
+          { label: 'Yorum', value: comments.length },
+          { label: 'Yanıt bekleyen', value: unansweredCount },
+          { label: 'Toplam beğeni', value: totalLikes },
+          { label: 'Video', value: videoCount },
+        ].map((item) => (
+          <div
+            key={item.label}
+            className="rounded-xl border border-slate-200 bg-white p-4 dark:border-white/[0.08] dark:bg-[#2F3349]"
           >
-            <option value="">Tüm kanal yorumları</option>
-            {videos.map((video) => (
-              <option key={video.video_id} value={video.video_id}>
-                {video.title}
-              </option>
-            ))}
-          </select>
-          <span className="text-[11px] text-slate-400">YouTube Data API</span>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-[#7E7F96]">
+              {item.label}
+            </p>
+            <p className="mt-1 text-xl font-extrabold text-slate-800 dark:text-white">
+              {formatNumber(item.value)}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-white/[0.08] dark:bg-[#2F3349]">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={videoId}
+              onChange={(e) => {
+                setVideoId(e.target.value);
+                loadComments(e.target.value);
+              }}
+              className="vuexy-input max-w-xs rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-white/10 dark:bg-white/[0.03]"
+            >
+              <option value="">Tüm kanal yorumları</option>
+              {videos.map((video) => (
+                <option key={video.video_id} value={video.video_id}>
+                  {video.title}
+                </option>
+              ))}
+            </select>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Yazar veya yorum ara"
+                className="vuexy-input w-48 rounded-lg border border-slate-200 bg-slate-50 py-2 pl-8 pr-3 text-xs dark:border-white/10 dark:bg-white/[0.03]"
+              />
+            </div>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as typeof sort)}
+              className="vuexy-input rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-white/10 dark:bg-white/[0.03]"
+              aria-label="Yorum sıralaması"
+            >
+              <option value="newest">En yeni</option>
+              <option value="oldest">En eski</option>
+              <option value="likes">En çok beğenilen</option>
+              <option value="replies">En çok yanıtlanan</option>
+            </select>
+            <label className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-300">
+              <input
+                type="checkbox"
+                checked={onlyUnanswered}
+                onChange={(e) => setOnlyUnanswered(e.target.checked)}
+                className="rounded border-slate-300"
+              />
+              Sadece yanıtlanmamış
+            </label>
+            <span className="text-[11px] text-slate-400">YouTube Data API</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => loadComments(videoId)}
+            disabled={isLoading}
+            className="gap-1.5 text-xs"
+          >
+            {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            Yenile
+          </Button>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => loadComments(videoId)}
-          disabled={isLoading}
-          className="gap-1.5 text-xs"
-        >
-          {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-          Yenile
-        </Button>
       </div>
 
       {!commentsAllowed && (
@@ -214,16 +305,41 @@ export const CommentsPage: React.FC = () => {
           title="Yorum bulunamadı"
           description="Seçilen kapsamda yorum yok. Kanalınızda yorumlar kapalıysa veya henüz yorum yazılmadıysa bu liste boş görünür."
         />
+      ) : visibleComments.length === 0 ? (
+        <EmptyState
+          icon={Search}
+          title="Filtrelere uygun yorum yok"
+          description="Arama metnini veya sıralama filtrelerini değiştirerek tekrar deneyin."
+        />
       ) : (
         <div className="space-y-3">
-          {comments.map((comment) => (
+          {visibleComments.map((comment) => {
+            const video = videosById[comment.video_id];
+            return (
             <Card key={comment.comment_id}>
               <CardContent className="space-y-3 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-xs font-bold text-slate-800 dark:text-white">{comment.author}</p>
+                    <p
+                      data-testid="comment-author"
+                      className="text-xs font-bold text-slate-800 dark:text-white"
+                    >
+                      {comment.author}
+                    </p>
                     <p className="text-[11px] text-slate-400">
-                      {formatDate(comment.published_at)} · {comment.video_id}
+                      {formatDate(comment.published_at)} ·{' '}
+                      {comment.video_id ? (
+                        <a
+                          href={`https://www.youtube.com/watch?v=${comment.video_id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="hover:text-[#7367F0] hover:underline"
+                        >
+                          {video?.title || comment.video_id}
+                        </a>
+                      ) : (
+                        '—'
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 text-[11px] text-slate-400">
@@ -307,7 +423,8 @@ export const CommentsPage: React.FC = () => {
                 )}
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

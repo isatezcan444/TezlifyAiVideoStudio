@@ -1,32 +1,74 @@
-import React, { useState, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 import { Sidebar } from './components/Layout/Sidebar';
 import { TopHeader } from './components/Layout/TopHeader';
 import { DashboardPage } from './pages/DashboardPage';
-import { GlobalDashboardPage } from './pages/GlobalDashboardPage';
-import { ChannelOverviewPage } from './pages/ChannelOverviewPage';
-import { YouTubeVideosPage } from './pages/YouTubeVideosPage';
-import { UploadVideoPage } from './pages/UploadVideoPage';
-import { SchedulerPage } from './pages/SchedulerPage';
-import { AnalyticsPage } from './pages/AnalyticsPage';
-import { CommentsPage } from './pages/CommentsPage';
-import { VideoLibraryPage } from './pages/VideoLibraryPage';
-import { ImportVideoPage } from './pages/ImportVideoPage';
-import { ConnectedAccountsPage } from './pages/ConnectedAccountsPage';
-import { PlatformSettingsPage } from './pages/PlatformSettingsPage';
-import { ApplicationSettingsPage } from './pages/ApplicationSettingsPage';
 import { VideoDetailsModal } from './components/video/VideoDetailsModal';
 import { ChannelPublishModal } from './components/youtube/ChannelPublishModal';
 import { ConfirmDialog } from './components/ui/ConfirmDialog';
+import { useToast } from './components/ui/toast';
 import { useTheme } from './hooks/useTheme';
 import { ChannelProvider } from './context/ChannelContext';
 import { apiService } from './services/api';
 import { MediaAsset, SystemStatus } from './types/media';
+
+const GlobalDashboardPage = lazy(() =>
+  import('./pages/GlobalDashboardPage').then((m) => ({ default: m.GlobalDashboardPage }))
+);
+const ChannelOverviewPage = lazy(() =>
+  import('./pages/ChannelOverviewPage').then((m) => ({ default: m.ChannelOverviewPage }))
+);
+const YouTubeVideosPage = lazy(() =>
+  import('./pages/YouTubeVideosPage').then((m) => ({ default: m.YouTubeVideosPage }))
+);
+const PlaylistsPage = lazy(() =>
+  import('./pages/PlaylistsPage').then((m) => ({ default: m.PlaylistsPage }))
+);
+const UploadVideoPage = lazy(() =>
+  import('./pages/UploadVideoPage').then((m) => ({ default: m.UploadVideoPage }))
+);
+const SchedulerPage = lazy(() =>
+  import('./pages/SchedulerPage').then((m) => ({ default: m.SchedulerPage }))
+);
+const AnalyticsPage = lazy(() =>
+  import('./pages/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage }))
+);
+const CommentsPage = lazy(() =>
+  import('./pages/CommentsPage').then((m) => ({ default: m.CommentsPage }))
+);
+const VideoLibraryPage = lazy(() =>
+  import('./pages/VideoLibraryPage').then((m) => ({ default: m.VideoLibraryPage }))
+);
+const ImportVideoPage = lazy(() =>
+  import('./pages/ImportVideoPage').then((m) => ({ default: m.ImportVideoPage }))
+);
+const ConnectedAccountsPage = lazy(() =>
+  import('./pages/ConnectedAccountsPage').then((m) => ({ default: m.ConnectedAccountsPage }))
+);
+const PlatformSettingsPage = lazy(() =>
+  import('./pages/PlatformSettingsPage').then((m) => ({ default: m.PlatformSettingsPage }))
+);
+const ApplicationSettingsPage = lazy(() =>
+  import('./pages/ApplicationSettingsPage').then((m) => ({ default: m.ApplicationSettingsPage }))
+);
+
+const PageLoader: React.FC = () => (
+  <div
+    role="status"
+    aria-live="polite"
+    className="flex items-center justify-center py-24 text-sm text-slate-400 dark:text-slate-500"
+  >
+    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+    Sayfa yükleniyor...
+  </div>
+);
 
 type TabId =
   | 'global-dashboard'
   | 'dashboard'
   | 'channel-overview'
   | 'videos'
+  | 'playlists'
   | 'upload-video'
   | 'scheduled-videos'
   | 'analytics'
@@ -39,6 +81,7 @@ type TabId =
 
 export const App: React.FC = () => {
   const { isDark, toggleTheme } = useTheme();
+  const { notify } = useToast();
 
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -85,7 +128,11 @@ export const App: React.FC = () => {
       if (selectedVideo?.id === videoToDelete.id) setSelectedVideo(null);
       setVideoToDelete(null);
     } catch (err: any) {
-      alert(`Silme işlemi başarısız: ${err.message || 'Bilinmeyen hata'}`);
+      notify({
+        variant: 'error',
+        title: 'Silme işlemi başarısız',
+        description: err.message || 'Bilinmeyen hata',
+      });
     } finally {
       setIsDeleting(false);
     }
@@ -101,6 +148,8 @@ export const App: React.FC = () => {
         return { title: 'Kanal Özeti', subtitle: 'Bağlı YouTube kanalı profili ve oynatma listeleri' };
       case 'videos':
         return { title: 'Videolar', subtitle: 'Kanal videoları, meta veri düzenleme ve gizlilik yönetimi' };
+      case 'playlists':
+        return { title: 'Oynatma Listeleri', subtitle: 'Kanal oynatma listeleri, video ekleme ve düzenleme' };
       case 'upload-video':
         return { title: 'Video Yükle', subtitle: 'Yerel medyayı YouTube resumable upload ile yayınlama' };
       case 'scheduled-videos':
@@ -130,6 +179,12 @@ export const App: React.FC = () => {
   return (
     <ChannelProvider>
     <div className="flex h-screen overflow-hidden bg-[#F8F7FA] dark:bg-[#25293C] text-[#4B465C] dark:text-[#DBD7EC]">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[110] focus:rounded-lg focus:bg-[#7367F0] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+      >
+        İçeriğe geç
+      </a>
       <Sidebar
         activeTab={activeTab}
         setActiveTab={navigate}
@@ -150,7 +205,13 @@ export const App: React.FC = () => {
           onManageAccounts={() => setActiveTab('connected-accounts')}
         />
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+        <main
+          key={activeTab}
+          id="main-content"
+          tabIndex={-1}
+          className="page-enter flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto focus:outline-none"
+        >
+          <Suspense fallback={<PageLoader />}>
           {activeTab === 'global-dashboard' && <GlobalDashboardPage onNavigate={navigate} />}
 
           {activeTab === 'dashboard' && <DashboardPage onNavigate={navigate} />}
@@ -158,6 +219,8 @@ export const App: React.FC = () => {
           {activeTab === 'channel-overview' && <ChannelOverviewPage onNavigate={navigate} />}
 
           {activeTab === 'videos' && <YouTubeVideosPage />}
+
+          {activeTab === 'playlists' && <PlaylistsPage />}
 
           {activeTab === 'upload-video' && (
             <UploadVideoPage
@@ -208,6 +271,7 @@ export const App: React.FC = () => {
           {activeTab === 'app-settings' && (
             <ApplicationSettingsPage systemStatus={systemStatus} onRefreshStatus={fetchAllData} />
           )}
+          </Suspense>
         </main>
       </div>
 

@@ -16,6 +16,7 @@ import {
   Link2,
   SlidersHorizontal,
   Settings,
+  ListMusic,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -48,6 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'YOUTUBE',
       items: [
         { id: 'videos', label: 'Videolar', icon: Video, badge: null },
+        { id: 'playlists', label: 'Oynatma Listeleri', icon: ListMusic, badge: null },
         { id: 'upload-video', label: 'Video Yükle', icon: UploadCloud, badge: null },
         { id: 'scheduled-videos', label: 'Planlanan Videolar', icon: CalendarClock, badge: null },
         { id: 'analytics', label: 'Analitik', icon: BarChart3, badge: null },
@@ -100,10 +102,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         <button
+          type="button"
           onClick={onCloseMobile}
+          aria-label="Menüyü kapat"
           className="lg:hidden p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.05]"
         >
-          <X className="w-5 h-5" />
+          <X className="w-5 h-5" aria-hidden="true" />
         </button>
       </div>
 
@@ -121,7 +125,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <Radio className={`w-3.5 h-3.5 shrink-0 ${isBackendConnected ? 'text-[#28C76F]' : 'text-slate-400'}`} />
       </div>
 
-      <nav className="flex-1 px-3 space-y-4 overflow-y-auto pt-1">
+      <nav aria-label="Ana gezinme" className="flex-1 px-3 space-y-4 overflow-y-auto pt-1">
         {sections.map((section, sIdx) => (
           <div key={sIdx} className="space-y-1">
             <div className="px-3 py-1 text-[10px] font-extrabold text-slate-400 dark:text-[#7E7F96] uppercase tracking-wider">
@@ -133,7 +137,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               return (
                 <button
                   key={item.id}
+                  type="button"
                   onClick={() => handleTabClick(item.id)}
+                  aria-current={isActive ? 'page' : undefined}
                   className={`w-full min-h-[42px] flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer ${
                     isActive
                       ? 'bg-gradient-to-r from-[#7367F0] to-[#867BFF] text-white shadow-md shadow-[#7367F0]/40 font-bold'
@@ -177,8 +183,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="hidden lg:block shrink-0">{sidebarContent}</div>
 
       {isOpenMobile && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity" onClick={onCloseMobile} />
+        <div role="dialog" aria-modal="true" aria-label="Ana menü" className="fixed inset-0 z-50 lg:hidden">
+          <div
+            aria-hidden="true"
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
+            onClick={onCloseMobile}
+          />
           <div className="fixed inset-y-0 left-0 w-64 shadow-2xl">{sidebarContent}</div>
         </div>
       )}

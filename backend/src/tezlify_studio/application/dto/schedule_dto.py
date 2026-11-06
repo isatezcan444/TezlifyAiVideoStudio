@@ -10,7 +10,10 @@ class ScheduledPublishDTO:
     title: str
     description: str
     tags: List[str]
+    category_id: str
     privacy_status: str
+    thumbnail_path: Optional[str]
+    playlist_id: Optional[str]
     scheduled_at_utc: str
     timezone: str
     status: str
@@ -36,7 +39,10 @@ class CreateScheduledPublishDTO:
     timezone: str = "UTC"
     description: str = ""
     tags: List[str] = field(default_factory=list)
+    category_id: str = "22"
     privacy_status: str = "private"
+    thumbnail_path: Optional[str] = None
+    playlist_id: Optional[str] = None
     max_attempts: int = 3
     channel_id: Optional[str] = None
 

@@ -3,7 +3,9 @@ import { PublishRecord } from '../../types/publish';
 import { PublishStatusBadge } from './PublishStatusBadge';
 import { apiService } from '../../services/api';
 import { Button } from '../ui/button';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { Spinner } from '../ui/Spinner';
+import { useToast } from '../ui/toast';
 
 interface PublishProgressCardProps {
   initialRecord: PublishRecord;
@@ -14,8 +16,10 @@ export const PublishProgressCard: React.FC<PublishProgressCardProps> = ({
   initialRecord,
   onRecordUpdated,
 }) => {
+  const { notify } = useToast();
   const [record, setRecord] = useState<PublishRecord>(initialRecord);
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
   // Poll status while job is active
@@ -50,23 +54,31 @@ export const PublishProgressCard: React.FC<PublishProgressCardProps> = ({
       setRecord(updated);
       if (onRecordUpdated) onRecordUpdated(updated);
     } catch (err: any) {
-      alert(`Yükleme devam ettirilemedi: ${err.message || 'Bilinmeyen hata'}`);
+      notify({
+        variant: 'error',
+        title: 'Yükleme devam ettirilemedi',
+        description: err.message || 'Bilinmeyen hata',
+      });
     } finally {
       setIsActionLoading(false);
     }
   };
 
-  const handleCancel = async () => {
-    if (!window.confirm('Bu YouTube yüklemesini iptal etmek istediğinize emin misiniz?')) {
-      return;
-    }
+  const handleCancelRequest = () => setIsCancelDialogOpen(true);
+
+  const handleCancelConfirm = async () => {
     setIsActionLoading(true);
     try {
       const updated = await apiService.cancelPublish(record.id);
       setRecord(updated);
       if (onRecordUpdated) onRecordUpdated(updated);
+      setIsCancelDialogOpen(false);
     } catch (err: any) {
-      alert(`İptal edilemedi: ${err.message || 'Bilinmeyen hata'}`);
+      notify({
+        variant: 'error',
+        title: 'İptal edilemedi',
+        description: err.message || 'Bilinmeyen hata',
+      });
     } finally {
       setIsActionLoading(false);
     }
@@ -103,7 +115,7 @@ export const PublishProgressCard: React.FC<PublishProgressCardProps> = ({
             <Button
               variant="outline"
               size="sm"
-              onClick={handleCancel}
+              onClick={handleCancelRequest}
               disabled={isActionLoading}
               className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200"
             >
@@ -125,7 +137,7 @@ export const PublishProgressCard: React.FC<PublishProgressCardProps> = ({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleCancel}
+                onClick={handleCancelRequest}
                 disabled={isActionLoading}
                 className="text-xs text-rose-600 hover:text-rose-700"
               >
@@ -199,6 +211,18 @@ export const PublishProgressCard: React.FC<PublishProgressCardProps> = ({
           <strong>Hata ({record.error_code || 'Bilinmiyor'}):</strong> {record.error_message}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={isCancelDialogOpen}
+        onClose={() => setIsCancelDialogOpen(false)}
+        onConfirm={handleCancelConfirm}
+        title="Yüklemeyi İptal Et"
+        description="Bu YouTube yüklemesi iptal edilecek. Devam etmek istediğinize emin misiniz?"
+        confirmLabel="Evet, İptal Et"
+        cancelLabel="Vazgeç"
+        variant="destructive"
+        isLoading={isActionLoading}
+      />
     </div>
   );
 };

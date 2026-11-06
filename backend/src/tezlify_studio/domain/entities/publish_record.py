@@ -75,6 +75,7 @@ class PublishRecord:
     total_bytes: int = 0
     upload_session_uri: Optional[str] = None
     thumbnail_path: Optional[str] = None
+    playlist_id: Optional[str] = None
     error_code: Optional[str] = None
     error_message: Optional[str] = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
