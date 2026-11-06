@@ -397,6 +397,95 @@ def test_http_400_becomes_creator_api_exception() -> None:
         api.get_video("video_x")
 
 
+def test_traffic_source_dimension_uses_google_identifier_and_keeps_public_key() -> None:
+    calls: list[Dict[str, Any]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(dict(request.url.params))
+        if "dimensions" in request.url.params:
+            headers = [
+                {"name": "insightTrafficSourceType", "columnType": "DIMENSION"},
+                {"name": "views", "columnType": "METRIC"},
+            ]
+            rows = [["YT_SEARCH", 10]]
+        else:
+            headers = [{"name": "views", "columnType": "METRIC"}]
+            rows = [[10]]
+        return httpx.Response(200, json={"columnHeaders": headers, "rows": rows})
+
+    api = build_api(handler)
+    result = api.query(
+        date_range=DateRange(date(2026, 10, 1), date(2026, 10, 2), "custom"),
+        metrics=["views"],
+        dimensions=["trafficSourceType"],
+    )
+
+    assert calls[1]["dimensions"] == "insightTrafficSourceType"
+    assert result.rows[0].dimensions == {"trafficSourceType": "YT_SEARCH"}
+
+
+def test_reports_without_subscriber_metrics_drop_them_from_dimension_query() -> None:
+    calls: list[Dict[str, Any]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(dict(request.url.params))
+        if "dimensions" in request.url.params:
+            headers = [
+                {"name": "deviceType", "columnType": "DIMENSION"},
+                {"name": "views", "columnType": "METRIC"},
+            ]
+            rows = [["MOBILE", 10]]
+        else:
+            headers = [
+                {"name": "views", "columnType": "METRIC"},
+                {"name": "subscribersGained", "columnType": "METRIC"},
+                {"name": "subscribersLost", "columnType": "METRIC"},
+            ]
+            rows = [[10, 1, 2]]
+        return httpx.Response(200, json={"columnHeaders": headers, "rows": rows})
+
+    api = build_api(handler)
+    result = api.query(
+        date_range=DateRange(date(2026, 10, 1), date(2026, 10, 2), "custom"),
+        metrics=["views", "subscribersGained", "subscribersLost"],
+        dimensions=["deviceType"],
+    )
+
+    # Period totals stay complete; only the grouped report drops unsupported metrics.
+    assert "subscribersGained" in calls[0]["metrics"]
+    assert calls[1]["metrics"] == "views"
+    assert result.totals == {"views": 10.0, "subscribersGained": 1.0, "subscribersLost": 2.0}
+    assert result.rows[0].metrics == {"views": 10.0}
+
+
+def test_top_videos_dimension_sends_sort_and_max_results() -> None:
+    calls: list[Dict[str, Any]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(dict(request.url.params))
+        if "dimensions" in request.url.params:
+            headers = [
+                {"name": "video", "columnType": "DIMENSION"},
+                {"name": "views", "columnType": "METRIC"},
+            ]
+            rows = [["vid_1", 10]]
+        else:
+            headers = [{"name": "views", "columnType": "METRIC"}]
+            rows = [[10]]
+        return httpx.Response(200, json={"columnHeaders": headers, "rows": rows})
+
+    api = build_api(handler)
+    api.query(
+        date_range=DateRange(date(2026, 10, 1), date(2026, 10, 2), "custom"),
+        metrics=["views"],
+        dimensions=["video"],
+    )
+
+    assert calls[1]["dimensions"] == "video"
+    assert calls[1]["sort"] == "-views"
+    assert calls[1]["maxResults"] == "25"
+
+
 def test_unknown_analytics_metric_is_rejected_before_network_call() -> None:
     def handler(request: httpx.Request) -> httpx.Response:  # pragma: no cover
         raise AssertionError("network should not be reached")

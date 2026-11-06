@@ -93,6 +93,19 @@ def parse_iso_duration(value: Optional[str]) -> Optional[int]:
     return int(seconds)
 
 
+# YouTube Analytics v2 exposes the traffic-source report as
+# ``insightTrafficSourceType``, and some report dimensions reject the
+# subscriber metrics. Public dimension keys stay unchanged for the UI/API; only
+# the Google request is adapted. Top-videos reports additionally require both a
+# sort and maxResults, otherwise Google answers "The query is not supported".
+_ANALYTICS_DIMENSION_ALIASES = {"trafficSourceType": "insightTrafficSourceType"}
+_ANALYTICS_UNSUPPORTED_METRICS = {
+    "trafficSourceType": frozenset({"subscribersGained", "subscribersLost"}),
+    "deviceType": frozenset({"subscribersGained", "subscribersLost"}),
+}
+_ANALYTICS_TOP_VIDEOS_LIMIT = 25
+
+
 class YouTubeCreatorApi(ChannelPort, AnalyticsPort, CommentPort):
     """Channel-bound YouTube Data API v3 + Analytics API v2 adapter.
 
@@ -456,15 +469,34 @@ class YouTubeCreatorApi(ChannelPort, AnalyticsPort, CommentPort):
         dimensions: List[str],
         date_range: DateRange,
     ) -> Dict[str, Any]:
+        requested_dimensions = list(dimensions)
+        google_dimensions = [
+            _ANALYTICS_DIMENSION_ALIASES.get(name, name)
+            for name in requested_dimensions
+        ]
+        unsupported_metrics = set().union(
+            *(
+                _ANALYTICS_UNSUPPORTED_METRICS.get(name, frozenset())
+                for name in requested_dimensions
+            )
+        )
+        effective_metrics = [
+            metric for metric in metrics if metric not in unsupported_metrics
+        ]
+
         params: Dict[str, Any] = {
             "ids": f"channel=={self.access.external_channel_id}",
             "startDate": date_range.start_date.isoformat(),
             "endDate": date_range.end_date.isoformat(),
-            "metrics": ",".join(metrics),
+            "metrics": ",".join(effective_metrics),
         }
-        if dimensions:
-            params["dimensions"] = ",".join(dimensions)
-            params["sort"] = "-views" if "views" in metrics else dimensions[0]
+        if google_dimensions:
+            params["dimensions"] = ",".join(google_dimensions)
+            params["sort"] = (
+                "-views" if "views" in effective_metrics else google_dimensions[0]
+            )
+            if "video" in requested_dimensions:
+                params["maxResults"] = _ANALYTICS_TOP_VIDEOS_LIMIT
 
         try:
             response = self._client.get(
@@ -508,7 +540,15 @@ class YouTubeCreatorApi(ChannelPort, AnalyticsPort, CommentPort):
         data = response.json()
         headers = data.get("columnHeaders", [])
         raw_rows = data.get("rows", [])
-        dimension_names = [header["name"] for header in headers if header.get("columnType") == "DIMENSION"]
+        reverse_dimension_names = {
+            google: requested
+            for requested, google in zip(requested_dimensions, google_dimensions)
+        }
+        dimension_names = [
+            reverse_dimension_names.get(header["name"], header["name"])
+            for header in headers
+            if header.get("columnType") == "DIMENSION"
+        ]
         metric_names = [header["name"] for header in headers if header.get("columnType") == "METRIC"]
 
         parsed_rows: List[AnalyticsRow] = []
