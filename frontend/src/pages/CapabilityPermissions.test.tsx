@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AnalyticsPage } from './AnalyticsPage';
 import { CommentsPage } from './CommentsPage';
 import { ConnectedAccountsPage } from './ConnectedAccountsPage';
+import { PlatformSettingsPage } from './PlatformSettingsPage';
 import { UploadVideoPage } from './UploadVideoPage';
 import { apiService } from '../services/api';
 import type { AnalyticsResponse, VideoComment } from '../types/creator';
@@ -350,6 +351,8 @@ describe('AnalyticsPage permission states', () => {
 
     expect(await screen.findByText('YouTube Analytics API etkin değil')).toBeInTheDocument();
     expect(screen.getByText(/Google Cloud Console/)).toBeInTheDocument();
+    expect(screen.getByText(/Analytics · API kapalı/)).toBeInTheDocument();
+    expect(screen.queryByText(/api_not_enabled/)).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Analytics izni ver' })
     ).not.toBeInTheDocument();
@@ -388,5 +391,120 @@ describe('CommentsPage write permission', () => {
     expect(await screen.findByText('Harika video')).toBeInTheDocument();
     expect(screen.queryByText('Yorum yönetimi izni gerekiyor')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Yanıtla/ })).toBeEnabled();
+  });
+});
+
+describe('PlatformSettingsPage capability presentation', () => {
+  it('uses localized labels for every capability and hides unknown technical keys', async () => {
+    api.listPlatforms.mockResolvedValue([
+      {
+        id: 'youtube',
+        display_name: 'YouTube',
+        implemented: true,
+        capabilities: {
+          connect_oauth: true,
+          disconnect: true,
+          list_accounts: true,
+          list_channels: true,
+          get_channel_profile: true,
+          list_videos: true,
+          upload_video: true,
+          update_video: true,
+          get_analytics: false,
+          read_comments: true,
+          write_comments: true,
+          schedule_publish: true,
+          monetization_revenue: false,
+          mystery_capability: false,
+        },
+      },
+    ]);
+
+    render(<PlatformSettingsPage />);
+
+    expect(await screen.findByText('Kanal profili')).toBeInTheDocument();
+    expect(screen.getByText('Video güncelleme')).toBeInTheDocument();
+    expect(screen.getByText('Planlı yayın')).toBeInTheDocument();
+    expect(screen.getByText('Tanımsız yetenek')).toBeInTheDocument();
+    expect(screen.queryByText('get_channel_profile')).not.toBeInTheDocument();
+    expect(screen.queryByText('mystery_capability')).not.toBeInTheDocument();
+  });
+
+  it('never shows Analytics as open when the connection reports api_not_enabled', async () => {
+    api.listPlatforms.mockResolvedValue([
+      {
+        id: 'youtube',
+        display_name: 'YouTube',
+        implemented: true,
+        capabilities: { get_analytics: true },
+      },
+    ]);
+    const connection = makeConnection({ analytics: 'api_not_enabled' });
+    api.listConnections.mockResolvedValue({ items: [connection], total: 1 });
+
+    render(<PlatformSettingsPage />);
+
+    expect(await screen.findByText('API kapalı')).toBeInTheDocument();
+    expect(screen.getByText(/Google Cloud Console/)).toBeInTheDocument();
+    expect(screen.getByText('adaptör desteği var')).toBeInTheDocument();
+    expect(screen.queryByText('Açık')).not.toBeInTheDocument();
+    expect(screen.queryByText('Adaptör destekliyor')).not.toBeInTheDocument();
+  });
+
+  it('does not copy the connection Analytics state onto unimplemented platforms', async () => {
+    api.listPlatforms.mockResolvedValue([
+      {
+        id: 'youtube',
+        display_name: 'YouTube',
+        implemented: true,
+        capabilities: { get_analytics: true },
+      },
+      {
+        id: 'instagram',
+        display_name: 'Instagram',
+        implemented: false,
+        capabilities: { get_analytics: false },
+      },
+    ]);
+    const connection = makeConnection({ analytics: 'api_not_enabled' });
+    api.listConnections.mockResolvedValue({ items: [connection], total: 1 });
+
+    render(<PlatformSettingsPage />);
+
+    expect(await screen.findByText('API kapalı')).toBeInTheDocument();
+    expect(screen.getAllByText('API kapalı')).toHaveLength(1);
+    expect(screen.getAllByText('Kapalı')).toHaveLength(1);
+  });
+});
+
+describe('ConnectedAccountsPage primary badge', () => {
+  it('renders a single primary badge when several enabled channels are flagged primary', async () => {
+    const connection = makeConnection();
+    connection.channels = [
+      { ...connection.channels[0], id: 'ch_1', channel_name: 'Kanal Bir', is_primary: true },
+      { ...connection.channels[0], id: 'ch_2', channel_name: 'Kanal İki', is_primary: true },
+    ];
+    mockContext.connections = [connection];
+    api.listConnections.mockResolvedValue({ items: [connection], total: 1 });
+
+    render(<ConnectedAccountsPage />);
+
+    expect(await screen.findByText('Kanal Bir')).toBeInTheDocument();
+    expect(screen.getAllByText('birincil')).toHaveLength(1);
+  });
+
+  it('does not label a disabled legacy primary channel', async () => {
+    const connection = makeConnection();
+    connection.channels = [
+      { ...connection.channels[0], id: 'ch_enabled', channel_name: 'Kanal Bir', is_primary: false, is_enabled: true },
+      { ...connection.channels[0], id: 'ch_legacy', channel_name: 'UC_RESILIENCE', is_primary: true, is_enabled: false },
+    ];
+    mockContext.connections = [connection];
+    api.listConnections.mockResolvedValue({ items: [connection], total: 1 });
+
+    render(<ConnectedAccountsPage />);
+
+    expect(await screen.findByText('UC_RESILIENCE')).toBeInTheDocument();
+    expect(screen.queryByText('birincil')).not.toBeInTheDocument();
   });
 });

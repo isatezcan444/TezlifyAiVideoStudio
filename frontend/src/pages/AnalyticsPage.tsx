@@ -34,6 +34,19 @@ const METRICS = [
   { key: 'subscribersLost', label: 'Kaybedilen abone' },
 ];
 
+const ANALYTICS_STATUS_LABELS: Record<string, string> = {
+  active: 'aktif',
+  scope_required: 'izin gerekli',
+  reauth_required: 'yeniden bağlan',
+  unavailable: 'kullanılamıyor',
+  api_not_enabled: 'API kapalı',
+  insufficient_scope: 'izin gerekli',
+  not_connected: 'bağlantı yok',
+  quota_exceeded: 'kota aşıldı',
+  forbidden: 'erişim reddedildi',
+  api_error: 'API hatası',
+};
+
 export const AnalyticsPage: React.FC<{ onNavigate: (tab: string) => void }> = ({ onNavigate }) => {
   const { activeChannel, connections, refresh } = useChannelContext();
   const channelId = activeChannel?.id;
@@ -235,7 +248,9 @@ export const AnalyticsPage: React.FC<{ onNavigate: (tab: string) => void }> = ({
               )}
               <span className="text-[11px] text-slate-400 dark:text-[#7E7F96]">
                 {CAPABILITY_META.analytics.label} ·{' '}
-                {unavailableReason ?? analyticsCapability?.status ?? 'unavailable'}
+                {ANALYTICS_STATUS_LABELS[
+                  unavailableReason ?? analyticsCapability?.status ?? 'unavailable'
+                ] ?? 'kullanılamıyor'}
               </span>
             </div>
           </CardContent>

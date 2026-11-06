@@ -44,18 +44,23 @@ class GetGlobalDashboardUseCase:
 
     def execute(self) -> Dict[str, Any]:
         connections = self.connection_repo.list_all(include_disconnected=True)
-        channel_counts: Dict[str, int] = {}
-        for connection in connections:
-            channel_counts[connection.id] = len(
-                self.channel_repo.list_by_connection(connection.id)
-            )
-
-        accounts = [
-            connection_to_dto(
-                connection, self.channel_repo.list_by_connection(connection.id)
-            ).__dict__
+        # Disabled channels stay in the database for history but are not managed
+        # channels; counts and the overview must only reflect usable channels.
+        channels_by_connection = {
+            connection.id: [
+                channel
+                for channel in self.channel_repo.list_by_connection(connection.id)
+                if channel.is_enabled
+            ]
             for connection in connections
-        ]
+        }
+
+        accounts = []
+        for connection in connections:
+            channels = channels_by_connection[connection.id]
+            payload = connection_to_dto(connection, channels).__dict__
+            payload["channel_count"] = len(channels)
+            accounts.append(payload)
 
         records = self.publish_repo.list_by_platform(
             SocialPlatform.YOUTUBE, limit=100000, offset=0
@@ -87,7 +92,7 @@ class GetGlobalDashboardUseCase:
                         1 for connection in youtube_connections if connection.is_active
                     ),
                     "channels": sum(
-                        channel_counts.get(connection.id, 0)
+                        len(channels_by_connection.get(connection.id, []))
                         for connection in youtube_connections
                     ),
                     "publish_records": len(records),
@@ -105,7 +110,7 @@ class GetGlobalDashboardUseCase:
             },
             "totals": {
                 "accounts": len(connections),
-                "channels": sum(channel_counts.values()),
+                "channels": sum(len(channels) for channels in channels_by_connection.values()),
                 "publish_records": len(records),
                 "scheduled_records": len(schedules),
                 "publish_status_counts": status_counts,

@@ -232,6 +232,9 @@ export const ConnectedAccountsPage: React.FC = () => {
           ) : (
             youtubeConnections.map((connection) => {
               const isActive = connection.connection_status === 'active';
+              const primaryChannel = connection.channels.find(
+                (channel) => channel.is_primary && channel.is_enabled
+              );
               return (
                 <div
                   key={connection.id}
@@ -371,7 +374,7 @@ export const ConnectedAccountsPage: React.FC = () => {
                                   <p className="truncate text-xs font-bold text-slate-800 dark:text-white">
                                     {channel.channel_name}
                                   </p>
-                                  {channel.is_primary && (
+                                  {channel.id === primaryChannel?.id && (
                                     <span className="rounded bg-[#7367F0]/10 px-1.5 py-0.5 text-[9px] font-bold text-[#7367F0]">
                                       birincil
                                     </span>
