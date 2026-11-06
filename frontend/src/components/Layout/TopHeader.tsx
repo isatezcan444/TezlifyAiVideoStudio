@@ -23,21 +23,21 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onManageAccounts,
 }) => {
   return (
-    <header className="sticky top-0 z-30 px-4 sm:px-6 lg:px-8 pt-4 pb-2 select-none">
-      <div className="h-16 px-4 sm:px-6 rounded-xl bg-white/95 dark:bg-[#2F3349]/95 backdrop-blur-xl border border-slate-200/80 dark:border-white/[0.08] shadow-xs flex items-center justify-between transition-colors duration-200 gap-4">
+    <header className="sticky top-0 z-30 px-3 sm:px-6 lg:px-8 pt-3 sm:pt-4 pb-2 select-none">
+      <div className="min-h-16 px-2.5 sm:px-6 py-2 sm:py-0 rounded-xl bg-white/95 dark:bg-[#2F3349]/95 backdrop-blur-xl border border-slate-200/80 dark:border-white/[0.08] shadow-xs flex items-center justify-between transition-colors duration-200 gap-2 sm:gap-4">
         {/* Left Side: Mobile Menu Button & Page Title */}
-        <div className="flex items-center space-x-3 truncate">
+        <div className="flex min-w-0 flex-1 items-center space-x-2 sm:space-x-3">
           <button
             type="button"
             onClick={onToggleMobileMenu}
             aria-label="Menüyü aç"
-            className="lg:hidden p-2 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
+            className="lg:hidden shrink-0 p-2 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.05] transition-colors"
           >
             <Menu className="w-5 h-5" aria-hidden="true" />
           </button>
 
-          <div className="truncate">
-            <h1 className="text-base sm:text-lg font-extrabold text-slate-800 dark:text-white tracking-tight truncate">
+          <div className="min-w-0">
+            <h1 className="line-clamp-2 text-sm sm:text-lg font-extrabold text-slate-800 dark:text-white tracking-tight leading-tight sm:line-clamp-1">
               {title}
             </h1>
             {subtitle && (
@@ -57,7 +57,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
               variant="default"
               size="sm"
               onClick={onQuickUpload}
-              className="gap-1.5"
+              className="hidden gap-1.5 sm:flex"
+              aria-label="Video yükle"
             >
               <UploadCloud className="w-4 h-4" />
               <span className="hidden sm:inline">Video Yükle</span>

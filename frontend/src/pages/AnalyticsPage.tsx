@@ -435,7 +435,7 @@ export const AnalyticsPage: React.FC<{ onNavigate: (tab: string) => void }> = ({
                 : 'Önceki dönem verisi alınamadı; yalnızca seçili dönem gösteriliyor.'}
             </p>
           )}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
             {METRICS.map((metric) => {
               const delta = comparison?.available
                 ? comparison.deltas?.[metric.key]
@@ -481,13 +481,14 @@ export const AnalyticsPage: React.FC<{ onNavigate: (tab: string) => void }> = ({
               {rows.length === 0 ? (
                 <p className="py-10 text-center text-xs text-slate-400">Seçilen aralıkta veri yok.</p>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto" role="region" aria-label="Analitik kırılım tablosu" tabIndex={0}>
+                  <p className="mb-2 text-[10px] text-slate-400 sm:hidden">Tüm metrikler için tabloyu yatay kaydırın.</p>
                   <table className="w-full text-left text-xs">
                     <thead className="border-b border-slate-200 text-[10px] font-bold uppercase text-slate-400 dark:border-white/[0.08]">
                       <tr>
-                        <th className="py-2 pr-4">{DIMENSIONS.find((d) => d.key === dimensionKey)?.label}</th>
+                        <th className="whitespace-nowrap py-2 pr-4">{DIMENSIONS.find((d) => d.key === dimensionKey)?.label}</th>
                         {METRICS.map((metric) => (
-                          <th key={metric.key} className="py-2 pr-4 text-right">
+                          <th key={metric.key} className="whitespace-nowrap py-2 pr-4 text-right">
                             {metric.label}
                           </th>
                         ))}
@@ -666,7 +667,8 @@ export const AnalyticsPage: React.FC<{ onNavigate: (tab: string) => void }> = ({
                           Bu dönemde video bazlı gelir raporlanmadı.
                         </p>
                       ) : (
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto" role="region" aria-label="Video bazlı gelir tablosu" tabIndex={0}>
+                          <p className="mb-2 text-[10px] text-slate-400 sm:hidden">Tüm sütunlar için tabloyu yatay kaydırın.</p>
                           <table className="w-full text-left text-xs">
                             <thead className="border-b border-slate-200 text-[10px] font-bold uppercase text-slate-400 dark:border-white/[0.08]">
                               <tr>

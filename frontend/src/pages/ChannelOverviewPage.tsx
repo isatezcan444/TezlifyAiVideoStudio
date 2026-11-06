@@ -213,7 +213,7 @@ export const ChannelOverviewPage: React.FC<{ onNavigate: (tab: string) => void }
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         <StatsCard
           title="Abone"
           value={channel.hidden_subscriber_count ? 'Gizli' : formatNumber(channel.subscriber_count)}
@@ -227,12 +227,13 @@ export const ChannelOverviewPage: React.FC<{ onNavigate: (tab: string) => void }
           subtitle="Yalnızca herkese açık videolar"
           icon={Film}
           variant="success"
+          className="col-span-2 sm:col-span-1"
         />
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
+        <CardHeader className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <CardTitle>Son 28 gün</CardTitle>
             <p className="text-[11px] text-slate-400 dark:text-[#7E7F96]">
               YouTube Analytics API
@@ -257,7 +258,7 @@ export const ChannelOverviewPage: React.FC<{ onNavigate: (tab: string) => void }
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
               {insights.map((insight) => (
                 <div
                   key={insight.key}
@@ -302,7 +303,8 @@ export const ChannelOverviewPage: React.FC<{ onNavigate: (tab: string) => void }
                 Bu dönemde video bazlı analitik veri yok.
               </p>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto" role="region" aria-label="En iyi videolar tablosu" tabIndex={0}>
+                <p className="mb-2 text-[10px] text-slate-400 sm:hidden">Tüm metrikler için tabloyu yatay kaydırın.</p>
                 <table className="w-full text-left text-xs">
                   <thead className="border-b border-slate-200 text-[10px] font-bold uppercase text-slate-400 dark:border-white/[0.08]">
                     <tr>

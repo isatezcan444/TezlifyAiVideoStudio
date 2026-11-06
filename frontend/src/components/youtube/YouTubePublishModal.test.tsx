@@ -65,8 +65,8 @@ function renderModal(overrides: Partial<React.ComponentProps<typeof YouTubePubli
   return { ...utils, onPublishStarted, onClose };
 }
 
-function playlistSelect(container: HTMLElement): HTMLSelectElement {
-  const selects = Array.from(container.querySelectorAll('select'));
+function playlistSelect(): HTMLSelectElement {
+  const selects = Array.from(document.querySelectorAll('select'));
   const select = selects.find((el) =>
     Array.from(el.options).some((option) => option.textContent?.startsWith('Liste Bir'))
   );
@@ -86,12 +86,12 @@ describe('YouTubePublishModal upload studio', () => {
 
   it('loads channel playlists and sends the selected playlist with publish', async () => {
     api.startPublish.mockResolvedValue({ id: 'p1', status: 'pending' } as unknown as PublishRecord);
-    const { container, onPublishStarted } = renderModal();
+    const { onPublishStarted } = renderModal();
 
     await waitFor(() => expect(api.listChannelPlaylists).toHaveBeenCalledWith(50, 'ch1'));
-    await waitFor(() => expect(playlistSelect(container)).toBeEnabled());
+    await waitFor(() => expect(playlistSelect()).toBeEnabled());
 
-    await userEvent.selectOptions(playlistSelect(container), 'PL_ONE');
+    await userEvent.selectOptions(playlistSelect(), 'PL_ONE');
     await userEvent.click(screen.getByRole('button', { name: /Yüklemeyi Başlat/ }));
 
     await waitFor(() => expect(api.startPublish).toHaveBeenCalledTimes(1));
@@ -115,12 +115,12 @@ describe('YouTubePublishModal upload studio', () => {
       file_size_bytes: 68,
     });
     api.startPublish.mockResolvedValue({ id: 'p2', status: 'pending' } as unknown as PublishRecord);
-    const { container } = renderModal();
+    renderModal();
 
     const file = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], 'cover.png', {
       type: 'image/png',
     });
-    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [file] } });
 
     await waitFor(() => expect(api.uploadCustomThumbnail).toHaveBeenCalledWith('m1', file));
@@ -135,12 +135,12 @@ describe('YouTubePublishModal upload studio', () => {
   });
 
   it('rejects unsupported thumbnail types without calling the API', async () => {
-    const { container } = renderModal();
+    renderModal();
 
     const file = new File([new Uint8Array([0x47, 0x49, 0x46])], 'cover.gif', {
       type: 'image/gif',
     });
-    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [file] } });
 
     expect(
@@ -156,10 +156,10 @@ describe('YouTubePublishModal upload studio', () => {
       timezone: 'Europe/Istanbul',
     } as unknown as ScheduledPublish;
     api.createSchedule.mockResolvedValue(scheduled);
-    const { container } = renderModal();
+    renderModal();
 
-    await waitFor(() => expect(playlistSelect(container)).toBeEnabled());
-    await userEvent.selectOptions(playlistSelect(container), 'PL_TWO');
+    await waitFor(() => expect(playlistSelect()).toBeEnabled());
+    await userEvent.selectOptions(playlistSelect(), 'PL_TWO');
     await userEvent.click(screen.getByRole('button', { name: /İleri bir tarihe planla/ }));
     await userEvent.click(screen.getByRole('button', { name: /Yayını Planla/ }));
 
@@ -179,10 +179,10 @@ describe('YouTubePublishModal upload studio', () => {
   });
 
   it('blocks playlist selection when the connection cannot write to playlists', async () => {
-    const { container } = renderModal({ playlistWriteAllowed: false });
+    renderModal({ playlistWriteAllowed: false });
 
     await waitFor(() => expect(api.listChannelPlaylists).toHaveBeenCalled());
-    expect(playlistSelect(container)).toBeDisabled();
+    expect(playlistSelect()).toBeDisabled();
     expect(
       screen.getByText(/YouTube yazma izni \(comments capability\) gerekir/)
     ).toBeInTheDocument();

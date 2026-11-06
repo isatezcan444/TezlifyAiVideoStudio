@@ -64,10 +64,13 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
           />
         </div>
 
-        <div className="flex items-center space-x-2 shrink-0">
+        <div className="flex items-center justify-between space-x-2 shrink-0">
           <div className="flex items-center p-1 rounded-lg bg-slate-100 dark:bg-white/[0.05] border border-slate-200 dark:border-white/[0.08]">
             <button
+              type="button"
               onClick={() => setViewMode('grid')}
+              aria-label="Izgara görünümü"
+              aria-pressed={viewMode === 'grid'}
               className={`p-1.5 rounded-md transition-colors ${
                 viewMode === 'grid'
                   ? 'bg-white dark:bg-[#2F3349] text-[#7367F0] shadow-xs'
@@ -78,7 +81,10 @@ export const VideoLibraryPage: React.FC<VideoLibraryPageProps> = ({
               <LayoutGrid className="w-4 h-4" />
             </button>
             <button
+              type="button"
               onClick={() => setViewMode('list')}
+              aria-label="Liste görünümü"
+              aria-pressed={viewMode === 'list'}
               className={`p-1.5 rounded-md transition-colors ${
                 viewMode === 'list'
                   ? 'bg-white dark:bg-[#2F3349] text-[#7367F0] shadow-xs'

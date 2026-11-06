@@ -32,39 +32,39 @@ export const PublishHistoryTable: React.FC<PublishHistoryTableProps> = ({
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#2F3349]">
+    <div className="overflow-x-auto rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#2F3349]" role="region" aria-label="Yayın geçmişi" tabIndex={0}>
       <table className="w-full text-left border-collapse">
         <thead>
           <tr className="border-b border-slate-200/80 dark:border-slate-800 text-[11px] font-semibold text-[#828092] dark:text-[#908DA1] uppercase tracking-wider bg-slate-50/50 dark:bg-[#25293C]/50">
-            <th className="py-3 px-4">Video / Başlık</th>
-            <th className="py-3 px-4">Gizlilik</th>
-            <th className="py-3 px-4">Durum</th>
-            <th className="py-3 px-4">İlerleme</th>
-            <th className="py-3 px-4">Tarih</th>
-            <th className="py-3 px-4 text-right">İşlem</th>
+            <th className="py-3 px-3 sm:px-4">Video / Başlık</th>
+            <th className="hidden py-3 px-4 sm:table-cell">Gizlilik</th>
+            <th className="py-3 px-3 sm:px-4">Durum</th>
+            <th className="hidden py-3 px-4 md:table-cell">İlerleme</th>
+            <th className="hidden py-3 px-4 sm:table-cell">Tarih</th>
+            <th className="py-3 px-3 text-right sm:px-4">İşlem</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
           {records.map((r) => (
             <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors">
-              <td className="py-3 px-4 max-w-xs truncate font-medium text-[#4B465C] dark:text-[#DBD7EC]">
+              <td className="max-w-[170px] truncate px-3 py-3 font-medium text-[#4B465C] dark:text-[#DBD7EC] sm:max-w-xs sm:px-4">
                 {r.title}
               </td>
-              <td className="py-3 px-4">
+              <td className="hidden px-4 py-3 sm:table-cell">
                 <span className="capitalize px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                   {r.privacy_status}
                 </span>
               </td>
-              <td className="py-3 px-4">
+              <td className="px-3 py-3 sm:px-4">
                 <PublishStatusBadge status={r.status} />
               </td>
-              <td className="py-3 px-4 text-slate-500 dark:text-slate-400 font-mono">
+              <td className="hidden px-4 py-3 font-mono text-slate-500 dark:text-slate-400 md:table-cell">
                 %{r.progress_percentage}
               </td>
-              <td className="py-3 px-4 text-slate-500 dark:text-slate-400 whitespace-nowrap">
+              <td className="hidden whitespace-nowrap px-4 py-3 text-slate-500 dark:text-slate-400 sm:table-cell">
                 {new Date(r.created_at).toLocaleDateString('tr-TR')}
               </td>
-              <td className="py-3 px-4 text-right whitespace-nowrap">
+              <td className="whitespace-nowrap px-3 py-3 text-right sm:px-4">
                 {r.status === 'published' && r.external_video_url ? (
                   <a
                     href={r.external_video_url}

@@ -208,7 +208,7 @@ export const DashboardPage: React.FC<{ onNavigate: (tab: string) => void }> = ({
           )}
 
           {/* Core stats (Data API) */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <StatsCard
               title="Abone"
               value={data.channel?.hidden_subscriber_count ? 'Gizli' : formatNumber(data.channel?.subscriber_count)}
@@ -242,14 +242,14 @@ export const DashboardPage: React.FC<{ onNavigate: (tab: string) => void }> = ({
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
             {/* Views over time */}
             <Card className="xl:col-span-2">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
+              <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
                   <CardTitle>Görüntüleme eğilimi</CardTitle>
                   <p className="text-[11px] text-slate-400 dark:text-[#7E7F96]">
                     Günlük görüntüleme · <SourceBadge source={data.sources.views_over_time} />
                   </p>
                 </div>
-                <span className="text-[11px] text-slate-400">
+                <span className="text-[11px] whitespace-nowrap text-slate-400">
                   {analytics?.start_date} → {analytics?.end_date}
                 </span>
               </CardHeader>

@@ -234,10 +234,10 @@ export const UploadVideoPage: React.FC<UploadVideoPageProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex w-full items-center gap-3 sm:w-auto">
           {videos.length > 0 ? (
             <select
-              className="text-xs px-3 py-2 rounded-lg bg-slate-50 dark:bg-[#25293C] border border-slate-200 dark:border-slate-700 text-[#4B465C] dark:text-[#DBD7EC] focus:outline-none focus:ring-1 focus:ring-[#7367F0]"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-[#4B465C] focus:outline-none focus:ring-1 focus:ring-[#7367F0] dark:border-slate-700 dark:bg-[#25293C] dark:text-[#DBD7EC] sm:w-auto sm:max-w-xs"
               onChange={(e) => {
                 const v = videos.find((item) => item.id === e.target.value);
                 if (v) handleStartPublishFromSelect(v);

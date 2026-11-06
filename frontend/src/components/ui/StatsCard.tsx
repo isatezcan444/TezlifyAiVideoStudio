@@ -41,23 +41,23 @@ export const StatsCard: React.FC<StatsCardProps> = ({
 
   return (
     <Card className={cn('overflow-hidden hover:shadow-lg transition-all', variantStyles.shadow, className)}>
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-slate-500 dark:text-[#7E7F96] tracking-wide uppercase">
+      <CardContent className="p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 space-y-1">
+            <p className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-[#7E7F96] tracking-wide uppercase">
               {title}
             </p>
-            <h3 className="text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight">
+            <h3 className="truncate text-xl sm:text-2xl font-extrabold text-slate-800 dark:text-white tracking-tight">
               {value}
             </h3>
             {subtitle && (
-              <p className="text-xs text-slate-400 dark:text-[#7E7F96]">
+              <p className="line-clamp-2 text-[11px] sm:text-xs text-slate-400 dark:text-[#7E7F96]">
                 {subtitle}
               </p>
             )}
           </div>
-          <div className={cn('p-3 rounded-xl flex items-center justify-center shrink-0', variantStyles.bg)}>
-            <Icon className="w-6 h-6" />
+          <div className={cn('hidden shrink-0 items-center justify-center rounded-xl p-2.5 sm:flex sm:p-3', variantStyles.bg)}>
+            <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
         </div>
       </CardContent>

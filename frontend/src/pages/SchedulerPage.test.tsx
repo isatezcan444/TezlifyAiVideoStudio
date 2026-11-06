@@ -66,7 +66,7 @@ async function renderListWith(schedule: ScheduledPublish) {
 
   fireEvent.click(await screen.findByRole('button', { name: /Liste/ }));
   await screen.findByText('Planlanan Zaman');
-  await screen.findByText(schedule.title);
+  expect((await screen.findAllByText(schedule.title)).length).toBeGreaterThan(0);
 }
 
 describe('SchedulerPage edit, cancel and retry', () => {
@@ -84,7 +84,7 @@ describe('SchedulerPage edit, cancel and retry', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Evet, İptal Et' }));
 
     await waitFor(() => expect(api.cancelSchedule).toHaveBeenCalledWith('sched-1'));
-    await screen.findByText('İptal Edildi');
+    await screen.findAllByText('İptal Edildi');
     expect(screen.queryByTitle('Planı Düzenle')).toBeNull();
   });
 

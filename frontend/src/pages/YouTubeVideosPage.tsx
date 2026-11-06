@@ -201,7 +201,7 @@ export const YouTubeVideosPage: React.FC = () => {
             Liste özel ve liste dışı videoları da içerir; kanal kartındaki video sayısı yalnızca herkese açık videoları sayar.
           </p>
         </div>
-        <Button variant="ghost" size="sm" onClick={load} disabled={isLoading} className="gap-1.5 text-xs">
+        <Button variant="ghost" size="sm" onClick={load} disabled={isLoading} className="gap-1.5 self-end text-xs sm:self-auto">
           {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
           Yenile
         </Button>
@@ -282,7 +282,7 @@ export const YouTubeVideosPage: React.FC = () => {
                     )}
                   </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => openEditor(video)}>
                     <Pencil className="h-3.5 w-3.5" /> Düzenle
                   </Button>

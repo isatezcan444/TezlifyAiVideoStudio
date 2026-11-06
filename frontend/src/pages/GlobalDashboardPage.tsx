@@ -67,13 +67,13 @@ export const GlobalDashboardPage: React.FC<{ onNavigate: (tab: string) => void }
             Hesap, kanal ve yerel yayın kayıtları. YouTube metrikleri kanal bazında ayrı gösterilir.
           </p>
         </div>
-        <Button variant="ghost" size="sm" onClick={load} disabled={isLoading} className="gap-1.5 text-xs">
+        <Button variant="ghost" size="sm" onClick={load} disabled={isLoading} className="gap-1.5 self-end text-xs sm:self-auto">
           {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
           Yenile
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatsCard title="Bağlı hesap" value={String(data.totals.accounts)} subtitle="Yerel veritabanı" icon={Users} variant="primary" />
         <StatsCard title="Yönetilen kanal" value={String(data.totals.channels)} subtitle="Yerel veritabanı" icon={Layers} variant="info" />
         <StatsCard title="Yayın kaydı" value={String(data.totals.publish_records)} subtitle="Yerel veritabanı" icon={UploadCloud} variant="success" />

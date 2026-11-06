@@ -185,61 +185,62 @@ export const CommentsPage: React.FC = () => {
       </div>
 
       <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-white/[0.08] dark:bg-[#2F3349]">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <select
-              value={videoId}
-              onChange={(e) => {
-                setVideoId(e.target.value);
-                loadComments(e.target.value);
-              }}
-              className="vuexy-input max-w-xs rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-white/10 dark:bg-white/[0.03]"
-            >
-              <option value="">Tüm kanal yorumları</option>
-              {videos.map((video) => (
-                <option key={video.video_id} value={video.video_id}>
-                  {video.title}
-                </option>
-              ))}
-            </select>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Yazar veya yorum ara"
-                className="vuexy-input w-48 rounded-lg border border-slate-200 bg-slate-50 py-2 pl-8 pr-3 text-xs dark:border-white/10 dark:bg-white/[0.03]"
-              />
-            </div>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as typeof sort)}
-              className="vuexy-input rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-white/10 dark:bg-white/[0.03]"
-              aria-label="Yorum sıralaması"
-            >
-              <option value="newest">En yeni</option>
-              <option value="oldest">En eski</option>
-              <option value="likes">En çok beğenilen</option>
-              <option value="replies">En çok yanıtlanan</option>
-            </select>
-            <label className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-300">
-              <input
-                type="checkbox"
-                checked={onlyUnanswered}
-                onChange={(e) => setOnlyUnanswered(e.target.checked)}
-                className="rounded border-slate-300"
-              />
-              Sadece yanıtlanmamış
-            </label>
-            <span className="text-[11px] text-slate-400">YouTube Data API</span>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center">
+          <select
+            value={videoId}
+            onChange={(e) => {
+              setVideoId(e.target.value);
+              loadComments(e.target.value);
+            }}
+            className="vuexy-input w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-white/10 dark:bg-white/[0.03] lg:w-auto lg:max-w-xs"
+          >
+            <option value="">Tüm kanal yorumları</option>
+            {videos.map((video) => (
+              <option key={video.video_id} value={video.video_id}>
+                {video.title}
+              </option>
+            ))}
+          </select>
+          <div className="relative w-full lg:w-48">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Yazar veya yorum ara"
+              className="vuexy-input w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-8 pr-3 text-xs dark:border-white/10 dark:bg-white/[0.03]"
+            />
           </div>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as typeof sort)}
+            className="vuexy-input w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-white/10 dark:bg-white/[0.03] sm:w-auto"
+            aria-label="Yorum sıralaması"
+          >
+            <option value="newest">En yeni</option>
+            <option value="oldest">En eski</option>
+            <option value="likes">En çok beğenilen</option>
+            <option value="replies">En çok yanıtlanan</option>
+          </select>
+          <label className="flex w-full items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-300 sm:w-auto">
+            <input
+              type="checkbox"
+              checked={onlyUnanswered}
+              onChange={(e) => setOnlyUnanswered(e.target.checked)}
+              className="rounded border-slate-300"
+            />
+            Sadece yanıtlanmamış
+          </label>
+          <span className="hidden text-[11px] text-slate-400 lg:inline">YouTube Data API</span>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[11px] text-slate-400 lg:hidden">YouTube Data API</span>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => loadComments(videoId)}
             disabled={isLoading}
-            className="gap-1.5 text-xs"
+            className="ml-auto gap-1.5 text-xs"
           >
             {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             Yenile

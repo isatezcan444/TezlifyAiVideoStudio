@@ -146,9 +146,9 @@ export const SchedulerPage: React.FC<SchedulerPageProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap sm:justify-end">
           {/* View Toggle */}
-          <div className="bg-slate-200/60 dark:bg-white/[0.06] p-1 rounded-xl flex items-center gap-1">
+          <div className="flex items-center gap-1 rounded-xl bg-slate-200/60 p-1 dark:bg-white/[0.06]">
             <button
               onClick={() => setViewMode('calendar')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
@@ -175,7 +175,7 @@ export const SchedulerPage: React.FC<SchedulerPageProps> = ({
 
           <Button
             onClick={handleCreateNew}
-            className="bg-[#7367F0] hover:bg-[#685dd8] text-white flex items-center gap-2 text-xs h-9 shadow-md shadow-[#7367F0]/20"
+            className="flex h-9 w-full items-center justify-center gap-2 bg-[#7367F0] text-xs text-white shadow-md shadow-[#7367F0]/20 hover:bg-[#685dd8] sm:w-auto"
           >
             <Plus className="w-4 h-4" />
             <span>Yeni Yayın Planla</span>

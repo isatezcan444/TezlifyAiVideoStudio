@@ -43,8 +43,8 @@ export const ApplicationSettingsPage: React.FC<ApplicationSettingsPageProps> = (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* System Overview Card */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
+        <CardHeader className="flex flex-row items-start justify-between gap-3">
+          <div className="min-w-0">
             <CardTitle>Sistem ve Çevre Durumu</CardTitle>
             <p className="text-xs text-slate-500 dark:text-[#7E7F96]">
               Yerel YouTube Creator Studio çalışma ortamı ve araç denetimi
@@ -54,7 +54,7 @@ export const ApplicationSettingsPage: React.FC<ApplicationSettingsPageProps> = (
             variant="outline"
             size="sm"
             onClick={onRefreshStatus}
-            className="gap-1.5"
+            className="shrink-0 gap-1.5"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Yenile</span>
@@ -143,15 +143,15 @@ export const ApplicationSettingsPage: React.FC<ApplicationSettingsPageProps> = (
             <div className="space-y-1 font-mono text-[11px] text-slate-600 dark:text-slate-300">
               <div>
                 <span className="text-slate-400">Ana Veri Dizini: </span>
-                <span>{systemStatus?.data_dir || './data'}</span>
+                <span className="break-all">{systemStatus?.data_dir || './data'}</span>
               </div>
               <div>
                 <span className="text-slate-400">SQLite Veritabanı: </span>
-                <span>{systemStatus?.data_dir}/database/tezlify_studio.db</span>
+                <span className="break-all">{systemStatus?.data_dir}/database/tezlify_studio.db</span>
               </div>
               <div>
                 <span className="text-slate-400">Medya Kütüphanesi: </span>
-                <span>{systemStatus?.data_dir}/media/</span>
+                <span className="break-all">{systemStatus?.data_dir}/media/</span>
               </div>
             </div>
           </div>

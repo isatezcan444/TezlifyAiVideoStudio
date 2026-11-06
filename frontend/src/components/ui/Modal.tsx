@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -86,7 +87,7 @@ export const Modal: React.FC<ModalProps> = ({
     '4xl': 'max-w-4xl',
   }[maxWidth];
 
-  return (
+  return createPortal(
     <div className="overlay-enter fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
       <div
         ref={panelRef}
@@ -99,10 +100,10 @@ export const Modal: React.FC<ModalProps> = ({
           maxWidthClasses
         )}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-white/[0.08]">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3.5 dark:border-white/[0.08] sm:px-6 sm:py-4">
           <h2
             id={titleId}
-            className="text-base font-bold text-slate-800 dark:text-white"
+            className="min-w-0 text-sm font-bold text-slate-800 dark:text-white sm:text-base"
           >
             {title}
           </h2>
@@ -115,8 +116,9 @@ export const Modal: React.FC<ModalProps> = ({
             <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
-        <div className="p-6 overflow-y-auto">{children}</div>
+        <div className="overflow-y-auto p-4 sm:p-6">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

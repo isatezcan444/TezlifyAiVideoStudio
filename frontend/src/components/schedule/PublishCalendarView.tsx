@@ -104,33 +104,37 @@ export const PublishCalendarView: React.FC<PublishCalendarViewProps> = ({
   return (
     <div className="bg-white dark:bg-[#2F3349] rounded-2xl border border-slate-200/80 dark:border-white/[0.08] shadow-sm overflow-hidden transition-colors">
       {/* Calendar Header Controls */}
-      <div className="p-4 border-b border-slate-100 dark:border-white/[0.08] flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100 capitalize">
+      <div className="flex items-center justify-between gap-2 border-b border-slate-100 p-3 dark:border-white/[0.08] sm:p-4">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <h3 className="truncate text-sm font-semibold capitalize text-slate-800 dark:text-slate-100 sm:text-base">
             {monthName}
           </h3>
           <Button
             variant="outline"
             size="sm"
             onClick={goToToday}
-            className="text-xs h-7 px-2.5"
+            className="h-7 shrink-0 px-2.5 text-xs"
           >
             Bugün
           </Button>
         </div>
 
-        <div className="flex items-center space-x-1">
+        <div className="flex shrink-0 items-center space-x-1">
           <button
+            type="button"
             onClick={prevMonth}
-            className="p-1.5 rounded-lg border border-slate-200 dark:border-white/[0.08] hover:bg-slate-50 dark:hover:bg-white/[0.05] text-slate-600 dark:text-slate-300 transition-colors"
+            aria-label="Önceki ay"
+            className="rounded-lg border border-slate-200 p-1.5 text-slate-600 transition-colors hover:bg-slate-50 dark:border-white/[0.08] dark:text-slate-300 dark:hover:bg-white/[0.05]"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4" aria-hidden="true" />
           </button>
           <button
+            type="button"
             onClick={nextMonth}
-            className="p-1.5 rounded-lg border border-slate-200 dark:border-white/[0.08] hover:bg-slate-50 dark:hover:bg-white/[0.05] text-slate-600 dark:text-slate-300 transition-colors"
+            aria-label="Sonraki ay"
+            className="rounded-lg border border-slate-200 p-1.5 text-slate-600 transition-colors hover:bg-slate-50 dark:border-white/[0.08] dark:text-slate-300 dark:hover:bg-white/[0.05]"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -143,7 +147,7 @@ export const PublishCalendarView: React.FC<PublishCalendarViewProps> = ({
       </div>
 
       {/* Days Grid */}
-      <div className="grid grid-cols-7 auto-rows-[110px] divide-x divide-y divide-slate-100 dark:divide-white/[0.06]">
+      <div className="grid grid-cols-7 auto-rows-[84px] divide-x divide-y divide-slate-100 dark:divide-white/[0.06] sm:auto-rows-[110px]">
         {calendarCells.map((cell, idx) => {
           const y = cell.date.getFullYear();
           const m = (cell.date.getMonth() + 1).toString().padStart(2, '0');
@@ -176,11 +180,13 @@ export const PublishCalendarView: React.FC<PublishCalendarViewProps> = ({
 
                 {cell.isCurrentMonth && (
                   <button
+                    type="button"
                     onClick={() => onNewScheduleOnDate(cell.date)}
                     title="Bu tarihe yayın planla"
-                    className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-[#7367F0] transition-opacity"
+                    aria-label={`${cell.date.getDate()} tarihine yayın planla`}
+                    className="rounded-md p-2 text-slate-400 transition-opacity hover:text-[#7367F0] sm:p-1 sm:opacity-0 sm:group-hover:opacity-100"
                   >
-                    <Plus className="w-3.5 h-3.5" />
+                    <Plus className="w-3.5 h-3.5" aria-hidden="true" />
                   </button>
                 )}
               </div>

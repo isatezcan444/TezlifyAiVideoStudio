@@ -18,18 +18,18 @@ export const SchedulerStatusCard: React.FC<SchedulerStatusCardProps> = ({
 
   return (
     <div className="bg-white dark:bg-[#2F3349] rounded-2xl p-5 border border-slate-200/80 dark:border-white/[0.08] shadow-sm transition-colors mb-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-white/[0.08]">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+      <div className="flex flex-col gap-4 border-b border-slate-100 pb-4 dark:border-white/[0.08] sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-start space-x-3">
+          <div className="w-10 h-10 shrink-0 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
             <Activity className="w-5 h-5" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100">
+          <div className="min-w-0">
+            <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
+              <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100 sm:text-base">
                 Arka Plan Zamanlayıcı Motoru (Scheduler Service)
               </h3>
               <span
-                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                className={`inline-flex shrink-0 items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
                   isRunning
                     ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
                     : 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20'
