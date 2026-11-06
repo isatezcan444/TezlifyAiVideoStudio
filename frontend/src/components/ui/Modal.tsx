@@ -14,6 +14,8 @@ interface ModalProps {
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+let openModalCount = 0;
+
 export const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
@@ -33,6 +35,8 @@ export const Modal: React.FC<ModalProps> = ({
     if (!isOpen) return;
 
     const previouslyFocused = document.activeElement as HTMLElement | null;
+    openModalCount += 1;
+    document.body.dataset.modalOpen = 'true';
     document.body.style.overflow = 'hidden';
 
     const getFocusable = () =>
@@ -71,7 +75,11 @@ export const Modal: React.FC<ModalProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'unset';
+      openModalCount = Math.max(0, openModalCount - 1);
+      if (openModalCount === 0) {
+        delete document.body.dataset.modalOpen;
+        document.body.style.overflow = 'unset';
+      }
       previouslyFocused?.focus?.();
     };
   }, [isOpen]);

@@ -317,7 +317,7 @@ export const AnalyticsPage: React.FC<{ onNavigate: (tab: string) => void }> = ({
                 type="checkbox"
                 checked={includeRevenue}
                 onChange={(e) => setIncludeRevenue(e.target.checked)}
-                className="rounded border-slate-300"
+                className="form-checkbox h-3.5 w-3.5 shrink-0"
               />
               Gelir verisi iste
             </label>
@@ -326,7 +326,7 @@ export const AnalyticsPage: React.FC<{ onNavigate: (tab: string) => void }> = ({
                 type="checkbox"
                 checked={compare}
                 onChange={(e) => setCompare(e.target.checked)}
-                className="rounded border-slate-300"
+                className="form-checkbox h-3.5 w-3.5 shrink-0"
               />
               Önceki dönemle karşılaştır
             </label>

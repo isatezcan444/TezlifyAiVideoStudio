@@ -227,7 +227,7 @@ export const CommentsPage: React.FC = () => {
               type="checkbox"
               checked={onlyUnanswered}
               onChange={(e) => setOnlyUnanswered(e.target.checked)}
-              className="rounded border-slate-300"
+              className="form-checkbox h-3.5 w-3.5 shrink-0"
             />
             Sadece yanıtlanmamış
           </label>

@@ -407,7 +407,7 @@ export const ConnectedAccountsPage: React.FC = () => {
                                   checked={channel.is_enabled}
                                   disabled={busyId === channel.id}
                                   onChange={(e) => handleToggleChannel(channel.id, e.target.checked)}
-                                  className="h-3.5 w-3.5 accent-[#7367F0]"
+                                  className="form-checkbox h-3.5 w-3.5 shrink-0"
                                 />
                                 Yönetimde
                               </label>

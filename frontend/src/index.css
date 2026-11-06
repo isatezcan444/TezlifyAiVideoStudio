@@ -35,6 +35,10 @@
     outline-offset: 2px;
   }
 
+  body[data-modal-open='true'] .app-scroll {
+    overflow: hidden;
+  }
+
   ::selection {
     background-color: rgba(115, 103, 240, 0.22);
   }
@@ -174,6 +178,40 @@
   border-color: #7367F0;
   box-shadow: 0 0 0 3px rgba(115, 103, 240, 0.25);
   background-color: #2F3349;
+}
+
+/* Brand checkbox */
+.form-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: #FFFFFF;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  border: 1px solid #CBD5E1;
+  border-radius: 4px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.form-checkbox:checked {
+  background-color: #7367F0;
+  border-color: #7367F0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-6'/%3E%3C/svg%3E");
+}
+
+.form-checkbox:focus-visible {
+  outline: 2px solid #7367F0;
+  outline-offset: 2px;
+}
+
+.dark .form-checkbox {
+  background-color: #3B4054;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.dark .form-checkbox:checked {
+  background-color: #7367F0;
+  border-color: #7367F0;
 }
 
 /* Custom Scrollbar */

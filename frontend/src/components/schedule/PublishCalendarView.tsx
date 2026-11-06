@@ -184,7 +184,7 @@ export const PublishCalendarView: React.FC<PublishCalendarViewProps> = ({
                     onClick={() => onNewScheduleOnDate(cell.date)}
                     title="Bu tarihe yayın planla"
                     aria-label={`${cell.date.getDate()} tarihine yayın planla`}
-                    className="rounded-md p-2 text-slate-400 transition-opacity hover:text-[#7367F0] sm:p-1 sm:opacity-0 sm:group-hover:opacity-100"
+                    className="rounded-md p-2 text-slate-400 transition-opacity hover:text-[#7367F0] xl:opacity-0 xl:group-hover:opacity-100 xl:focus-visible:opacity-100"
                   >
                     <Plus className="w-3.5 h-3.5" aria-hidden="true" />
                   </button>

@@ -352,7 +352,7 @@ export const DashboardPage: React.FC<{ onNavigate: (tab: string) => void }> = ({
                         href={`https://www.youtube.com/watch?v=${video.video_id}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-slate-400 hover:text-[#7367F0]"
+                        className="-m-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:text-[#7367F0]"
                         aria-label="YouTube'da aç"
                       >
                         <ExternalLink className="h-4 w-4" />

@@ -194,7 +194,7 @@ export const App: React.FC = () => {
         onCloseMobile={() => setIsMobileMenuOpen(false)}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+      <div className="app-scroll flex-1 flex flex-col min-w-0 overflow-y-auto">
         <TopHeader
           title={headerInfo.title}
           subtitle={headerInfo.subtitle}

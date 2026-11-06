@@ -14,6 +14,7 @@ function renderModal(isOpen: boolean, onClose = vi.fn()) {
 describe('Modal accessibility', () => {
   beforeEach(() => {
     document.body.style.overflow = '';
+    delete document.body.dataset.modalOpen;
   });
 
   it('exposes a labelled modal dialog and focuses its first control', () => {
@@ -36,6 +37,22 @@ describe('Modal accessibility', () => {
 
     fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
     expect(last).toHaveFocus();
+  });
+
+  it('locks background scroll while open and releases it on close', () => {
+    const { rerender } = renderModal(true);
+
+    expect(document.body.dataset.modalOpen).toBe('true');
+    expect(document.body.style.overflow).toBe('hidden');
+
+    rerender(
+      <Modal isOpen={false} onClose={vi.fn()} title="Test Modalı">
+        <button type="button">Birinci</button>
+      </Modal>,
+    );
+
+    expect(document.body.dataset.modalOpen).toBeUndefined();
+    expect(document.body.style.overflow).not.toBe('hidden');
   });
 
   it('closes on escape and restores the previous focus', () => {
