@@ -16,6 +16,8 @@ build/
 .pytest_cache/
 .coverage
 htmlcov/
+# Accidental uv lockfile; the documented install path is pip + requirements.txt.
+/backend/uv.lock
 
 # Node & Frontend
 node_modules/
@@ -35,6 +37,7 @@ data/database/*.db*
 data/database/*.sqlite*
 data/database/*.db-shm
 data/database/*.db-wal
+data/database/backups/
 data/media/*
 !data/media/.gitkeep
 data/temp/*
